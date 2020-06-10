@@ -1,4 +1,4 @@
-extern crate pointcloud_processing as pc;
+extern crate pointctl as pc;
 
 use clap::{crate_version, App, Arg, SubCommand};
 

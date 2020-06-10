@@ -1,5 +1,5 @@
 [package]
-name = "pointcloud-processing"
+name = "pointctl"
 version = "0.1.0"
 authors = ["Gijs van Steenpaal <gijs.van.steenpaal@gmail.com>"]
 edition = "2018"

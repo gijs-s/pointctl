@@ -194,7 +194,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pointcloud-processing"
+name = "pointctl"
 version = "0.1.0"
 dependencies = [
  "clap",
