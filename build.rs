@@ -1,23 +1,23 @@
-use std::env;
 use std::process::Command;
 
 fn main() {
-    let _out_dir = env::var("OUT_DIR").unwrap();
+    // let _out_dir = env::var("OUT_DIR").unwrap();
+    let out_dir = "./kernels/compiled";
+    let input_dir = "./kernels";
+    let source_files = vec!["add", "hello-world"];
 
-    // Note that there are a number of downsides to this approach, the comments
-    // below detail how to improve the portability of these commands.
-    let status = Command::new("nvcc")
-        .args(&[
-            "./kernels/add.cu",
-            "--ptx",
-            "-o",
-            "./kernels/compiled/add.ptx",
-        ])
-        .status().unwrap();
+    for file in source_files {
+        let status = Command::new("nvcc")
+            .arg(&format!("{}/{}.cu", input_dir, file))
+            .args(&["--ptx", "-o"])
+            .arg(&format!("{}/{}.ptx", out_dir, file))
+            .status()
+            .unwrap();
 
-    if !status.success() {
-        println!("nvcc compile of '{}' exited with {}", "add", status);
-        panic!("nvcc compile failed");
+        if !status.success() {
+            println!("nvcc compile of '{}' exited with {}", file, status);
+            panic!("nvcc compile failed");
+        }
+        println!("cargo:rerun-if-changed=kernels/{}.cu", file);
     }
-    println!("cargo:rerun-if-changed=kernels/add.cu");
 }
