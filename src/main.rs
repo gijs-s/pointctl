@@ -3,9 +3,10 @@ extern crate pointctl as pc;
 use clap::{crate_version, App, Arg, SubCommand};
 
 use pc::generate::generate_cube;
-use pc::ply::write;
+use pc::fs::ply::write;
 
 fn main() {
+    // TODO: Move this entire mess to a yaml file. See https://docs.rs/clap/2.33.1/clap/
     let matches = App::new("Point cloud processing")
         .version(crate_version!())
         .author("Gijs van Steenpaal <g.j.vansteenpaal@students.uu.nl>")
@@ -37,6 +38,26 @@ fn main() {
                     Arg::with_name("debug")
                         .short("d")
                         .help("print debug information verbosely"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("metric")
+                .about("Calculate a single metric given the original and reduced dataset (2D only for now)")
+                .arg(
+                    Arg::with_name("orginal_data")
+                        .short("i")
+                        .required(true)
+                        .help("The original dataset in ply or csv format"),
+                )
+                .arg(
+                    Arg::with_name("reduced_data")
+                        .short("r")
+                        .required(true)
+                        .help("The reduced dataset in ply or csv format"),
+                ).arg(
+                    Arg::with_name("output_image")
+                    .short("o")
+                    .help("The image to output too, if absent the images will just be shown."),
                 ),
         )
         .get_matches();
@@ -76,10 +97,10 @@ fn main() {
         let res = generate_cube(points, 0.05);
         println!("Generated {} points", res.len());
 
+        // TODO: make this optionally write to a csv instead.
         match write(res, file) {
             Ok(_) => println!("All points written to file"),
-            Err(e) => println!("Error when writing to file: {:?}", e)
+            Err(e) => println!("Error when writing to file: {:?}", e),
         };
-
     }
 }
