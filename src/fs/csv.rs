@@ -18,3 +18,8 @@ pub fn write(points: Vec<Vec<f32>>, file_path: &str) -> std::io::Result<()> {
     }
     Ok(())
 }
+
+pub fn read(_file_path: &str) -> std::io::Result<Vec<Vec<f32>>> {
+    println!("Reading as fast as i can, seriously i try");
+    Ok(Vec::new())
+}
