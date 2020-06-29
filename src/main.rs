@@ -2,19 +2,57 @@ extern crate pointctl as pc;
 
 use clap::{crate_version, App, Arg, SubCommand};
 
-use pc::generate::generate_cube;
 use pc::fs::ply::write;
+use pc::generate::generate_cube;
 
 fn main() {
     // TODO: Move this entire mess to a yaml file. See https://docs.rs/clap/2.33.1/clap/
     let matches = App::new("Point cloud processing")
         .version(crate_version!())
         .author("Gijs van Steenpaal <g.j.vansteenpaal@students.uu.nl>")
-        .about("Program for reading and processing point clouds")
+        .about("Program for generating, processing and explaining point clouds")
+        .subcommand(
+            SubCommand::with_name("reduce").about("Reduce a nD dataset to 2D or 3D"),
+        )
+        .subcommand(
+            SubCommand::with_name("explain")
+                .about("Calculate a explanation given the original and reduced dataset (2D only for now)")
+                .arg(
+                    Arg::with_name("original_data")
+                        .short("i")
+                        .required(true)
+                        .help("The original dataset in ply or csv format"),
+                )
+                .arg(
+                    Arg::with_name("reduced_data")
+                        .short("r")
+                        .required(true)
+                        .help("The reduced dataset in ply or csv format"),
+                ).arg(
+                    Arg::with_name("output_image")
+                    .short("o")
+                    .help("The image to output too, if absent the images will just be shown."),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("view")
+                .about("View a set of possibly annotated points")
+                .arg(
+                    Arg::with_name("reduced_data")
+                        .short("i")
+                        .required(true)
+                        .help("The reduced dataset in ply or csv format"),
+                )
+                .arg(
+                    Arg::with_name("annotations")
+                        .short("a")
+                        .required(true)
+                        .help("Collection of annotations in ply or csv format"),
+                ),
+        )
         .subcommand(
             SubCommand::with_name("generate")
                 .about("Generate synthetic point clouds")
-                .author("Gijs van Steenpaal <g.j.vansteenpaal@students.uu.nl>")
                 .arg(
                     Arg::with_name("points")
                         .short("p")
@@ -31,51 +69,12 @@ fn main() {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("test")
-                .about("controls testing features")
-                .author("Gijs van Steenpaal <g.j.vansteenpaal@students.uu.nl>")
-                .arg(
-                    Arg::with_name("debug")
-                        .short("d")
-                        .help("print debug information verbosely"),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("metric")
-                .about("Calculate a single metric given the original and reduced dataset (2D only for now)")
-                .arg(
-                    Arg::with_name("orginal_data")
-                        .short("i")
-                        .required(true)
-                        .help("The original dataset in ply or csv format"),
-                )
-                .arg(
-                    Arg::with_name("reduced_data")
-                        .short("r")
-                        .required(true)
-                        .help("The reduced dataset in ply or csv format"),
-                ).arg(
-                    Arg::with_name("output_image")
-                    .short("o")
-                    .help("The image to output too, if absent the images will just be shown."),
-                ),
+            SubCommand::with_name("modify")
+                .about("Modify a point cloud quickly. Used to scale, move and rotate points."),
         )
         .get_matches();
 
-    // Calling .unwrap() is safe here because "INPUT" is required (if "INPUT" wasn't
-    // required we could have used an 'if let' to conditionally get the value)
-    // println!("Using input file: {}", matches.value_of("INPUT").unwrap());
-
-    // You can handle information about subcommands by requesting their matches by name
-    // (as below), requesting just the name used, or both at the same time
-    if let Some(matches) = matches.subcommand_matches("test") {
-        if matches.is_present("debug") {
-            println!("Printing debug info...");
-        } else {
-            println!("Printing normally...");
-        }
-    }
-
+    // TODO: Move the matching of each subcommand into their own functions.
     if let Some(matches) = matches.subcommand_matches("generate") {
         let points: i32 = match matches.value_of("points") {
             None => {
