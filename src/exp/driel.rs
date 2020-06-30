@@ -9,20 +9,30 @@
 // which is efficient to compute, scales well visually for large and dense MP scatterplots, and can handle any projection technique.
 // We demonstrate our approach using several datasets.
 
-use crate::util::types::Point;
-use super::common::{AnnotatedPoint, Explanation};
+use super::common::{Point, AnnotatedPoint, ExplanationMechanism};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct ExplanationDriel {
     dimension: i32,
     confidence: f32,
 }
 
-impl Explanation<ExplanationDriel> for ExplanationDriel {
+#[derive(Debug, PartialEq)]
+struct DrielState {
+    points_ref: Vec<Point>
+}
+
+impl ExplanationMechanism<ExplanationDriel> for DrielState {
+    fn new(dataset: Vec<Point>) -> DrielState {
+        DrielState { points_ref: dataset}
+    }
+
+
     // Placeholder explanation for a point.
     fn explain(point: Point) -> AnnotatedPoint<ExplanationDriel>{
         AnnotatedPoint {
-            point: point,
+            reduced: point.reduced,
+            original: point.original,
             annotation: ExplanationDriel {
                 dimension: 1,
                 confidence: 0.5,

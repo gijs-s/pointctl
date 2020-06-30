@@ -2,3 +2,7 @@
 
 # Generated Cuda files
 *.ptx
+
+# Generated dataset files
+*.ply
+*.csv

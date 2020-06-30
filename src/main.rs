@@ -1,9 +1,13 @@
 extern crate pointctl as pc;
 
-use clap::{crate_version, App, Arg, SubCommand};
+use std::ffi::OsStr;
+use std::path::Path;
 
-use pc::fs::ply::write;
+use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
+
+use pc::fs;
 use pc::generate::generate_cube;
+use pc::util::validator;
 
 fn main() {
     // TODO: Move this entire mess to a yaml file. See https://docs.rs/clap/2.33.1/clap/
@@ -59,6 +63,7 @@ fn main() {
                         .long("points")
                         .required(true)
                         .takes_value(true)
+                        .validator(validator::is_integer)
                         .help("Amount of point used to generate"),
                 )
                 .arg(
@@ -68,38 +73,88 @@ fn main() {
                         .index(1),
                 ),
         )
-        .subcommand(
-            SubCommand::with_name("modify")
-                .about("Modify a point cloud quickly. Used to scale, move and rotate points."),
-        )
         .get_matches();
 
-    // TODO: Move the matching of each subcommand into their own functions.
-    if let Some(matches) = matches.subcommand_matches("generate") {
-        let points: i32 = match matches.value_of("points") {
-            None => {
-                println!("Points where not specified, defaulting to 10000");
-                10_000
-            }
-            Some(s) => match s.parse::<i32>() {
-                Ok(n) => n,
-                Err(_) => {
-                    println!("Points argument was not a number, defaulting to 10000");
-                    10_000
-                }
-            },
-        };
-
-        let file = matches.value_of("OUTPUT").unwrap();
-
-        println!("Will generate {} points", points);
-        let res = generate_cube(points, 0.05);
-        println!("Generated {} points", res.len());
-
-        // TODO: make this optionally write to a csv instead.
-        match write(res, file) {
-            Ok(_) => println!("All points written to file"),
-            Err(e) => println!("Error when writing to file: {:?}", e),
-        };
+    match matches.subcommand() {
+        ("reduce", Some(_sub_m)) => reduce_command(_sub_m),
+        ("explain", Some(sub_m)) => explain_command(sub_m),
+        ("view", Some(_sub_m)) => view_command(_sub_m),
+        ("generate", Some(sub_m)) => generate_command(sub_m),
+        (cmd, _) => println!("Could not parse options for `{}`", cmd),
     }
+}
+
+// Generate datasets
+// pointclt generate 1000 ./output.csv
+fn generate_command(matches: &ArgMatches) {
+    // Find amount of points to generate from args, default to 10k
+    let point_count: i32 = match matches.value_of("points") {
+        None => {
+            println!("Points where not specified, defaulting to 10000");
+            10_000
+        }
+        Some(s) => match s.trim().parse::<i32>() {
+            Ok(n) => n,
+            Err(_) => {
+                eprintln!("Points argument was not a number");
+                panic!("")
+            }
+        },
+    };
+
+    println!("Will generate {} points in cube pattern", point_count);
+
+    // Find exactly to which file we will write and in which format.
+    let output_file_path = matches.value_of("OUTPUT").unwrap();
+    let output_file = Path::new(output_file_path);
+    let file_extension = match output_file.extension().and_then(OsStr::to_str) {
+        Some(v) => match v {
+            "csv" => fs::SupportedFileFormat::CSV,
+            "ply" => fs::SupportedFileFormat::PLY,
+            e => {
+                print!("Unsupported file format `{}` passed, defaulting to csv", e);
+                fs::SupportedFileFormat::CSV
+            }
+        },
+        None => {
+            print!("No file format passed, defaulting to csv");
+            fs::SupportedFileFormat::CSV
+        }
+    };
+
+    // generate the points
+    // TODO: Allow support for choosing different patterns here
+    let generated_points = generate_cube(point_count, 0.05);
+    println!("Generated {} points", generated_points.len());
+
+    // Do a buffered write to file for all the points
+    let res = match file_extension {
+        fs::SupportedFileFormat::CSV => fs::csv::write(generated_points, output_file),
+        fs::SupportedFileFormat::PLY => fs::ply::write(generated_points, output_file),
+    };
+
+    match res {
+        Ok(_) => println!("All points written to file"),
+        Err(e) => println!("Error when writing to file: {:?}", e),
+    };
+}
+
+// Explain a dataset
+fn explain_command(_matches: &ArgMatches) {
+    // Retrieve the points from the original dataset
+    // Retrieve the points from the reduced dataset
+    // Zip these point into the Point format
+    // Create a Da Silva explanation mechanism
+    // Run the data through the mechanism and get a vector of annotated points back
+    // Write these annotated points to file
+    println!("Got some args");
+}
+
+// Command used to reduce datasets
+fn reduce_command(_matches: &ArgMatches) {
+    println!("`reduce` not yet implemented")
+}
+
+fn view_command(_matches: &ArgMatches) {
+    println!("`view` not yet implemented")
 }

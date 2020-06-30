@@ -8,21 +8,44 @@
 // this, we rank dimensions by increasing variance over each point-neighborhood, and propose a visual encoding to show the
 // least-varying dimensions over each neighborhood. We demonstrate our technique with both synthetic and real-world datasets.
 
-use crate::util::types::Point;
-use super::common::{AnnotatedPoint, Explanation};
+// use crate::util::types::{Point3, PointN};
+use super::common::{AnnotatedPoint, ExplanationMechanism, Point};
+
+use std::collections::HashMap;
 
 #[derive(Debug)]
-struct ExplanationDaSilva {
+struct DaSilvaExplanation {
     attribute_index: i32,
     confidence: f32,
 }
 
-impl Explanation<ExplanationDaSilva> for ExplanationDaSilva {
+struct DaSilvaState {
+    // Reference to all points in the dataset.
+    points_ref: Vec<Point>,
+    // The global dimension ranking for each dimension. Only top 8 will be used to colour encode.
+    global_dimension_ranking: HashMap<i32, i32>,
+}
+
+impl DaSilvaState {
+    pub fn new(points: Vec<Point>) -> DaSilvaState {
+        DaSilvaState {
+            points_ref: points,
+            global_dimension_ranking: HashMap::new(),
+        }
+    }
+}
+
+impl ExplanationMechanism<DaSilvaExplanation> for DaSilvaState {
+    fn init(dataset: Vec<Point>) -> DaSilvaState {
+        DaSilvaState::new(dataset)
+    }
+
     // Placeholder explanation for a point.
-    fn explain(point: Point) -> AnnotatedPoint<ExplanationDaSilva>{
+    fn explain(&self, point: Point) -> AnnotatedPoint<DaSilvaExplanation> {
         AnnotatedPoint {
-            point: point,
-            annotation: ExplanationDaSilva {
+            reduced: point.reduced,
+            original: point.original,
+            annotation: DaSilvaExplanation {
                 attribute_index: 1,
                 confidence: 0.5,
             },
