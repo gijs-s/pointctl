@@ -34,3 +34,15 @@ pub fn generate_cube(points: i32, noise: f32) -> Vec<Vec<f32>> {
     }
     res
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generate_correct_number(){
+        assert_eq!(0, generate_cube(0, 0.0).len());
+        assert_eq!(10, generate_cube(10, 0.0).len());
+        assert_eq!(10_000, generate_cube(10_000, 0.0).len());
+    }
+}
