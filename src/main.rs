@@ -2,6 +2,7 @@ extern crate pointctl as pc;
 
 use std::ffi::OsStr;
 use std::path::Path;
+use std::process::exit;
 
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 
@@ -97,7 +98,7 @@ fn generate_command(matches: &ArgMatches) {
             Ok(n) => n,
             Err(_) => {
                 eprintln!("Points argument was not a number");
-                panic!("")
+                exit(1);
             }
         },
     };
@@ -135,7 +136,10 @@ fn generate_command(matches: &ArgMatches) {
 
     match res {
         Ok(_) => println!("All points written to file"),
-        Err(e) => println!("Error when writing to file: {:?}", e),
+        Err(e) => {
+            eprintln!("Error when writing to file: {:?}", e);
+            exit(1);
+        },
     };
 }
 
