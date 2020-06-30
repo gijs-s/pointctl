@@ -156,9 +156,18 @@ fn explain_command(_matches: &ArgMatches) {
 
 // Command used to reduce datasets
 fn reduce_command(_matches: &ArgMatches) {
+    // Load in the nD dataset
+    // Preform TSNE data reduction with the given arguments
+    // Write the reduced 3D data to a new file
     println!("`reduce` not yet implemented")
 }
 
 fn view_command(_matches: &ArgMatches) {
+    // Load in a custom file with annotated points
+    // Determine which explanation was used, for now always only da silva
+    // Pass the data to a viewing mechanism, which will
+    //  - Create a color pallet for dimensions based on the global dimension randing
+    //  - Render all the points with the given color
+    // The viewing mechanism should allow basic navigation but need the ability for custom interactions in the future
     println!("`view` not yet implemented")
 }
