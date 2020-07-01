@@ -13,31 +13,34 @@ use super::common::{AnnotatedPoint, ExplanationMechanism, Point};
 
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct DaSilvaExplanation {
     attribute_index: i32,
     confidence: f32,
 }
 
+#[derive(Debug, PartialEq)]
 struct DaSilvaState {
     // Reference to all points in the dataset.
     points_ref: Vec<Point>,
     // The global dimension ranking for each dimension. Only top 8 will be used to colour encode.
     global_dimension_ranking: HashMap<i32, i32>,
+    neighborhood_size: i32,
 }
 
 impl DaSilvaState {
-    pub fn new(points: Vec<Point>) -> DaSilvaState {
+    pub fn new(points: Vec<Point>, neighborhood_size: i32) -> DaSilvaState {
         DaSilvaState {
             points_ref: points,
             global_dimension_ranking: HashMap::new(),
+            neighborhood_size: neighborhood_size,
         }
     }
 }
 
 impl ExplanationMechanism<DaSilvaExplanation> for DaSilvaState {
     fn init(dataset: Vec<Point>) -> DaSilvaState {
-        DaSilvaState::new(dataset)
+        DaSilvaState::new(dataset, 20)
     }
 
     // Placeholder explanation for a point.
