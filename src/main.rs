@@ -11,10 +11,7 @@ use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 use pc::exp;
 use pc::fs::prelude::{read, write};
 use pc::generate::generate_cube;
-use pc::util::{
-    types::Point3,
-    validator,
-};
+use pc::util::{types::Point3, validator};
 
 fn main() {
     // TODO: Move this entire mess to a yaml file. See https://docs.rs/clap/2.33.1/clap/
@@ -172,11 +169,14 @@ fn explain_command(matches: &ArgMatches) {
         .map(|(o, r)| exp::common::Point {
             reduced: r,
             original: o.to_owned(),
-        });
+        })
+        .collect::<Vec<exp::common::Point>>();
 
-    println!("{} Points structs created", points.len());
+    println!("{} Points structures created", points.len());
 
-    // Create a Da Silva explanation mechanism
+    // Create a Da Silva explanation mechanism, TODO switch
+    let _mech = exp::da_silva::DaSilvaState::new(points, 20);
+
     // Run the data through the mechanism and get a vector of annotated points back
     // Write these annotated points to file
 }

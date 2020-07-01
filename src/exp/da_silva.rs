@@ -20,7 +20,7 @@ struct DaSilvaExplanation {
 }
 
 #[derive(Debug, PartialEq)]
-struct DaSilvaState {
+pub struct DaSilvaState {
     // Reference to all points in the dataset.
     points_ref: Vec<Point>,
     // The global dimension ranking for each dimension. Only top 8 will be used to colour encode.
