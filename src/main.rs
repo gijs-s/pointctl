@@ -186,7 +186,7 @@ fn reduce_command(_matches: &ArgMatches) {
     // Load in the nD dataset
     // Preform TSNE data reduction with the given arguments
     // Write the reduced 3D data to a new file
-    println!("`reduce` not yet implemented")
+    println!("`reduce` not yet implemented. You can use python's SciKit learn for now")
 }
 
 fn view_command(_matches: &ArgMatches) {
