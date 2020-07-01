@@ -25,6 +25,7 @@ struct DaSilvaState {
     points_ref: Vec<Point>,
     // The global dimension ranking for each dimension. Only top 8 will be used to colour encode.
     global_dimension_ranking: HashMap<i32, i32>,
+    // The size of the neigborhoud in which to calculate the local metrics.
     neighborhood_size: i32,
 }
 

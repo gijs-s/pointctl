@@ -1,9 +1,6 @@
-pub mod csv;
-pub mod ply;
+// File type specific options.
+mod csv;
+mod ply;
 
-
-// Enum for supported file formats
-pub enum SupportedFileFormat {
-    CSV,
-    PLY,
-}
+// Public facing functions
+pub mod prelude;

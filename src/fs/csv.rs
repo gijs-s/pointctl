@@ -1,9 +1,16 @@
+//! A small helper for reading and writing CSV files without headers
+//
+// TODO: use nom instead of of manual stuff.
+
 use std::fs::File;
 use std::io::prelude::*;
-use std::io::BufWriter;
+use std::io::{BufReader, BufWriter};
 use std::path::Path;
+use std::process::exit;
 
-pub fn write(points: Vec<Vec<f32>>, file_path: &Path) -> std::io::Result<()> {
+use crate::util::types::PointN;
+
+pub fn write(file_path: &Path, points: Vec<PointN>) -> std::io::Result<()> {
     let mut buffer = BufWriter::new(File::create(file_path)?);
 
     // File does not have a header
@@ -24,7 +31,49 @@ pub fn write(points: Vec<Vec<f32>>, file_path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn read(_file_path: &str) -> std::io::Result<Vec<Vec<f32>>> {
-    println!("Reading as fast as i can, seriously i try");
-    Ok(Vec::new())
+// Read a CSV file from disk
+pub fn read(file_path: &Path) -> std::io::Result<(Vec<PointN>, usize)> {
+    let buffer = BufReader::new(File::open(file_path)?);
+    let points = buffer
+        .lines()
+        .into_iter()
+        .map(|line| match line {
+            Ok(line) => {
+                // We read a line from the file, split on `;` and attempt to parse each float.
+                match line
+                    .split(';')
+                    .map(|s| s.trim().parse::<f32>())
+                    .collect::<Result<Vec<_>, _>>()
+                {
+                    // All floats parsed successfully, return the point
+                    Ok(point) => point,
+                    Err(e) => {
+                        eprintln!("Error parsing float in csv file: `{:?}`. Affected line:\n{}", e, line);
+                        exit(11)
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Error reading line from csv: {:?}", e);
+                exit(12)
+            }
+        })
+        .collect::<Vec<PointN>>();
+
+    let length = match points.first() {
+        Some(vec) => vec.len(),
+        None => {
+            eprintln!("CSV file was empty");
+            exit(13)
+        }
+    };
+
+    if points.iter().any(|p| length != p.len()) {
+        eprintln!("Not all points have the same dimensionality");
+        exit(14);
+    }
+
+    Ok((points, length))
 }
+
+// TODO: Add tests for reading data.

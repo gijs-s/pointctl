@@ -1,10 +1,16 @@
+//! A small helper for reading and writing PLY files.
+//
+// TODO: use nom to create a parser for the files.
+
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufWriter;
 use std::path::Path;
 
+use crate::util::types::PointN;
+
 /// Write all points to a simple ply file
-pub fn write(points: Vec<Vec<f32>>, file_path: &Path) -> std::io::Result<()> {
+pub fn write(file_path: &Path, points: Vec<PointN>) -> std::io::Result<()> {
     let mut buffer = BufWriter::new(File::create(file_path)?);
 
     // Very basic simple header, assumes the data is 3D
@@ -23,4 +29,10 @@ pub fn write(points: Vec<Vec<f32>>, file_path: &Path) -> std::io::Result<()> {
         };
     }
     Ok(())
+}
+
+// Read a CSV file from disk
+// TODO: Build this using NOM
+pub fn read(_file_path: &Path) -> std::io::Result<(Vec<PointN>, usize)> {
+    unimplemented!("Reading from PLY is not yet supported")
 }

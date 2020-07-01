@@ -1,14 +1,20 @@
 extern crate pointctl as pc;
 
-use std::ffi::OsStr;
+// Build in imports
 use std::path::Path;
 use std::process::exit;
 
+// Third party imports
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 
-use pc::fs;
+// Local imports
+use pc::exp;
+use pc::fs::prelude::{read, write};
 use pc::generate::generate_cube;
-use pc::util::validator;
+use pc::util::{
+    types::Point3,
+    validator,
+};
 
 fn main() {
     // TODO: Move this entire mess to a yaml file. See https://docs.rs/clap/2.33.1/clap/
@@ -21,22 +27,26 @@ fn main() {
         )
         .subcommand(
             SubCommand::with_name("explain")
+                .alias("exp")
                 .about("Calculate a explanation given the original and reduced dataset (2D only for now)")
                 .arg(
                     Arg::with_name("original_data")
                         .short("i")
                         .required(true)
+                        .takes_value(true)
                         .help("The original dataset in ply or csv format"),
                 )
                 .arg(
                     Arg::with_name("reduced_data")
                         .short("r")
                         .required(true)
+                        .takes_value(true)
                         .help("The reduced dataset in ply or csv format"),
                 ).arg(
-                    Arg::with_name("output_image")
+                    Arg::with_name("OUTPUT_FILE")
                     .short("o")
-                    .help("The image to output too, if absent the images will just be shown."),
+                    .help("Set the file to output the explained data to")
+                    .index(1),
                 ),
         )
         .subcommand(
@@ -57,6 +67,7 @@ fn main() {
         )
         .subcommand(
             SubCommand::with_name("generate")
+                .alias("gen")
                 .about("Generate synthetic point clouds")
                 .arg(
                     Arg::with_name("points")
@@ -68,7 +79,7 @@ fn main() {
                         .help("Amount of point used to generate"),
                 )
                 .arg(
-                    Arg::with_name("OUTPUT")
+                    Arg::with_name("OUTPUT_FILE")
                         .help("Sets the output file to use")
                         .required(true)
                         .index(1),
@@ -87,6 +98,7 @@ fn main() {
 
 // Generate datasets
 // pointclt generate 1000 ./output.csv
+// TODO: support for noise
 fn generate_command(matches: &ArgMatches) {
     // Find amount of points to generate from args, default to 10k
     let point_count: i32 = match matches.value_of("points") {
@@ -105,53 +117,68 @@ fn generate_command(matches: &ArgMatches) {
 
     println!("Will generate {} points in cube pattern", point_count);
 
-    // Find exactly to which file we will write and in which format.
-    let output_file_path = matches.value_of("OUTPUT").unwrap();
+    // Retrieve the output file from args, unwrap is safe since output file is required.
+    let output_file_path = matches.value_of("OUTPUT_FILE").unwrap();
     let output_file = Path::new(output_file_path);
-    let file_extension = match output_file.extension().and_then(OsStr::to_str) {
-        Some(v) => match v {
-            "csv" => fs::SupportedFileFormat::CSV,
-            "ply" => fs::SupportedFileFormat::PLY,
-            e => {
-                print!("Unsupported file format `{}` passed, defaulting to csv", e);
-                fs::SupportedFileFormat::CSV
-            }
-        },
-        None => {
-            print!("No file format passed, defaulting to csv");
-            fs::SupportedFileFormat::CSV
-        }
-    };
 
     // generate the points
     // TODO: Allow support for choosing different patterns here
-    let generated_points = generate_cube(point_count, 0.05);
+    let generated_points = generate_cube(point_count, 0.00);
     println!("Generated {} points", generated_points.len());
 
     // Do a buffered write to file for all the points
-    let res = match file_extension {
-        fs::SupportedFileFormat::CSV => fs::csv::write(generated_points, output_file),
-        fs::SupportedFileFormat::PLY => fs::ply::write(generated_points, output_file),
-    };
-
-    match res {
-        Ok(_) => println!("All points written to file"),
-        Err(e) => {
-            eprintln!("Error when writing to file: {:?}", e);
-            exit(1);
-        },
-    };
+    write(output_file, generated_points);
 }
 
 // Explain a dataset
-fn explain_command(_matches: &ArgMatches) {
+fn explain_command(matches: &ArgMatches) {
     // Retrieve the points from the original dataset
+    let original_data_path = matches.value_of("original_data").unwrap();
+    let original_data = Path::new(original_data_path);
+    let (original_points, n) = read(original_data);
+    println!(
+        "Original data loaded. Consists of {} points with {} dimensions",
+        original_points.len(),
+        n
+    );
+
     // Retrieve the points from the reduced dataset
-    // Zip these point into the Point format
+    let reduced_data_path = matches.value_of("reduced_data").unwrap();
+    let reduced_data = Path::new(reduced_data_path);
+    let (reduced_points, r) = read(reduced_data);
+    println!(
+        "Reduced data loaded. Consists of {} points with {} dimensions",
+        reduced_points.len(),
+        r
+    );
+
+    // Convert reduced data to 3D nalgebra points with optional zero padding
+    let clean_reduced_points = reduced_points
+        .iter()
+        .map(|vec| match vec[..] {
+            [x, y, z] => Point3::new(x, y, z),
+            [x, y] => Point3::new(x, y, 0.0),
+            _ => {
+                eprint!("Points with {} dimensions is not supported yet", vec.len());
+                exit(15)
+            }
+        })
+        .collect::<Vec<Point3>>();
+
+    // Zip these two sets of points into the the Point struct format. Drop original data out of scope after.
+    let points = original_points
+        .iter()
+        .zip(clean_reduced_points)
+        .map(|(o, r)| exp::common::Point {
+            reduced: r,
+            original: o.to_owned(),
+        });
+
+    println!("{} Points structs created", points.len());
+
     // Create a Da Silva explanation mechanism
     // Run the data through the mechanism and get a vector of annotated points back
     // Write these annotated points to file
-    println!("Got some args");
 }
 
 // Command used to reduce datasets
