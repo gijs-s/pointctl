@@ -120,16 +120,29 @@ fn find_neighbors(
         .collect::<Vec<usize>>()
 }
 
-// Given a point index, the set of points and the indices of the neighbors calculate the local contribution
-// lc^j_p,r = (p_j - r_j)^2 / ||p-r||^2
-// lc_j = Sum over r in neighborhood of lc^j_p,r devided by neighborhood size.
-// This function returns a vector of the lc values for each dimension. It corresponds to formula 1 and 2
+// Given 2 points, calculate the contribution of each dimension to the distance.
+// corresponds to formula 1. lc_j = (p_j - r_j)^2 / ||p-r||^2 where j is the dim.
+fn calculate_distance_contribution(
+    p: &PointN,
+    r: &PointN,
+) -> LocalContributions {
+    let dist = p.sq_distance(r);
+    p.iter().zip(r).map(|(a,b)| {
+        let t = a - b;
+        (t * t) / dist
+    }).collect()
+}
+
+// Given a point index, the set of points and the indices of the neighbors calculate the
+// average local contribution for each dimension over the neighborhood.
+// Corresponds to formula 2. lc_j = Sum over r in neighborhood of lc^j_p,r divided |neighborhood|
 fn calculate_local_contributions(
-    _point_index: usize,
-    _points: &Vec<Point>,
+    point_index: usize,
+    points: &Vec<Point>,
     _neighbor_indices: NeighborIndices,
 ) -> LocalContributions {
-    unimplemented!()
+    let point = &points[point_index];
+    unimplemented!();
 }
 
 // Does the same as calculate_local_contributions but for the entire dataset.
