@@ -25,11 +25,12 @@ type NeighborIndices = Vec<usize>;
 type LocalContributions = Vec<f32>;
 type GlobalContribution = Vec<f32>;
 type Ranking = (usize, f32);
+type DimensionOrder = Vec<usize>;
 
 #[derive(Debug, PartialEq)]
 pub struct DaSilvaExplanation {
     // Attribute index is the index of which dimension in nD is most important for this point
-    attribute_index: i32,
+    attribute_index: usize,
     // The is the confidence we have in said attribute index
     confidence: f32,
 }
@@ -38,9 +39,8 @@ pub struct DaSilvaExplanation {
 // Tuple of explanations and the dimension ids sorted by rank.
 pub fn explain(
     input: &Vec<Point>,
-    // P
     neighborhood_size: f32,
-) -> (Vec<DaSilvaExplanation>, Vec<usize>) {
+) -> (Vec<DaSilvaExplanation>, DimensionOrder) {
     // Calculate the global contribution of each point (centriod of the nD space and _every_ point in its neighborhood)
     let centroid: PointN = find_centroid(&input);
     let global_contribution: GlobalContribution = calculate_global_contribution(centroid, &input);
@@ -146,7 +146,7 @@ fn normalize_rankings(
     unimplemented!()
 }
 
-// Using the rankings and the neighboorhood calculate the the confidence.
+// Using the rankings and the neighborhood calculate the the confidence.
 // Here the confidence is how many in the neighborhood share the dimension
 // of the points ranking.
 fn calculate_annotation(
@@ -154,12 +154,27 @@ fn calculate_annotation(
     ranking_vectors: &Vec<Ranking>,
     neighborhood: NeighborIndices,
 ) -> DaSilvaExplanation {
-    unimplemented!()
+    let (point_dim, _) = ranking_vectors[point_index];
+    let correct_count = neighborhood
+        .iter()
+        .map(|&index| {
+            let (dim, _) = ranking_vectors[index];
+            dim
+        })
+        .filter(|&dim| dim == point_dim)
+        .count();
+    // TODO: Do we include self in the confidence score? assume no for now.
+    DaSilvaExplanation {
+        attribute_index: point_dim,
+        confidence: correct_count as f32 / neighborhood.len() as f32,
+    }
 }
 
-// From the sorted vector of local contributions and find the dimension than contributes most.
-// Read as: Find the lowest ranking given a the local contribution.
-// TODO this seems like a nasty hack. ASsumes we never encounter NaN (at least does not handle this correctly)
+// From the sorted vector of local contributions and find the dimension than
+// contributes most. Read as: Find the lowest ranking given a the local
+// contribution.
+// TODO this seems like a nasty hack. ASsumes we never encounter NaN (at least
+// does not handle this correctly)
 fn calculate_top_ranking(local_contributions: LocalContributions) -> Ranking {
     local_contributions
         .iter()
@@ -218,9 +233,47 @@ mod tests {
     }
 
     #[test]
-    fn calculates_correct_top_ranking(){
-        assert_eq!(calculate_top_ranking(vec![0.0f32,0.8,0.3]), (1, 0.8));
-        assert_eq!(calculate_top_ranking(vec![0.0f32,0.0,0.3]), (2, 0.3));
-        assert_eq!(calculate_top_ranking(vec![0.0f32,0.0,0.0]), (2, 0.0));
+    fn calculates_correct_top_ranking() {
+        assert_eq!(calculate_top_ranking(vec![0.0f32, 0.8, 0.3]), (1, 0.8));
+        assert_eq!(calculate_top_ranking(vec![0.0f32, 0.0, 0.3]), (2, 0.3));
+        assert_eq!(calculate_top_ranking(vec![0.0f32, 0.0, 0.0]), (2, 0.0));
+    }
+
+    #[test]
+    fn calculates_correct_annotation() {
+        let rankings: Vec<(usize, f32)> =
+            vec![(2, 0.7), (1, 0.4), (1, 0.9), (1, 0.6), (1, 0.4), (3, 0.5)];
+
+        assert_eq!(
+            calculate_annotation(0, &rankings, vec![1, 2, 3, 4]),
+            DaSilvaExplanation {
+                attribute_index: 2,
+                confidence: 0.0
+            }
+        );
+
+        assert_eq!(
+            calculate_annotation(1, &rankings, vec![2, 3, 4]),
+            DaSilvaExplanation {
+                attribute_index: 1,
+                confidence: 1.0
+            }
+        );
+
+        assert_eq!(
+            calculate_annotation(1, &rankings, vec![0, 2, 3, 4]),
+            DaSilvaExplanation {
+                attribute_index: 1,
+                confidence: 0.75
+            }
+        );
+
+        assert_eq!(
+            calculate_annotation(1, &rankings, vec![0, 2, 3, 5]),
+            DaSilvaExplanation {
+                attribute_index: 1,
+                confidence: 0.50
+            }
+        );
     }
 }
