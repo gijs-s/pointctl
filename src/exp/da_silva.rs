@@ -76,7 +76,14 @@ pub fn explain(
 
 // Used for the global explanation, just average the over all dimensions
 fn find_centroid(points: &Vec<Point>) -> PointN {
-    unimplemented!()
+    points
+        .iter()
+        .fold(vec![0.0f32; points[0].original.len()], |v, p| {
+            v.iter().zip(&p.original).map(|(a, b)| a + b).collect()
+        })
+        .iter()
+        .map(|x| x / points.len() as f32)
+        .collect::<PointN>()
 }
 
 // Find the indexes of each nearest neighbor falling withing the size in nD.
@@ -191,5 +198,22 @@ mod tests {
         assert_eq!(find_neighbors(0, &points, 2.0).len(), 1);
         // Check size in ND
         assert_eq!(find_neighbors_nd(0, &points, 3.0).len(), 2);
+    }
+
+    #[test]
+    fn calculates_correct_centroid() {
+        let original_data: Vec<PointN> = vec![
+            vec![1.0, 1.0, -1.0],
+            vec![-1.0, 0.0, 1.0],
+            vec![0.0, 2.0, 0.0],
+        ];
+        let points: Vec<Point> = original_data
+            .iter()
+            .map(|f| Point {
+                reduced: Point3::new(0.0, 0.0, 0.0),
+                original: f.to_owned(),
+            })
+            .collect();
+        assert_eq!(find_centroid(&points), vec![0.0, 1.0, 0.0]);
     }
 }
