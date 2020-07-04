@@ -125,23 +125,23 @@ fn find_neighbors(
 // lc_j = Sum over r in neighborhood of lc^j_p,r devided by neighborhood size.
 // This function returns a vector of the lc values for each dimension. It corresponds to formula 1 and 2
 fn calculate_local_contributions(
-    point_index: usize,
-    points: &Vec<Point>,
-    neighbor_indices: NeighborIndices,
+    _point_index: usize,
+    _points: &Vec<Point>,
+    _neighbor_indices: NeighborIndices,
 ) -> LocalContributions {
     unimplemented!()
 }
 
 // Does the same as calculate_local_contributions but for the entire dataset.
-fn calculate_global_contribution(centroid: PointN, points: &Vec<Point>) -> GlobalContribution {
+fn calculate_global_contribution(_centroid: PointN, _points: &Vec<Point>) -> GlobalContribution {
     unimplemented!()
 }
 
 // Normalize a local contrib of a dimension using the global contrib of said dimension.
 // this function lines up with formulate 3 in the works
 fn normalize_rankings(
-    local_contributions: LocalContributions,
-    global_contributions: &GlobalContribution,
+    _local_contributions: LocalContributions,
+    _global_contributions: &GlobalContribution,
 ) -> LocalContributions {
     unimplemented!()
 }
