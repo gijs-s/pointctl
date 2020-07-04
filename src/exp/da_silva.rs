@@ -216,4 +216,11 @@ mod tests {
             .collect();
         assert_eq!(find_centroid(&points), vec![0.0, 1.0, 0.0]);
     }
+
+    #[test]
+    fn calculates_correct_top_ranking(){
+        assert_eq!(calculate_top_ranking(vec![0.0f32,0.8,0.3]), (1, 0.8));
+        assert_eq!(calculate_top_ranking(vec![0.0f32,0.0,0.3]), (2, 0.3));
+        assert_eq!(calculate_top_ranking(vec![0.0f32,0.0,0.0]), (2, 0.0));
+    }
 }
