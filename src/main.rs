@@ -174,8 +174,8 @@ fn explain_command(matches: &ArgMatches) {
 
     println!("{} Points structures created", points.len());
 
-    // Create a Da Silva explanation mechanism, TODO switch
-    let _mech = exp::da_silva::DaSilvaState::new(points, 20);
+    // Create a Da Silva explanation mechanism, TODO
+    let da_silva_explanation  = exp::da_silva::explain(&points, 0.1);
 
     // Run the data through the mechanism and get a vector of annotated points back
     // Write these annotated points to file

@@ -10,17 +10,15 @@ pub struct Point {
 
 #[derive(Debug, PartialEq)]
 pub struct AnnotatedPoint<T> {
-    pub reduced: Point3,
-    pub original: PointN,
+    pub point: Point,
     pub annotation: T
 }
 
-pub trait ExplanationMechanism<T> {
-    // Initialize a explanation mechanism using the original and reduced data.
-    fn init(dataset: Vec<Point>) -> Self;
-
-    // Using this mechanism explain single point
-    fn explain(&self, point: Point) -> AnnotatedPoint<T>;
-
-    // TODO: create a method to explain all points at once to prevent recalculating neighborhoods.
+impl<T> AnnotatedPoint<T>{
+    pub fn annotate(point: Point, annotation: T) -> Self {
+        AnnotatedPoint {
+            point: point,
+            annotation: annotation
+        }
+    }
 }
