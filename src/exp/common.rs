@@ -22,3 +22,29 @@ impl<T> AnnotatedPoint<T>{
         }
     }
 }
+
+pub trait Distance {
+    // Euclidean distance
+    fn distance(&self, other: &Self) -> f32;
+}
+
+impl Distance for Point3 {
+    fn distance(&self, other: &Self) -> f32 {
+        let x: f32 = &self.x - &other.x;
+        let y: f32 = &self.y - &other.y;
+        let z: f32 = &self.z - &other.z;
+        let t = x * x + y * y + z * z;
+        t.sqrt()
+    }
+}
+
+impl Distance for PointN {
+    fn distance(&self, other: &Self) -> f32 {
+        self.iter().zip(other).map(|(a, b)| {
+            let i = a - b;
+            i * i
+        })
+        .fold(0.0f32, |sum, v| sum + v)
+        .sqrt()
+    }
+}

@@ -15,7 +15,7 @@
 // - Use a faster way to calculate nn (maybe approximate nearest neighbors?)
 // - Store the data in a more space efficient way
 
-use super::common::Point;
+use super::common::{Distance, Point};
 use crate::util::types::PointN;
 
 use std::cmp::Ordering;
@@ -25,7 +25,6 @@ type NeighborIndices = Vec<usize>;
 type LocalContributions = Vec<f32>;
 type GlobalContribution = Vec<f32>;
 type Ranking = (usize, f32);
-
 
 #[derive(Debug, PartialEq)]
 pub struct DaSilvaExplanation {
@@ -86,7 +85,15 @@ fn find_neighbors_nd(
     points: &Vec<Point>,
     neighborhood_size: f32,
 ) -> NeighborIndices {
-    unimplemented!()
+    let point = &points[point_index];
+    points
+        .iter()
+        .enumerate()
+        .filter(|(i, p)| {
+            p.original.distance(&point.original) < neighborhood_size && *i != point_index
+        })
+        .map(|(i, _)| i)
+        .collect::<Vec<usize>>()
 }
 
 // Find the indexes of each nearest neighbor falling withing the size in 3D.
@@ -96,8 +103,14 @@ fn find_neighbors(
     neighborhood_size: f32,
 ) -> NeighborIndices {
     let point = &points[point_index];
-    points.iter().filter(|&&p| p.reduced.x < 0).collect();
-    unimplemented!()
+    points
+        .iter()
+        .enumerate()
+        .filter(|(i, p)| {
+            p.reduced.distance(&point.reduced) < neighborhood_size && *i != point_index
+        })
+        .map(|(i, _)| i)
+        .collect::<Vec<usize>>()
 }
 
 // Given a point index, the set of points and the indices of the neighbors calculate the local contribution
@@ -145,5 +158,38 @@ fn calculate_top_ranking(local_contributions: LocalContributions) -> Ranking {
         .iter()
         .enumerate()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(Ordering::Equal))
-        .map(|(index, f)| (index, *f)).unwrap()
+        .map(|(index, f)| (index, *f))
+        .unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::util::types::{Point3, PointN};
+
+    #[test]
+    fn calculates_correct_neighbors() {
+        let points = vec![
+            Point {
+                reduced: Point3::new(0.0, 0.0, 0.0),
+                original: vec![0.0, 0.0],
+            },
+            Point {
+                reduced: Point3::new(1.0, 1.0, 1.0),
+                original: vec![1.0, 1.0],
+            },
+            Point {
+                reduced: Point3::new(2.0, 2.0, 2.0),
+                original: vec![2.0, 2.0],
+            },
+            Point {
+                reduced: Point3::new(10.0, 10.0, 10.0),
+                original: vec![10.0, 10.0],
+            },
+        ];
+        // Check size in 3D
+        assert_eq!(find_neighbors(0, &points, 2.0).len(), 1);
+        // Check size in ND
+        assert_eq!(find_neighbors_nd(0, &points, 3.0).len(), 2);
+    }
 }
