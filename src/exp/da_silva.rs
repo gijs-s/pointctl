@@ -19,7 +19,13 @@ use super::common::Point;
 use crate::util::types::PointN;
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
+
+// Types to make the code more readable
+type NeighborIndices = Vec<usize>;
+type LocalContributions = Vec<f32>;
+type GlobalContribution = Vec<f32>;
+type Ranking = (usize, f32);
+
 
 #[derive(Debug, PartialEq)]
 pub struct DaSilvaExplanation {
@@ -28,23 +34,6 @@ pub struct DaSilvaExplanation {
     // The is the confidence we have in said attribute index
     confidence: f32,
 }
-
-#[derive(Debug, PartialEq)]
-pub struct DaSilvaState {
-    // Reference to all points in the dataset.
-    points_ref: Vec<Point>,
-    // The global dimension ranking for each dimension. Only top 8 will be used to colour encode.
-    global_dimension_ranking: HashMap<i32, i32>,
-    // The size of the neigborhood in which to calculate the local metrics.
-    neighborhood_size: f32,
-}
-
-// Types to make the code more readable
-type NeighborIndices = Vec<usize>;
-type LocalContributions = Vec<f32>;
-type GlobalContribution = Vec<f32>;
-type Ranking = (usize, f32);
-type RankingVector = Vec<(usize, f32)>;
 
 // TODO: Make an abstraction for the explanation, this is not as clean as it should be
 // Tuple of explanations and the dimension ids sorted by rank.
@@ -106,6 +95,8 @@ fn find_neighbors(
     points: &Vec<Point>,
     neighborhood_size: f32,
 ) -> NeighborIndices {
+    let point = &points[point_index];
+    points.iter().filter(|&&p| p.reduced.x < 0).collect();
     unimplemented!()
 }
 
@@ -135,9 +126,9 @@ fn normalize_rankings(
     unimplemented!()
 }
 
-// From the local contribution find the top 1 ranking with the confidence.
-// This is simply done by returning the highest ranking dimension for the point
-// and the confidence checks how many in the neighborhood share this highest point
+// Using the rankings and the neighboorhood calculate the the confidence.
+// Here the confidence is how many in the neighborhood share the dimension
+// of the points ranking.
 fn calculate_annotation(
     point_index: usize,
     ranking_vectors: &Vec<Ranking>,
@@ -146,8 +137,9 @@ fn calculate_annotation(
     unimplemented!()
 }
 
-// From the sorted vector of local contributions and find the dimension than contributes most
-// TODO this seems like a nasty hack.
+// From the sorted vector of local contributions and find the dimension than contributes most.
+// Read as: Find the lowest ranking given a the local contribution.
+// TODO this seems like a nasty hack. ASsumes we never encounter NaN (at least does not handle this correctly)
 fn calculate_top_ranking(local_contributions: LocalContributions) -> Ranking {
     local_contributions
         .iter()

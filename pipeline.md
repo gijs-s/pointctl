@@ -22,3 +22,6 @@ There will always be more to do but lets summarize this here.
 - Build a visualization module using kiss3d
 - Add da silva's explanation to the ex module
 - Build a simple DR tool with TSNE.
+
+
+What about the da silva explanation neighborhood size? Same in nd and 3d?
