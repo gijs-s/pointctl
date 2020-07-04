@@ -140,10 +140,14 @@ fn calculate_global_contribution(_centroid: PointN, _points: &Vec<Point>) -> Glo
 // Normalize a local contrib of a dimension using the global contrib of said dimension.
 // this function lines up with formulate 3 in the works
 fn normalize_rankings(
-    _local_contributions: LocalContributions,
-    _global_contributions: &GlobalContribution,
+    local_contributions: LocalContributions,
+    global_contributions: &GlobalContribution,
 ) -> LocalContributions {
-    unimplemented!()
+    let sum = local_contributions
+        .iter()
+        .zip(global_contributions)
+        .fold(0.0, |c: f32, (l, g)| c + (l / g));
+    local_contributions.iter().zip(global_contributions).map(|(l, g)| (l / g) / sum ).collect()
 }
 
 // Using the rankings and the neighborhood calculate the the confidence.
