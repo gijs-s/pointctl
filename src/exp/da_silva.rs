@@ -141,7 +141,7 @@ fn calculate_local_contributions(
     points: &Vec<Point>,
     _neighbor_indices: NeighborIndices,
 ) -> LocalContributions {
-    let point = &points[point_index];
+    let point: &PointN = &points[point_index].original;
     unimplemented!();
 }
 

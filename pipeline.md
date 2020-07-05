@@ -18,10 +18,9 @@ The key goal of the first revision is to create a tool that can calculate the si
 
 There will always be more to do but lets summarize this here.
 
-- Build a explain module with correct input and dummy output
 - Build a visualization module using kiss3d
 - Add da silva's explanation to the ex module
-- Build a simple DR tool with TSNE.
+- Build bindings for [bhtsne](https://github.com/lvdmaaten/bhtsne/) in a separate crate and then use this crate in my main program.
 
 
 What about the da silva explanation neighborhood size? Same in nd and 3d?
