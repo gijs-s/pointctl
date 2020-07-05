@@ -45,13 +45,19 @@ pub fn explain(
     let centroid: PointN = find_centroid(&input);
     let global_contribution: GlobalContribution = calculate_global_contribution(centroid, &input);
 
+    // Pre-compute all neighborhoods, each neighborhood consists of all points witing
+    // p v_i for point p_i in 3d. The nd neighborhood is {P(p) \in v_i}
+    // TODO: Make this much faster!
+    let neighborhoods: Vec<NeighborIndices> = (0..input.len())
+        .into_iter()
+        .map(|i| find_neighbors(i, &input, neighborhood_size))
+        .collect();
+
     // Calculate the ranking vectors, a nd vector containing the IDs and ranks of each dimension.
     let ranking_vectors: Vec<Ranking> = (0..input.len())
         .into_iter()
-        .map(|i| {
-            // Calculate all neighborhoods, each neighborhood consists of all points witing
-            // p v_i for point p_i in nD
-            let n: NeighborIndices = find_neighbors_nd(i, &input, neighborhood_size);
+        .zip(&neighborhoods)
+        .map(|(i, n)| {
             // Calculate the local contribution lc_j between each point p_i and all its neighbors
             // v_i for every dimension j. Then average the contribution for every dimension within
             // the neighborhood
@@ -66,10 +72,8 @@ pub fn explain(
     // Using the ranking vectors calculate the attribute index and the confidence using 3d nn.
     let explanations: Vec<DaSilvaExplanation> = (0..input.len())
         .into_iter()
-        .map(|i| {
-            let n: NeighborIndices = find_neighbors(i, &input, neighborhood_size);
-            calculate_annotation(i, &ranking_vectors, n)
-        })
+        .zip(&neighborhoods)
+        .map(|(i, n)| calculate_annotation(i, &ranking_vectors, n))
         .collect();
 
     // TODO: Calculate the global ranking of dimension confidence, useful for the colour encoding.
@@ -93,27 +97,6 @@ fn find_centroid(points: &Vec<Point>) -> PointN {
         // This averages each dimension out.
         .map(|x| x / points.len() as f32)
         .collect::<PointN>()
-}
-
-// Find the indexes of each nearest neighbor falling withing the size in nD.
-fn find_neighbors_nd(
-    point_index: usize,
-    points: &Vec<Point>,
-    neighborhood_size: f32,
-) -> NeighborIndices {
-    let point = &points[point_index];
-    points
-        .iter()
-        // Give every point an index
-        .enumerate()
-        // Filter out the points that are not near
-        .filter(|(i, p)| {
-            p.original.distance(&point.original) < neighborhood_size && *i != point_index
-        })
-        // Keep only the index
-        .map(|(i, _)| i)
-        // Collect the indices
-        .collect::<Vec<usize>>()
 }
 
 // Find the indexes of each nearest neighbor falling withing the size in 3D.
@@ -157,7 +140,7 @@ fn calculate_distance_contribution(p: &PointN, r: &PointN) -> LocalContributions
 fn calculate_local_contributions(
     point_index: usize,
     points: &Vec<Point>,
-    neighbor_indices: NeighborIndices,
+    neighbor_indices: &NeighborIndices,
 ) -> LocalContributions {
     // Retrieve a references to the point and neighbors
     let p: &PointN = &points[point_index].original;
@@ -188,9 +171,7 @@ fn calculate_global_contribution(centroid: PointN, points: &Vec<Point>) -> Globa
     points
         .iter()
         // Calculate the distance contribution between the centroid and all points.
-        .map(|r|
-            calculate_distance_contribution(&centroid, &r.original)
-        )
+        .map(|r| calculate_distance_contribution(&centroid, &r.original))
         // Fold to collect all the contributions into one single cumulative one.
         .fold(vec![0.0f32; centroid.len()], |c, lc| {
             c.iter()
@@ -227,7 +208,7 @@ fn normalize_rankings(
 fn calculate_annotation(
     point_index: usize,
     ranking_vectors: &Vec<Ranking>,
-    neighborhood: NeighborIndices,
+    neighborhood: &NeighborIndices,
 ) -> DaSilvaExplanation {
     // Retrieve what dimension was chosen for a certain point
     let (point_dim, _) = ranking_vectors[point_index];
@@ -325,7 +306,7 @@ mod tests {
             vec![(2, 0.7), (1, 0.4), (1, 0.9), (1, 0.6), (1, 0.4), (3, 0.5)];
 
         assert_eq!(
-            calculate_annotation(0, &rankings, vec![1, 2, 3, 4]),
+            calculate_annotation(0, &rankings, &vec![1, 2, 3, 4]),
             DaSilvaExplanation {
                 attribute_index: 2,
                 confidence: 0.0
@@ -333,7 +314,7 @@ mod tests {
         );
 
         assert_eq!(
-            calculate_annotation(1, &rankings, vec![2, 3, 4]),
+            calculate_annotation(1, &rankings, &vec![2, 3, 4]),
             DaSilvaExplanation {
                 attribute_index: 1,
                 confidence: 1.0
@@ -341,7 +322,7 @@ mod tests {
         );
 
         assert_eq!(
-            calculate_annotation(1, &rankings, vec![0, 2, 3, 4]),
+            calculate_annotation(1, &rankings, &vec![0, 2, 3, 4]),
             DaSilvaExplanation {
                 attribute_index: 1,
                 confidence: 0.75
@@ -349,7 +330,7 @@ mod tests {
         );
 
         assert_eq!(
-            calculate_annotation(1, &rankings, vec![0, 2, 3, 5]),
+            calculate_annotation(1, &rankings, &vec![0, 2, 3, 5]),
             DaSilvaExplanation {
                 attribute_index: 1,
                 confidence: 0.50
