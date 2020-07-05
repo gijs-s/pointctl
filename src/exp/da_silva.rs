@@ -184,8 +184,24 @@ fn calculate_local_contributions(
 }
 
 // Does the same as calculate_local_contributions but for the entire dataset.
-fn calculate_global_contribution(_centroid: PointN, _points: &Vec<Point>) -> GlobalContribution {
-    unimplemented!()
+fn calculate_global_contribution(centroid: PointN, points: &Vec<Point>) -> GlobalContribution {
+    points
+        .iter()
+        // Calculate the distance contribution between the centroid and all points.
+        .map(|r|
+            calculate_distance_contribution(&centroid, &r.original)
+        )
+        // Fold to collect all the contributions into one single cumulative one.
+        .fold(vec![0.0f32; centroid.len()], |c, lc| {
+            c.iter()
+                .zip(lc)
+                .map(|(&c, x)| c + x)
+                .collect::<LocalContributions>()
+        })
+        .iter()
+        // For each dimension normalize using the size of the points set.
+        .map(|&dim| dim / points.len() as f32)
+        .collect()
 }
 
 // Normalize a local contrib of a dimension using the global contrib of said dimension.
