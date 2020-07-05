@@ -176,8 +176,22 @@ fn explain_command(matches: &ArgMatches) {
 
     // Create a Da Silva explanation mechanism
     // TODO: Normalize the TSNE projection or use relative neighborhood size.
-    let (_da_silva_explanation, _dimension_ranking)  = exp::da_silva::explain(&points, 0.1);
+    let (da_silva_explanation, _dimension_ranking) = exp::da_silva::explain(&points, 10.0);
 
+    // TODO: Temp write everything to file.
+    // Does not give a lot of insight though.
+    let ap = points
+        .iter()
+        .map(|p| &p.original)
+        .zip(da_silva_explanation)
+        .map(|(p, a)| {
+            vec![p[0], p[1], p[2], a.attribute_index as f32, a.confidence]
+        })
+        .collect();
+
+    let output_file_path = matches.value_of("OUTPUT_FILE").unwrap();
+    let output_file = Path::new(output_file_path);
+    write(output_file, ap);
     // Run the data through the mechanism and get a vector of annotated points back
     // Write these annotated points to file
 }

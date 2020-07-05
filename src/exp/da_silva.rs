@@ -14,6 +14,7 @@
 // Nice to haves:
 // - Use a faster way to calculate nn (maybe approximate nearest neighbors?)
 // - Store the data in a more space efficient way
+// - Warning in case of tiny neighborhoods
 
 use super::common::{Distance, Point};
 use crate::util::types::PointN;
@@ -30,9 +31,9 @@ type DimensionOrder = Vec<usize>;
 #[derive(Debug, PartialEq)]
 pub struct DaSilvaExplanation {
     // Attribute index is the index of which dimension in nD is most important for this point
-    attribute_index: usize,
+    pub attribute_index: usize,
     // The is the confidence we have in said attribute index
-    confidence: f32,
+    pub confidence: f32,
 }
 
 // Tuple of explanations and the dimension ids sorted by rank.
@@ -227,7 +228,12 @@ fn calculate_annotation(
     // TODO: Do we include self in the confidence score? assume no for now.
     DaSilvaExplanation {
         attribute_index: point_dim,
-        confidence: correct_count as f32 / neighborhood.len() as f32,
+        confidence:
+            if neighborhood.len() > 0{
+                correct_count as f32 / neighborhood.len() as f32
+            } else {
+                0.0f32
+            },
     }
 }
 
