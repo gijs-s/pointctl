@@ -35,13 +35,13 @@ pub struct DaSilvaExplanation {
     confidence: f32,
 }
 
-// TODO: Make an abstraction for the explanation, this is not as clean as it should be
 // Tuple of explanations and the dimension ids sorted by rank.
 pub fn explain(
     input: &Vec<Point>,
     neighborhood_size: f32,
 ) -> (Vec<DaSilvaExplanation>, DimensionOrder) {
-    // Calculate the global contribution of each point (centriod of the nD space and _every_ point in its neighborhood)
+    // Calculate the global contribution of each point (centroid of the nD space and
+    //_every_ point in its neighborhood)
     let centroid: PointN = find_centroid(&input);
     let global_contribution: GlobalContribution = calculate_global_contribution(centroid, &input);
 
@@ -49,10 +49,12 @@ pub fn explain(
     let ranking_vectors: Vec<Ranking> = (0..input.len())
         .into_iter()
         .map(|i| {
-            // Calculate all neighborhoods, each neighborhood consists of all points witing p v_i for point p_i in nD
+            // Calculate all neighborhoods, each neighborhood consists of all points witing
+            // p v_i for point p_i in nD
             let n: NeighborIndices = find_neighbors_nd(i, &input, neighborhood_size);
-            // Calculate the local contribution lc_j between each point p_i and all its neighbors v_i for every dimension j
-            // Average the contribution for every dimension within the neighborhood
+            // Calculate the local contribution lc_j between each point p_i and all its neighbors
+            // v_i for every dimension j. Then average the contribution for every dimension within
+            // the neighborhood
             let lc: LocalContributions = calculate_local_contributions(i, &input, n);
             // Normalize the local contribution by dividing by the global contribution (per dimension)
             let nlc: LocalContributions = normalize_rankings(lc, &global_contribution);
@@ -78,10 +80,17 @@ pub fn explain(
 fn find_centroid(points: &Vec<Point>) -> PointN {
     points
         .iter()
-        .fold(vec![0.0f32; points[0].original.len()], |v, p| {
-            v.iter().zip(&p.original).map(|(a, b)| a + b).collect()
-        })
+        // Calculate the sum of all points for each dimension separately
+        .fold(
+            // Vector containing only zeros as fold state start
+            vec![0.0f32; points[0].original.len()],
+            // Increment every dimension of the state using each dimension in the state
+            |v, p| v.iter().zip(&p.original).map(|(a, b)| a + b).collect(),
+        )
+        // Iterate over the cumulative point
         .iter()
+        // Normalize the point by dividing each dimension by the amount of points.
+        // This averages each dimension out.
         .map(|x| x / points.len() as f32)
         .collect::<PointN>()
 }
@@ -95,11 +104,15 @@ fn find_neighbors_nd(
     let point = &points[point_index];
     points
         .iter()
+        // Give every point an index
         .enumerate()
+        // Filter out the points that are not near
         .filter(|(i, p)| {
             p.original.distance(&point.original) < neighborhood_size && *i != point_index
         })
+        // Keep only the index
         .map(|(i, _)| i)
+        // Collect the indices
         .collect::<Vec<usize>>()
 }
 
@@ -110,27 +123,32 @@ fn find_neighbors(
     neighborhood_size: f32,
 ) -> NeighborIndices {
     let point = &points[point_index];
+    // iterate over the points and only keep the once in the neighborhood and are not itself
     points
         .iter()
+        // Give every point an index
         .enumerate()
-        .filter(|(i, p)| {
-            p.reduced.distance(&point.reduced) < neighborhood_size && *i != point_index
+        // Filter out the points that are not near
+        .filter(|&(i, p)| {
+            p.reduced.distance(&point.reduced) < neighborhood_size && i != point_index
         })
+        // Keep only the index
         .map(|(i, _)| i)
+        // Collect the indices
         .collect::<Vec<usize>>()
 }
 
 // Given 2 points, calculate the contribution of each dimension to the distance.
 // corresponds to formula 1. lc_j = (p_j - r_j)^2 / ||p-r||^2 where j is the dim.
-fn calculate_distance_contribution(
-    p: &PointN,
-    r: &PointN,
-) -> LocalContributions {
+fn calculate_distance_contribution(p: &PointN, r: &PointN) -> LocalContributions {
     let dist = p.sq_distance(r);
-    p.iter().zip(r).map(|(a,b)| {
-        let t = a - b;
-        (t * t) / dist
-    }).collect()
+    p.iter()
+        .zip(r)
+        .map(|(a, b)| {
+            let t = a - b;
+            (t * t) / dist
+        })
+        .collect()
 }
 
 // Given a point index, the set of points and the indices of the neighbors calculate the
@@ -139,10 +157,30 @@ fn calculate_distance_contribution(
 fn calculate_local_contributions(
     point_index: usize,
     points: &Vec<Point>,
-    _neighbor_indices: NeighborIndices,
+    neighbor_indices: NeighborIndices,
 ) -> LocalContributions {
-    let point: &PointN = &points[point_index].original;
-    unimplemented!();
+    // Retrieve a references to the point and neighbors
+    let p: &PointN = &points[point_index].original;
+    // Calculate the contribution of the distance between the point and all its neighbors
+    // The take the cumulative over each dimension. Then divide that by the neigbor size.
+    neighbor_indices
+        .iter()
+        // Calculate the distance contribution between the point and one of its neighbors
+        .map(|&index| {
+            let r = &points[index].original;
+            calculate_distance_contribution(p, r)
+        })
+        // Fold to collect all the contributions into one single cumulative one.
+        .fold(vec![0.0f32; p.len()], |c, lc| {
+            c.iter()
+                .zip(lc)
+                .map(|(&c, x)| c + x)
+                .collect::<LocalContributions>()
+        })
+        .iter()
+        // For each dimension normalize using the neighborhood size.
+        .map(|&dim| dim / neighbor_indices.len() as f32)
+        .collect()
 }
 
 // Does the same as calculate_local_contributions but for the entire dataset.
@@ -151,7 +189,7 @@ fn calculate_global_contribution(_centroid: PointN, _points: &Vec<Point>) -> Glo
 }
 
 // Normalize a local contrib of a dimension using the global contrib of said dimension.
-// this function lines up with formulate 3 in the works
+// this function lines up with formula 3 in the da silva paper
 fn normalize_rankings(
     local_contributions: LocalContributions,
     global_contributions: &GlobalContribution,
@@ -160,7 +198,11 @@ fn normalize_rankings(
         .iter()
         .zip(global_contributions)
         .fold(0.0, |c: f32, (l, g)| c + (l / g));
-    local_contributions.iter().zip(global_contributions).map(|(l, g)| (l / g) / sum ).collect()
+    local_contributions
+        .iter()
+        .zip(global_contributions)
+        .map(|(l, g)| (l / g) / sum)
+        .collect()
 }
 
 // Using the rankings and the neighborhood calculate the the confidence.
@@ -171,15 +213,20 @@ fn calculate_annotation(
     ranking_vectors: &Vec<Ranking>,
     neighborhood: NeighborIndices,
 ) -> DaSilvaExplanation {
+    // Retrieve what dimension was chosen for a certain point
     let (point_dim, _) = ranking_vectors[point_index];
     let correct_count = neighborhood
         .iter()
+        // Get the ranking vector for each neighbor and only keep the dimension
         .map(|&index| {
             let (dim, _) = ranking_vectors[index];
             dim
         })
+        // Only keep the neighbors where the dimension is correct
         .filter(|&dim| dim == point_dim)
+        // Count the amount of neighbors left
         .count();
+
     // TODO: Do we include self in the confidence score? assume no for now.
     DaSilvaExplanation {
         attribute_index: point_dim,
@@ -197,7 +244,7 @@ fn calculate_top_ranking(local_contributions: LocalContributions) -> Ranking {
         .iter()
         .enumerate()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(Ordering::Equal))
-        .map(|(index, f)| (index, *f))
+        .map(|(index, &f)| (index, f))
         .unwrap()
 }
 
