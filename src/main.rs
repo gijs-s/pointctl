@@ -11,6 +11,7 @@ use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 use pc::exp;
 use pc::fs::prelude::{read, write};
 use pc::generate::generate_cube;
+use pc::view::view::display;
 use pc::util::{types::Point3, validator};
 
 fn main() {
@@ -53,12 +54,14 @@ fn main() {
                     Arg::with_name("reduced_data")
                         .short("i")
                         .required(true)
+                        .takes_value(true)
                         .help("The reduced dataset in ply or csv format"),
                 )
                 .arg(
                     Arg::with_name("annotations")
                         .short("a")
                         .required(true)
+                        .takes_value(true)
                         .help("Collection of annotations in ply or csv format"),
                 ),
         )
@@ -179,19 +182,22 @@ fn explain_command(matches: &ArgMatches) {
     let (da_silva_explanation, _dimension_ranking) = exp::da_silva::explain(&points, 10.0);
 
     // TODO: Temp write everything to file.
-    // Does not give a lot of insight though.
-    let ap = points
-        .iter()
-        .map(|p| &p.original)
-        .zip(da_silva_explanation)
-        .map(|(p, a)| {
-            vec![p[0], p[1], p[2], a.attribute_index as f32, a.confidence]
-        })
-        .collect();
+    // // Does not give a lot of insight though.
+    // let ap = points
+    //     .iter()
+    //     .map(|p| &p.reduced)
+    //     .zip(da_silva_explanation)
+    //     .map(|(p, a)| {
+    //         vec![p.x, p.y, p.z, a.attribute_index as f32, a.confidence]
+    //     })
+    //     .collect();
 
+    // Write the annotations to file
+    let annotations = da_silva_explanation.iter().map(|exp| vec![exp.attribute_index as f32, exp.confidence]).collect();
     let output_file_path = matches.value_of("OUTPUT_FILE").unwrap();
     let output_file = Path::new(output_file_path);
-    write(output_file, ap);
+    write(output_file, annotations);
+
     // Run the data through the mechanism and get a vector of annotated points back
     // Write these annotated points to file
 }
@@ -204,12 +210,53 @@ fn reduce_command(_matches: &ArgMatches) {
     println!("`reduce` not yet implemented. You can use python's SciKit learn for now")
 }
 
-fn view_command(_matches: &ArgMatches) {
+fn view_command(matches: &ArgMatches) {
     // Load in a custom file with annotated points
     // Determine which explanation was used, for now always only da silva
     // Pass the data to a viewing mechanism, which will
     //  - Create a color pallet for dimensions based on the global dimension randing
     //  - Render all the points with the given color
     // The viewing mechanism should allow basic navigation but need the ability for custom interactions in the future
-    println!("`view` not yet implemented")
+
+
+    // Retrieve the points from the reduced dataset
+    let reduced_data_path = matches.value_of("reduced_data").unwrap();
+    let reduced_data = Path::new(reduced_data_path);
+    let (reduced_points, r) = read(reduced_data);
+    println!(
+        "Reduced data loaded. Consists of {} points with {} dimensions",
+        reduced_points.len(),
+        r
+    );
+
+    // Convert reduced data to 3D nalgebra points with optional zero padding
+    // TODO create abstraction for this!
+    let clean_reduced_points = reduced_points
+    .iter()
+    .map(|vec| match vec[..] {
+        [x, y, z] => Point3::new(x, y, z),
+        [x, y] => Point3::new(x, y, 0.0),
+        _ => {
+            eprint!("Points with {} dimensions is not supported yet", vec.len());
+            exit(15)
+        }
+    })
+    .collect::<Vec<Point3>>();
+
+
+    // Retrieve the points from the reduced dataset
+    let annotations_path = matches.value_of("annotations").unwrap();
+    let annotations_data = Path::new(annotations_path);
+    let (annotations, d) = read(annotations_data);
+    println!(
+        "Annotations loaded. Consists of {} points with {} dimensions",
+        annotations.len(),
+        d
+    );
+
+    let da_silva_explanations = annotations.iter().map(|v| exp::da_silva::DaSilvaExplanation {
+        attribute_index: v[0] as usize, confidence: v[1]
+    }).collect();
+
+    display("Da silva explanation", clean_reduced_points, da_silva_explanations);
 }
