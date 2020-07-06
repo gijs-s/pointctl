@@ -32,9 +32,8 @@ pub fn init_create_state(
 ) -> AppState {
     let mut point_cloud_renderer = PointCloudRenderer::new(4.0);
     for (&p, e) in points.iter().zip(explanations) {
-        let mut v = vec![1.0f32, 0.0f32, 0.0f32];
-        v.rotate_left(e.attribute_index);
-        let color = Point3::<f32>::new(v[0], v[1], v[2]);
+        let color = Point3::<f32>::new(0.33f32 * e.attribute_index as f32, 1.0f32, e.confidence);
+        // let color = Point3::<f32>::new(v[0], v[1], v[2]);
         point_cloud_renderer.push(p, color);
     }
     AppState {
@@ -147,9 +146,18 @@ const VERTEX_SHADER_SRC: &'static str = "#version 100
     varying   vec3 Color;
     uniform   mat4 proj;
     uniform   mat4 view;
+
+    // All components are in the range [0…1], including hue.
+    vec3 hsv2rgb(vec3 c)
+    {
+        vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+        vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+        return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+    }
+
     void main() {
         gl_Position = proj * view * vec4(position, 1.0);
-        Color = color;
+        Color = hsv2rgb(color);
     }";
 
 const FRAGMENT_SHADER_SRC: &'static str = "#version 100

@@ -246,7 +246,7 @@ fn calculate_top_ranking(local_contributions: LocalContributions) -> Ranking {
     local_contributions
         .iter()
         .enumerate()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(Ordering::Equal))
+        .max_by(|(_, &a), (_, &b)| b.partial_cmp(&a).unwrap_or(Ordering::Equal))
         .map(|(index, &f)| (index, f))
         .unwrap()
 }

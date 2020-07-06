@@ -179,7 +179,7 @@ fn explain_command(matches: &ArgMatches) {
 
     // Create a Da Silva explanation mechanism
     // TODO: Normalize the TSNE projection or use relative neighborhood size.
-    let (da_silva_explanation, _dimension_ranking) = exp::da_silva::explain(&points, 10.0);
+    let (da_silva_explanation, _dimension_ranking) = exp::da_silva::explain(&points, 0.1);
 
     // TODO: Temp write everything to file.
     // // Does not give a lot of insight though.
