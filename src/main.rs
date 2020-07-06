@@ -11,8 +11,8 @@ use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 use pc::exp;
 use pc::fs::prelude::{read, write};
 use pc::generate::generate_cube;
-use pc::view::view::display;
 use pc::util::{types::Point3, validator};
+use pc::view::view::display;
 
 fn main() {
     // TODO: Move this entire mess to a yaml file. See https://docs.rs/clap/2.33.1/clap/
@@ -181,19 +181,11 @@ fn explain_command(matches: &ArgMatches) {
     // TODO: Normalize the TSNE projection or use relative neighborhood size.
     let (da_silva_explanation, _dimension_ranking) = exp::da_silva::explain(&points, 0.1);
 
-    // TODO: Temp write everything to file.
-    // // Does not give a lot of insight though.
-    // let ap = points
-    //     .iter()
-    //     .map(|p| &p.reduced)
-    //     .zip(da_silva_explanation)
-    //     .map(|(p, a)| {
-    //         vec![p.x, p.y, p.z, a.attribute_index as f32, a.confidence]
-    //     })
-    //     .collect();
-
     // Write the annotations to file
-    let annotations = da_silva_explanation.iter().map(|exp| vec![exp.attribute_index as f32, exp.confidence]).collect();
+    let annotations = da_silva_explanation
+        .iter()
+        .map(|exp| vec![exp.attribute_index as f32, exp.confidence])
+        .collect();
     let output_file_path = matches.value_of("OUTPUT_FILE").unwrap();
     let output_file = Path::new(output_file_path);
     write(output_file, annotations);
@@ -218,7 +210,6 @@ fn view_command(matches: &ArgMatches) {
     //  - Render all the points with the given color
     // The viewing mechanism should allow basic navigation but need the ability for custom interactions in the future
 
-
     // Retrieve the points from the reduced dataset
     let reduced_data_path = matches.value_of("reduced_data").unwrap();
     let reduced_data = Path::new(reduced_data_path);
@@ -232,17 +223,16 @@ fn view_command(matches: &ArgMatches) {
     // Convert reduced data to 3D nalgebra points with optional zero padding
     // TODO create abstraction for this!
     let clean_reduced_points = reduced_points
-    .iter()
-    .map(|vec| match vec[..] {
-        [x, y, z] => Point3::new(x, y, z),
-        [x, y] => Point3::new(x, y, 0.0),
-        _ => {
-            eprint!("Points with {} dimensions is not supported yet", vec.len());
-            exit(15)
-        }
-    })
-    .collect::<Vec<Point3>>();
-
+        .iter()
+        .map(|vec| match vec[..] {
+            [x, y, z] => Point3::new(x, y, z),
+            [x, y] => Point3::new(x, y, 0.0),
+            _ => {
+                eprint!("Points with {} dimensions is not supported yet", vec.len());
+                exit(15)
+            }
+        })
+        .collect::<Vec<Point3>>();
 
     // Retrieve the points from the reduced dataset
     let annotations_path = matches.value_of("annotations").unwrap();
@@ -254,9 +244,17 @@ fn view_command(matches: &ArgMatches) {
         d
     );
 
-    let da_silva_explanations = annotations.iter().map(|v| exp::da_silva::DaSilvaExplanation {
-        attribute_index: v[0] as usize, confidence: v[1]
-    }).collect();
+    let da_silva_explanations = annotations
+        .iter()
+        .map(|v| exp::da_silva::DaSilvaExplanation {
+            attribute_index: v[0] as usize,
+            confidence: v[1],
+        })
+        .collect();
 
-    display("Da silva explanation", clean_reduced_points, da_silva_explanations);
+    display(
+        "Da silva explanation",
+        clean_reduced_points,
+        da_silva_explanations,
+    );
 }

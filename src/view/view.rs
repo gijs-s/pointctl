@@ -1,6 +1,7 @@
 extern crate kiss3d;
 extern crate nalgebra as na;
 
+use kiss3d::camera::ArcBall;
 use kiss3d::camera::Camera;
 use kiss3d::context::Context;
 use kiss3d::planar_camera::PlanarCamera;
@@ -11,37 +12,56 @@ use kiss3d::resource::{
 };
 use kiss3d::text::Font;
 use kiss3d::window::{State, Window};
+
 use na::{Matrix4, Point2, Point3};
 
 use crate::exp::da_silva::DaSilvaExplanation;
+use std::cmp::Ordering;
 
-pub fn display(
-    title: &str,
-    points: Vec<Point3<f32>>,
-    explanations: Vec<DaSilvaExplanation>
-) {
-    let window = Window::new(title);
+pub fn display(title: &str, points: Vec<Point3<f32>>, explanations: Vec<DaSilvaExplanation>) {
+    // Create the window
+    let mut window = Window::new(title);
+    window.set_background_color(1.0, 1.0, 1.0);
+
     let app = init_create_state(points, explanations);
     window.render_loop(app)
 }
-
 
 pub fn init_create_state(
     points: Vec<Point3<f32>>,
     explanations: Vec<DaSilvaExplanation>,
 ) -> AppState {
     let mut point_cloud_renderer = PointCloudRenderer::new(4.0);
+    let max_confidence = explanations
+        .iter()
+        .map(|v| v.confidence)
+        .max_by(|a, b| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
+        .unwrap();
+    let min_confidence = explanations
+        .iter()
+        .map(|v| v.confidence)
+        .min_by(|a, b| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
+        .unwrap();
+
     for (&p, e) in points.iter().zip(explanations) {
-        let color = Point3::<f32>::new(0.33f32 * e.attribute_index as f32, 1.0f32, e.confidence);
-        // let color = Point3::<f32>::new(v[0], v[1], v[2]);
+        let normalized_conf = (e.confidence - min_confidence) / (max_confidence - min_confidence);
+        let color = Point3::<f32>::new(0.33f32 * e.attribute_index as f32, 1.0f32, normalized_conf);
         point_cloud_renderer.push(p, color);
     }
+
+    // Create arcball camera with customer FOV.
+    let eye = Point3::new(0.0f32, 0.0, -1.5);
+    let at = Point3::new(0.0f32, 0.0f32, 0.0f32);
+    let arc_ball = ArcBall::new_with_frustrum(std::f32::consts::PI / 3.0, 0.01, 1024.0, eye, at);
+
     AppState {
+        camera: arc_ball,
         point_cloud_renderer,
     }
 }
 
 pub struct AppState {
+    camera: ArcBall,
     point_cloud_renderer: PointCloudRenderer,
 }
 
@@ -56,7 +76,12 @@ impl State for AppState {
         Option<&mut dyn Renderer>,
         Option<&mut dyn PostProcessingEffect>,
     ) {
-        (None, None, Some(&mut self.point_cloud_renderer), None)
+        (
+            Some(&mut self.camera),
+            None,
+            Some(&mut self.point_cloud_renderer),
+            None,
+        )
     }
 
     fn step(&mut self, window: &mut Window) {
