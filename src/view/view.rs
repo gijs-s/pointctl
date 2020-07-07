@@ -17,6 +17,7 @@ use na::{Matrix4, Point2, Point3};
 
 use crate::exp::da_silva::DaSilvaExplanation;
 use std::cmp::Ordering;
+// TODO: This looks like hot garbage, Fix is based on the example from the rstar repo
 
 pub fn display(title: &str, points: Vec<Point3<f32>>, explanations: Vec<DaSilvaExplanation>) {
     // Create the window

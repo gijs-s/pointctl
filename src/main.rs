@@ -165,21 +165,9 @@ fn explain_command(matches: &ArgMatches) {
         })
         .collect::<Vec<Point3>>();
 
-    // Zip these two sets of points into the the Point struct format. Drop original data out of scope after.
-    let points = original_points
-        .iter()
-        .zip(clean_reduced_points)
-        .map(|(o, r)| exp::common::Point {
-            reduced: r,
-            original: o.to_owned(),
-        })
-        .collect::<Vec<exp::common::Point>>();
-
-    println!("{} Points structures created", points.len());
-
     // Create a Da Silva explanation mechanism
-    // TODO: Normalize the TSNE projection or use relative neighborhood size.
-    let (da_silva_explanation, _dimension_ranking) = exp::da_silva::explain(&points, 0.1);
+    let da_silva_mechanism = exp::da_silva::DaSilvaMechanismState::new(clean_reduced_points, &original_points);
+    let (da_silva_explanation, _dimension_ranking) = da_silva_mechanism.explain(0.1);
 
     // Write the annotations to file
     let annotations = da_silva_explanation
