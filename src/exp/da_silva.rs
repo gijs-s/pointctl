@@ -110,8 +110,8 @@ impl<'a, 'b> DaSilvaMechanismState<'a, 'b> {
     // Get a reference to all neighbors within a certain range. This used the rtree.
     fn find_neighbors(&mut self, neighborhood_size: f32, query_index: usize, query_point: &Point3) -> NeighborIndices {
         // TODO make these parameters
-        let mut neighbors = [Neighbor::invalid(); 25];
-        self.tree.nearest(&Euclidean(query_point), 100, &mut self.searcher, &mut neighbors);
+        let mut neighbors = [Neighbor::invalid(); 100];
+        self.tree.nearest(&Euclidean(query_point), 200, &mut self.searcher, &mut neighbors);
         neighbors
             .iter()
             .filter(|&neighbor| neighbor != &Neighbor::invalid())
