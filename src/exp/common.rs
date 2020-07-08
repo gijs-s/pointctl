@@ -1,6 +1,6 @@
 // Internal module file used to define the common interface with all the explanation mechanisms and datatypes.
 
-use rstar;
+use space;
 
 use crate::util::types::{Point3, PointN};
 
@@ -25,49 +25,17 @@ impl<T> AnnotatedPoint<T>{
     }
 }
 
-///! Used to store this in the rtree, we can not store
-/// PointN in here since it is stored on the heap. When
-/// we keep de index so we can search for the ND point
-/// on the heap after finding the nn in 3D.
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct IndexedPoint {
-    pub index: usize,
-    pub point: Point3
-}
+pub struct Euclidean<'a>(pub &'a Point3);
 
-// implement the rstar point for the IndexedPoint so
-// it can be used in a rtree
-impl rstar::Point for IndexedPoint {
-    type Scalar = f32;
-    const DIMENSIONS: usize = 3;
-
-    fn generate(generator: impl Fn(usize) -> Self::Scalar) -> Self
-    {
-        IndexedPoint {
-            // Can't index since we do not now the global state
-            index: 0,
-            point: Point3::new(generator(0), generator(1), generator(2))
-        }
-    }
-
-    fn nth(&self, index: usize) -> Self::Scalar
-    {
-      match index {
-        0 => self.point.x,
-        1 => self.point.y,
-        2 => self.point.z,
-        _ => unreachable!()
-      }
-    }
-
-    fn nth_mut(&mut self, index: usize) -> &mut Self::Scalar
-    {
-      match index {
-        0 => &mut self.point.x,
-        1 => &mut self.point.y,
-        2 => &mut self.point.z,
-        _ => unreachable!()
-      }
+impl<'a> space::MetricPoint for Euclidean<'a> {
+    fn distance(&self, rhs: &Self) -> u32 {
+        space::f32_metric({
+            let x: f32 = &self.0.x - &rhs.0.x;
+            let y: f32 = &self.0.y - &rhs.0.y;
+            let z: f32 = &self.0.z - &rhs.0.z;
+            let t: f32 = x * x + y * y + z * z;
+            t.sqrt()
+        })
     }
 }
 
