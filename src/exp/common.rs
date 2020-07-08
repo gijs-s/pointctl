@@ -4,25 +4,11 @@ use rstar;
 
 use crate::util::types::{Point3, PointN};
 
-#[derive(Clone, PartialEq, Debug)]
-pub struct PointTuple {
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct PointTuple<'o> {
+    pub index: usize,
     pub reduced: Point3,
-    pub original: PointN,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct AnnotatedPoint<T> {
-    pub point: PointTuple,
-    pub annotation: T
-}
-
-impl<T> AnnotatedPoint<T>{
-    pub fn annotate(point: PointTuple, annotation: T) -> Self {
-        AnnotatedPoint {
-            point: point,
-            annotation: annotation
-        }
-    }
+    pub original: &'o PointN,
 }
 
 ///! Used to store this in the rtree, we can not store
@@ -70,6 +56,50 @@ impl rstar::Point for IndexedPoint {
         0 => &mut self.x,
         1 => &mut self.y,
         2 => &mut self.z,
+        _ => unreachable!()
+      }
+    }
+}
+
+const HACK_VEC: &'static Vec::<f32> = &Vec::new();
+
+// implement the rstar point for the PointTuple so
+// it can be used in a rtree and calculates neighbors based on reduced point
+impl<'o> rstar::Point for PointTuple<'o> {
+    type Scalar = f32;
+    const DIMENSIONS: usize = 3;
+
+    fn generate(generator: impl Fn(usize) -> Self::Scalar) -> Self
+    {
+        // println!("This should never be called, impl is fucked");
+        PointTuple {
+            // Can't index since we do not now the global state
+            index: 0,
+            original: HACK_VEC,
+            reduced: Point3::new(
+                generator(0),
+                generator(1),
+                generator(2)
+            )
+        }
+    }
+
+    fn nth(&self, index: usize) -> Self::Scalar
+    {
+      match index {
+        0 => self.reduced.x,
+        1 => self.reduced.y,
+        2 => self.reduced.z,
+        _ => unreachable!()
+      }
+    }
+
+    fn nth_mut(&mut self, index: usize) -> &mut Self::Scalar
+    {
+      match index {
+        0 => &mut self.reduced.x,
+        1 => &mut self.reduced.y,
+        2 => &mut self.reduced.z,
         _ => unreachable!()
       }
     }
