@@ -6,3 +6,6 @@
 # Generated dataset files
 *.ply
 *.csv
+
+# Perf data files
+perf.data*
