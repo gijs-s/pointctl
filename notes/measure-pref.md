@@ -12,7 +12,7 @@ after you can build a release binary with the profiling attributes (`cargo build
 
 ``` sh
 # Run the latest build with perf using a full call graph
-perf record -g --call-graph=dwarf ./target/release/poinctl
+perf record -g --call-graph=dwarf ./target/release/poinctl explain -i cube100k.csv -r reduced-cube100k.csv foobar.csv
 # Generate flame graph using
 # https://github.com/brendangregg/FlameGraph and https://github.com/Yamakaky/rust-unmangle/blob/master/rust-unmangle
 perf script | ../FlameGraph/stackcollapse-perf.pl | ../FlameGraph/rust-unmangle | ../FlameGraph/flamegraph.pl > flame.svg
