@@ -166,7 +166,8 @@ fn explain_command(matches: &ArgMatches) {
         .collect::<Vec<Point3>>();
 
     // Create a Da Silva explanation mechanism
-    let da_silva_mechanism = exp::da_silva::DaSilvaMechanismState::new(clean_reduced_points, &original_points);
+    let da_silva_mechanism =
+        exp::da_silva::DaSilvaMechanismState::new(clean_reduced_points, &original_points);
     let (da_silva_explanation, _dimension_ranking) = da_silva_mechanism.explain(0.1);
 
     // Write the annotations to file

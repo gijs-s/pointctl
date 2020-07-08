@@ -13,14 +13,14 @@ pub struct PointTuple {
 #[derive(Debug, PartialEq)]
 pub struct AnnotatedPoint<T> {
     pub point: PointTuple,
-    pub annotation: T
+    pub annotation: T,
 }
 
-impl<T> AnnotatedPoint<T>{
+impl<T> AnnotatedPoint<T> {
     pub fn annotate(point: PointTuple, annotation: T) -> Self {
         AnnotatedPoint {
             point: point,
-            annotation: annotation
+            annotation: annotation,
         }
     }
 }
@@ -39,39 +39,68 @@ pub struct IndexedPoint {
 
 // implement the rstar point for the IndexedPoint so
 // it can be used in a rtree
-impl rstar::Point for IndexedPoint {
-    type Scalar = f32;
-    const DIMENSIONS: usize = 3;
+// impl rstar::Point for IndexedPoint {
+//     type Scalar = f32;
+//     const DIMENSIONS: usize = 3;
 
-    fn generate(generator: impl Fn(usize) -> Self::Scalar) -> Self
-    {
-        IndexedPoint {
-            // Can't index since we do not now the global state
-            index: 0,
-            x: generator(0),
-            y: generator(1),
-            z: generator(2)
+//     fn generate(generator: impl Fn(usize) -> Self::Scalar) -> Self
+//     {
+//         IndexedPoint {
+//             // Can't index since we do not now the global state
+//             index: 0,
+//             x: generator(0),
+//             y: generator(1),
+//             z: generator(2)
+//         }
+//     }
+
+//     fn nth(&self, index: usize) -> Self::Scalar
+//     {
+//       match index {
+//         0 => self.x,
+//         1 => self.y,
+//         2 => self.z,
+//         _ => unreachable!()
+//       }
+//     }
+
+//     fn nth_mut(&mut self, index: usize) -> &mut Self::Scalar
+//     {
+//       match index {
+//         0 => &mut self.x,
+//         1 => &mut self.y,
+//         2 => &mut self.z,
+//         _ => unreachable!()
+//       }
+//     }
+// }
+
+impl rstar::RTreeObject for IndexedPoint {
+    type Envelope = rstar::AABB<[f32; 3]>;
+    fn envelope(&self) -> Self::Envelope {
+        rstar::AABB::from_point([self.x, self.y, self.z])
+    }
+}
+
+impl rstar::PointDistance for IndexedPoint {
+    fn distance_2(&self, point: &[f32; 3]) -> f32 {
+        let x = point[0] - self.x;
+        let y: f32 = point[1] - self.y;
+        let z = point[2] - self.z;
+        x.powi(2) + y.powi(2) + z.powi(2)
+    }
+
+    fn contains_point(&self, point: &[f32; 3]) -> bool {
+        self.x == point[0] && self.y == point[1] && self.z == point[2]
+    }
+
+    fn distance_2_if_less_or_equal(&self, point: &[f32; 3], max_distance_2: f32) -> Option<f32> {
+        let t = self.distance_2(point);
+        if t <= max_distance_2 {
+            Some(t.sqrt())
+        } else {
+            None
         }
-    }
-
-    fn nth(&self, index: usize) -> Self::Scalar
-    {
-      match index {
-        0 => self.x,
-        1 => self.y,
-        2 => self.z,
-        _ => unreachable!()
-      }
-    }
-
-    fn nth_mut(&mut self, index: usize) -> &mut Self::Scalar
-    {
-      match index {
-        0 => &mut self.x,
-        1 => &mut self.y,
-        2 => &mut self.z,
-        _ => unreachable!()
-      }
     }
 }
 
@@ -102,10 +131,12 @@ impl Distance for PointN {
     }
 
     fn sq_distance(&self, other: &Self) -> f32 {
-        self.iter().zip(other).map(|(a, b)| {
-            let i = a - b;
-            i * i
-        })
-        .fold(0.0f32, |sum, v| sum + v)
+        self.iter()
+            .zip(other)
+            .map(|(a, b)| {
+                let i = a - b;
+                i * i
+            })
+            .fold(0.0f32, |sum, v| sum + v)
     }
 }
