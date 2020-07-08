@@ -16,3 +16,6 @@ perf record -g --call-graph=dwarf ./target/release/poinctl
 # Generate flame graph using
 # https://github.com/brendangregg/FlameGraph and https://github.com/Yamakaky/rust-unmangle/blob/master/rust-unmangle
 perf script | ../FlameGraph/stackcollapse-perf.pl | ../FlameGraph/rust-unmangle | ../FlameGraph/flamegraph.pl > flame.svg
+```
+
+[based-on]: https://gist.github.com/KodrAus/97c92c07a90b1fdd6853654357fd557a

@@ -1,0 +1,2572 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="934" onload="init(evt)" viewBox="0 0 1200 934" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search, #ignorecase { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show, #ignorecase:hover, #ignorecase.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching, currentSearchTerm, ignorecase, ignorecaseBtn;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		ignorecaseBtn = document.getElementById("ignorecase");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+		currentSearchTerm = null;
+	}
+
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom();
+			zoom(target);
+		}
+		else if (e.target.id == "unzoom") unzoom();
+		else if (e.target.id == "search") search_prompt();
+		else if (e.target.id == "ignorecase") toggle_ignorecase();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+	}, false)
+
+	// ctrl-I to toggle case-sensitive search
+	window.addEventListener("keydown",function (e) {
+		if (e.ctrlKey && e.keyCode === 73) {
+			e.preventDefault();
+			toggle_ignorecase();
+		}
+	}, false)
+
+	// functions
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+		return;
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		// Fit in full text width
+		if (/^ *$/.test(txt) || t.getSubStringLength(0, txt.length) < w)
+			return;
+
+		for (var x = txt.length - 2; x > 0; x--) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+		search();
+	}
+	function unzoom() {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			update_text(el[i]);
+		}
+		search();
+	}
+
+	// search
+	function toggle_ignorecase() {
+		ignorecase = !ignorecase;
+		if (ignorecase) {
+			ignorecaseBtn.classList.add("show");
+		} else {
+			ignorecaseBtn.classList.remove("show");
+		}
+		reset_search();
+		search();
+	}
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)"
+			    + (ignorecase ? ", ignoring case" : "")
+			    + "\nPress Ctrl-i to toggle case sensitivity", "");
+			if (term != null) {
+				currentSearchTerm = term;
+				search();
+			}
+		} else {
+			reset_search();
+			searching = 0;
+			currentSearchTerm = null;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		if (currentSearchTerm === null) return;
+		var term = currentSearchTerm;
+
+		var re = new RegExp(term, ignorecase ? 'i' : '');
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="934.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Flame Graph</text>
+<text id="details" x="10.00" y="917" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="ignorecase" x="1174.00" y="24" >ic</text>
+<text id="matched" x="1090.00" y="917" > </text>
+<g id="frames">
+<g >
+<title>pointctl::exp::da_silva::calculate_global_contribution (17 samples, 0.02%)</title><rect x="1176.3" y="661" width="0.2" height="15.0" fill="rgb(229,76,42)" rx="2" ry="2" />
+<text  x="1179.30" y="671.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::for_each (18 samples, 0.02%)</title><rect x="10.3" y="613" width="0.2" height="15.0" fill="rgb(237,199,45)" rx="2" ry="2" />
+<text  x="13.31" y="623.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::algorithm::bellerophon (19 samples, 0.02%)</title><rect x="1181.8" y="181" width="0.2" height="15.0" fill="rgb(239,112,40)" rx="2" ry="2" />
+<text  x="1184.84" y="191.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::fold (3,440 samples, 3.09%)</title><rect x="189.4" y="357" width="36.5" height="15.0" fill="rgb(210,171,21)" rx="2" ry="2" />
+<text  x="192.43" y="367.5" >&lt;co..</text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter (15,299 samples, 13.76%)</title><rect x="63.9" y="421" width="162.4" height="15.0" fill="rgb(207,26,39)" rx="2" ry="2" />
+<text  x="66.92" y="431.5" >&lt;alloc::vec::Vec&lt;T&gt; ..</text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::find (509 samples, 0.46%)</title><rect x="1183.1" y="373" width="5.4" height="15.0" fill="rgb(234,136,28)" rx="2" ry="2" />
+<text  x="1186.09" y="383.5" ></text>
+</g>
+<g >
+<title>mmput (14 samples, 0.01%)</title><rect x="10.2" y="773" width="0.1" height="15.0" fill="rgb(228,35,9)" rx="2" ry="2" />
+<text  x="13.16" y="783.5" ></text>
+</g>
+<g >
+<title>core::alloc::layout::Layout::array (999 samples, 0.90%)</title><rect x="172.8" y="309" width="10.6" height="15.0" fill="rgb(246,5,27)" rx="2" ry="2" />
+<text  x="175.78" y="319.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::zip::Zip&lt;A,B&gt; as core::iter::traits::iterator::Iterator&gt;::next (11 samples, 0.01%)</title><rect x="1187.2" y="165" width="0.1" height="15.0" fill="rgb(215,194,0)" rx="2" ry="2" />
+<text  x="1190.17" y="175.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::needs_to_grow (167 samples, 0.15%)</title><rect x="438.4" y="309" width="1.7" height="15.0" fill="rgb(236,196,16)" rx="2" ry="2" />
+<text  x="441.37" y="319.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::algorithm::quick_start (29 samples, 0.03%)</title><rect x="1181.5" y="165" width="0.3" height="15.0" fill="rgb(250,186,7)" rx="2" ry="2" />
+<text  x="1184.50" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::ResultShunt&lt;I,E&gt; as core::iter::traits::iterator::Iterator&gt;::try_fold (509 samples, 0.46%)</title><rect x="1183.1" y="357" width="5.4" height="15.0" fill="rgb(217,134,19)" rx="2" ry="2" />
+<text  x="1186.09" y="367.5" ></text>
+</g>
+<g >
+<title>&lt;core::slice::Iter&lt;T&gt; as core::iter::traits::iterator::Iterator&gt;::next (2,049 samples, 1.84%)</title><rect x="1131.9" y="341" width="21.7" height="15.0" fill="rgb(228,75,14)" rx="2" ry="2" />
+<text  x="1134.85" y="351.5" >&lt;..</text>
+</g>
+<g >
+<title>core::ops::function::impls::&lt;impl core::ops::function::FnMut&lt;A&gt; for &amp;mut F&gt;::call_mut (47,355 samples, 42.59%)</title><rect x="629.3" y="309" width="502.6" height="15.0" fill="rgb(242,121,16)" rx="2" ry="2" />
+<text  x="632.26" y="319.5" >core::ops::function::impls::&lt;impl core::ops::function::FnMut&lt;A&gt; for ..</text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::reserve (2,339 samples, 2.10%)</title><rect x="415.3" y="357" width="24.8" height="15.0" fill="rgb(254,208,46)" rx="2" ry="2" />
+<text  x="418.32" y="367.5" >a..</text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend (1,157 samples, 1.04%)</title><rect x="1176.6" y="597" width="12.3" height="15.0" fill="rgb(246,8,54)" rx="2" ry="2" />
+<text  x="1179.57" y="607.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::zip (817 samples, 0.73%)</title><rect x="226.3" y="437" width="8.7" height="15.0" fill="rgb(231,19,51)" rx="2" ry="2" />
+<text  x="229.29" y="447.5" ></text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::calculate_local_contributions::{{closure}} (38,437 samples, 34.57%)</title><rect x="57.5" y="453" width="408.0" height="15.0" fill="rgb(249,183,48)" rx="2" ry="2" />
+<text  x="60.53" y="463.5" >pointctl::exp::da_silva::calculate_local_contributions:..</text>
+</g>
+<g >
+<title>core::slice::&lt;impl core::ops::index::Index&lt;I&gt; for [T]&gt;::index (157 samples, 0.14%)</title><rect x="19.0" y="357" width="1.6" height="15.0" fill="rgb(223,120,54)" rx="2" ry="2" />
+<text  x="21.97" y="367.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::reserve (5,918 samples, 5.32%)</title><rect x="126.0" y="373" width="62.8" height="15.0" fill="rgb(213,138,38)" rx="2" ry="2" />
+<text  x="128.99" y="383.5" >alloc:..</text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::find_neighbors (66,781 samples, 60.06%)</title><rect x="465.9" y="517" width="708.8" height="15.0" fill="rgb(254,154,35)" rx="2" ry="2" />
+<text  x="468.93" y="527.5" >pointctl::exp::da_silva::find_neighbors</text>
+</g>
+<g >
+<title>std::sys::unix::alloc::&lt;impl core::alloc::global::GlobalAlloc for std::alloc::System&gt;::dealloc (151 samples, 0.14%)</title><rect x="216.9" y="165" width="1.6" height="15.0" fill="rgb(218,3,49)" rx="2" ry="2" />
+<text  x="219.86" y="175.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::find::check::{{closure}} (34 samples, 0.03%)</title><rect x="1174.1" y="357" width="0.4" height="15.0" fill="rgb(238,187,6)" rx="2" ry="2" />
+<text  x="1177.11" y="367.5" ></text>
+</g>
+<g >
+<title>&lt;usize as core::slice::SliceIndex&lt;[T]&gt;&gt;::index (157 samples, 0.14%)</title><rect x="19.0" y="341" width="1.6" height="15.0" fill="rgb(242,98,13)" rx="2" ry="2" />
+<text  x="21.97" y="351.5" ></text>
+</g>
+<g >
+<title>_alloc_pages_nodemask (317 samples, 0.29%)</title><rect x="1161.4" y="149" width="3.3" height="15.0" fill="rgb(221,152,48)" rx="2" ry="2" />
+<text  x="1164.37" y="159.5" ></text>
+</g>
+<g >
+<title>hrtimer_interrupt (10 samples, 0.01%)</title><rect x="1043.1" y="181" width="0.1" height="15.0" fill="rgb(247,143,29)" rx="2" ry="2" />
+<text  x="1046.10" y="191.5" ></text>
+</g>
+<g >
+<title>_hrtimer_run_queues (28 samples, 0.03%)</title><rect x="1131.4" y="229" width="0.3" height="15.0" fill="rgb(233,76,1)" rx="2" ry="2" />
+<text  x="1134.45" y="239.5" ></text>
+</g>
+<g >
+<title>handle_mm_fault (10 samples, 0.01%)</title><rect x="1157.9" y="197" width="0.1" height="15.0" fill="rgb(236,167,52)" rx="2" ry="2" />
+<text  x="1160.86" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter (66,779 samples, 60.06%)</title><rect x="466.0" y="485" width="708.7" height="15.0" fill="rgb(230,48,18)" rx="2" ry="2" />
+<text  x="468.95" y="495.5" >&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter</text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (16 samples, 0.01%)</title><rect x="10.1" y="853" width="0.2" height="15.0" fill="rgb(231,202,0)" rx="2" ry="2" />
+<text  x="13.14" y="863.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::cmp_by (79 samples, 0.07%)</title><rect x="1184.1" y="101" width="0.9" height="15.0" fill="rgb(219,160,24)" rx="2" ry="2" />
+<text  x="1187.12" y="111.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::AllocRef&gt;::dealloc (2,401 samples, 2.16%)</title><rect x="235.0" y="389" width="25.5" height="15.0" fill="rgb(246,76,45)" rx="2" ry="2" />
+<text  x="237.97" y="399.5" >&lt;..</text>
+</g>
+<g >
+<title>unmap_single_vma (12 samples, 0.01%)</title><rect x="10.2" y="725" width="0.1" height="15.0" fill="rgb(215,107,53)" rx="2" ry="2" />
+<text  x="13.18" y="735.5" ></text>
+</g>
+<g >
+<title>page_fault (867 samples, 0.78%)</title><rect x="1158.2" y="277" width="9.2" height="15.0" fill="rgb(214,82,28)" rx="2" ry="2" />
+<text  x="1161.19" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;&amp;f32 as core::ops::arith::Sub&lt;&amp;f32&gt;&gt;::sub (9,971 samples, 8.97%)</title><rect x="937.4" y="245" width="105.8" height="15.0" fill="rgb(223,147,16)" rx="2" ry="2" />
+<text  x="940.42" y="255.5" >&lt;&amp;f32 as cor..</text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::reserve (10 samples, 0.01%)</title><rect x="1183.0" y="357" width="0.1" height="15.0" fill="rgb(228,110,0)" rx="2" ry="2" />
+<text  x="1185.96" y="367.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter (4,728 samples, 4.25%)</title><rect x="415.3" y="405" width="50.2" height="15.0" fill="rgb(240,205,25)" rx="2" ry="2" />
+<text  x="418.29" y="415.5" >&lt;allo..</text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::fold (109,691 samples, 98.66%)</title><rect x="10.6" y="581" width="1164.2" height="15.0" fill="rgb(214,63,13)" rx="2" ry="2" />
+<text  x="13.59" y="591.5" >&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::fold</text>
+</g>
+<g >
+<title>page_remove_rmap (13 samples, 0.01%)</title><rect x="1175.3" y="309" width="0.2" height="15.0" fill="rgb(219,127,2)" rx="2" ry="2" />
+<text  x="1178.33" y="319.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::for_each (64 samples, 0.06%)</title><rect x="1189.0" y="581" width="0.7" height="15.0" fill="rgb(235,172,2)" rx="2" ry="2" />
+<text  x="1191.98" y="591.5" ></text>
+</g>
+<g >
+<title>&lt;core::slice::Iter&lt;T&gt; as core::iter::traits::iterator::Iterator&gt;::size_hint (144 samples, 0.13%)</title><rect x="121.8" y="325" width="1.5" height="15.0" fill="rgb(250,91,38)" rx="2" ry="2" />
+<text  x="124.76" y="335.5" ></text>
+</g>
+<g >
+<title>unmap_page_range (106 samples, 0.10%)</title><rect x="1175.2" y="341" width="1.1" height="15.0" fill="rgb(237,161,0)" rx="2" ry="2" />
+<text  x="1178.17" y="351.5" ></text>
+</g>
+<g >
+<title>_alloc_pages_nodemask (96 samples, 0.09%)</title><rect x="1172.3" y="277" width="1.0" height="15.0" fill="rgb(225,209,43)" rx="2" ry="2" />
+<text  x="1175.30" y="287.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::collect (18 samples, 0.02%)</title><rect x="10.3" y="677" width="0.2" height="15.0" fill="rgb(208,144,47)" rx="2" ry="2" />
+<text  x="13.31" y="687.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::find::check::{{closure}} (47,355 samples, 42.59%)</title><rect x="629.3" y="325" width="502.6" height="15.0" fill="rgb(244,1,43)" rx="2" ry="2" />
+<text  x="632.26" y="335.5" >core::iter::traits::iterator::Iterator::find::check::{{closure}}</text>
+</g>
+<g >
+<title>pointctl::fs::csv::write (107 samples, 0.10%)</title><rect x="1188.9" y="661" width="1.1" height="15.0" fill="rgb(232,21,38)" rx="2" ry="2" />
+<text  x="1191.85" y="671.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::ops::index::Index&lt;I&gt;&gt;::index (157 samples, 0.14%)</title><rect x="19.0" y="373" width="1.6" height="15.0" fill="rgb(244,156,37)" rx="2" ry="2" />
+<text  x="21.97" y="383.5" ></text>
+</g>
+<g >
+<title>free_pages_and_swap_cache (78 samples, 0.07%)</title><rect x="1175.5" y="293" width="0.8" height="15.0" fill="rgb(250,143,29)" rx="2" ry="2" />
+<text  x="1178.47" y="303.5" ></text>
+</g>
+<g >
+<title>get_mem_cgroup_from_mm (34 samples, 0.03%)</title><rect x="1166.5" y="133" width="0.3" height="15.0" fill="rgb(219,17,11)" rx="2" ry="2" />
+<text  x="1169.46" y="143.5" ></text>
+</g>
+<g >
+<title>_rust_realloc (16 samples, 0.01%)</title><rect x="1154.4" y="309" width="0.2" height="15.0" fill="rgb(210,104,10)" rx="2" ry="2" />
+<text  x="1157.45" y="319.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::try_reserve (1,272 samples, 1.14%)</title><rect x="1154.3" y="389" width="13.5" height="15.0" fill="rgb(214,218,34)" rx="2" ry="2" />
+<text  x="1157.28" y="399.5" ></text>
+</g>
+<g >
+<title>core::iter::adapters::map_try_fold::{{closure}} (501 samples, 0.45%)</title><rect x="1183.2" y="309" width="5.3" height="15.0" fill="rgb(245,28,4)" rx="2" ry="2" />
+<text  x="1186.18" y="319.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::algorithm::bellerophon (10 samples, 0.01%)</title><rect x="1187.8" y="213" width="0.1" height="15.0" fill="rgb(207,41,52)" rx="2" ry="2" />
+<text  x="1190.81" y="223.5" ></text>
+</g>
+<g >
+<title>do_exit (14 samples, 0.01%)</title><rect x="10.2" y="789" width="0.1" height="15.0" fill="rgb(212,38,3)" rx="2" ry="2" />
+<text  x="13.16" y="799.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend (17 samples, 0.02%)</title><rect x="465.5" y="453" width="0.2" height="15.0" fill="rgb(252,142,29)" rx="2" ry="2" />
+<text  x="468.54" y="463.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve (2,338 samples, 2.10%)</title><rect x="415.3" y="341" width="24.8" height="15.0" fill="rgb(250,2,41)" rx="2" ry="2" />
+<text  x="418.33" y="351.5" >a..</text>
+</g>
+<g >
+<title>free_unref_page_commit (27 samples, 0.02%)</title><rect x="1175.9" y="245" width="0.3" height="15.0" fill="rgb(247,10,43)" rx="2" ry="2" />
+<text  x="1178.94" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;&amp;T,core::slice::Iter&lt;T&gt;&gt;&gt;::spec_extend (11 samples, 0.01%)</title><rect x="1189.3" y="341" width="0.1" height="15.0" fill="rgb(228,95,17)" rx="2" ry="2" />
+<text  x="1192.33" y="351.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::find (534 samples, 0.48%)</title><rect x="1177.3" y="341" width="5.6" height="15.0" fill="rgb(211,112,48)" rx="2" ry="2" />
+<text  x="1180.27" y="351.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::fold (41,901 samples, 37.69%)</title><rect x="20.8" y="485" width="444.7" height="15.0" fill="rgb(254,202,31)" rx="2" ry="2" />
+<text  x="23.77" y="495.5" >core::iter::traits::iterator::Iterator::fold</text>
+</g>
+<g >
+<title>apic_timer_interrupt (10 samples, 0.01%)</title><rect x="1131.3" y="245" width="0.1" height="15.0" fill="rgb(241,110,6)" rx="2" ry="2" />
+<text  x="1134.33" y="255.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::num::digits_to_big (56 samples, 0.05%)</title><rect x="1182.1" y="181" width="0.6" height="15.0" fill="rgb(254,221,53)" rx="2" ry="2" />
+<text  x="1185.10" y="191.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::IntoIter&lt;T&gt; as core::ops::drop::Drop&gt;::drop (2,227 samples, 2.00%)</title><rect x="202.3" y="293" width="23.6" height="15.0" fill="rgb(221,169,39)" rx="2" ry="2" />
+<text  x="205.30" y="303.5" >&lt;..</text>
+</g>
+<g >
+<title>_rdl_dealloc (160 samples, 0.14%)</title><rect x="253.2" y="357" width="1.7" height="15.0" fill="rgb(212,93,6)" rx="2" ry="2" />
+<text  x="256.23" y="367.5" ></text>
+</g>
+<g >
+<title>&lt;core::num::bignum::Big32x40 as core::cmp::Ord&gt;::cmp (67 samples, 0.06%)</title><rect x="1178.3" y="101" width="0.7" height="15.0" fill="rgb(216,17,23)" rx="2" ry="2" />
+<text  x="1181.31" y="111.5" ></text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::find_neighbors::{{closure}} (47,355 samples, 42.59%)</title><rect x="629.3" y="293" width="502.6" height="15.0" fill="rgb(224,136,51)" rx="2" ry="2" />
+<text  x="632.26" y="303.5" >pointctl::exp::da_silva::find_neighbors::{{closure}}</text>
+</g>
+<g >
+<title>core::iter::adapters::map_fold::{{closure}} (1,073 samples, 0.97%)</title><rect x="448.4" y="309" width="11.4" height="15.0" fill="rgb(253,133,1)" rx="2" ry="2" />
+<text  x="451.43" y="319.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend (4,204 samples, 3.78%)</title><rect x="415.3" y="373" width="44.6" height="15.0" fill="rgb(231,213,27)" rx="2" ry="2" />
+<text  x="418.29" y="383.5" >&lt;all..</text>
+</g>
+<g >
+<title>core::ops::function::FnMut::call_mut (18 samples, 0.02%)</title><rect x="1189.5" y="421" width="0.2" height="15.0" fill="rgb(212,111,22)" rx="2" ry="2" />
+<text  x="1192.47" y="431.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::from_iter (1,085 samples, 0.98%)</title><rect x="1177.1" y="405" width="11.6" height="15.0" fill="rgb(213,24,11)" rx="2" ry="2" />
+<text  x="1180.15" y="415.5" ></text>
+</g>
+<g >
+<title>[libc-..o] (1,188 samples, 1.07%)</title><rect x="1155.1" y="293" width="12.6" height="15.0" fill="rgb(254,228,32)" rx="2" ry="2" />
+<text  x="1158.07" y="303.5" ></text>
+</g>
+<g >
+<title>core::cmp::Ord::min (255 samples, 0.23%)</title><rect x="123.3" y="309" width="2.7" height="15.0" fill="rgb(221,148,3)" rx="2" ry="2" />
+<text  x="126.29" y="319.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::ResultShunt&lt;I,E&gt; as core::iter::traits::iterator::Iterator&gt;::next (537 samples, 0.48%)</title><rect x="1177.2" y="357" width="5.7" height="15.0" fill="rgb(230,192,4)" rx="2" ry="2" />
+<text  x="1180.24" y="367.5" ></text>
+</g>
+<g >
+<title>mem_cgroup_throttle_swaprate (32 samples, 0.03%)</title><rect x="1166.1" y="149" width="0.3" height="15.0" fill="rgb(237,77,1)" rx="2" ry="2" />
+<text  x="1169.06" y="159.5" ></text>
+</g>
+<g >
+<title>pointctl::explain_command (111,152 samples, 99.97%)</title><rect x="10.3" y="693" width="1179.7" height="15.0" fill="rgb(218,61,51)" rx="2" ry="2" />
+<text  x="13.31" y="703.5" >pointctl::explain_command</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place (2,463 samples, 2.22%)</title><rect x="235.0" y="421" width="26.1" height="15.0" fill="rgb(238,164,1)" rx="2" ry="2" />
+<text  x="237.96" y="431.5" >c..</text>
+</g>
+<g >
+<title>_rdl_alloc (156 samples, 0.14%)</title><rect x="429.7" y="277" width="1.7" height="15.0" fill="rgb(237,34,53)" rx="2" ry="2" />
+<text  x="432.73" y="287.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T&gt;::with_capacity (16 samples, 0.01%)</title><rect x="1188.5" y="373" width="0.2" height="15.0" fill="rgb(220,26,50)" rx="2" ry="2" />
+<text  x="1191.49" y="383.5" ></text>
+</g>
+<g >
+<title>&lt;&amp;f32 as core::ops::arith::Sub&lt;&amp;f32&gt;&gt;::sub (15 samples, 0.01%)</title><rect x="355.1" y="341" width="0.1" height="15.0" fill="rgb(243,150,29)" rx="2" ry="2" />
+<text  x="358.07" y="351.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::collect (68 samples, 0.06%)</title><rect x="1188.9" y="645" width="0.8" height="15.0" fill="rgb(230,165,25)" rx="2" ry="2" />
+<text  x="1191.94" y="655.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::dealloc (144 samples, 0.13%)</title><rect x="1174.8" y="549" width="1.5" height="15.0" fill="rgb(235,181,8)" rx="2" ry="2" />
+<text  x="1177.77" y="559.5" ></text>
+</g>
+<g >
+<title>scheduler_tick (17 samples, 0.02%)</title><rect x="1131.6" y="165" width="0.1" height="15.0" fill="rgb(248,27,15)" rx="2" ry="2" />
+<text  x="1134.56" y="175.5" ></text>
+</g>
+<g >
+<title>_x64_sys_brk (107 samples, 0.10%)</title><rect x="1175.2" y="421" width="1.1" height="15.0" fill="rgb(205,105,3)" rx="2" ry="2" />
+<text  x="1178.16" y="431.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::zip::Zip&lt;A,B&gt; as core::iter::adapters::zip::ZipImpl&lt;A,B&gt;&gt;::size_hint (1,033 samples, 0.93%)</title><rect x="115.0" y="341" width="11.0" height="15.0" fill="rgb(228,224,39)" rx="2" ry="2" />
+<text  x="118.03" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::try_fold (508 samples, 0.46%)</title><rect x="1183.1" y="341" width="5.4" height="15.0" fill="rgb(211,27,13)" rx="2" ry="2" />
+<text  x="1186.10" y="351.5" ></text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::div_rem (337 samples, 0.30%)</title><rect x="1177.8" y="165" width="3.6" height="15.0" fill="rgb(253,126,25)" rx="2" ry="2" />
+<text  x="1180.78" y="175.5" ></text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialOrd for usize&gt;::lt (10 samples, 0.01%)</title><rect x="1181.0" y="101" width="0.1" height="15.0" fill="rgb(217,100,10)" rx="2" ry="2" />
+<text  x="1183.96" y="111.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Enumerate&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::try_fold (43 samples, 0.04%)</title><rect x="1174.0" y="405" width="0.5" height="15.0" fill="rgb(210,221,30)" rx="2" ry="2" />
+<text  x="1177.04" y="415.5" ></text>
+</g>
+<g >
+<title>tick_sched_timer (28 samples, 0.03%)</title><rect x="1131.4" y="213" width="0.3" height="15.0" fill="rgb(233,89,38)" rx="2" ry="2" />
+<text  x="1134.45" y="223.5" ></text>
+</g>
+<g >
+<title>rmqueue (65 samples, 0.06%)</title><rect x="1164.0" y="117" width="0.7" height="15.0" fill="rgb(207,188,34)" rx="2" ry="2" />
+<text  x="1167.04" y="127.5" ></text>
+</g>
+<g >
+<title>_pagevec_lru_add_fn (53 samples, 0.05%)</title><rect x="1165.1" y="117" width="0.5" height="15.0" fill="rgb(212,102,39)" rx="2" ry="2" />
+<text  x="1168.08" y="127.5" ></text>
+</g>
+<g >
+<title>_hrtimer_run_queues (10 samples, 0.01%)</title><rect x="1043.1" y="165" width="0.1" height="15.0" fill="rgb(213,112,14)" rx="2" ry="2" />
+<text  x="1046.10" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Filter&lt;I,P&gt; as core::iter::traits::iterator::Iterator&gt;::count (924 samples, 0.83%)</title><rect x="10.8" y="501" width="9.8" height="15.0" fill="rgb(254,105,32)" rx="2" ry="2" />
+<text  x="13.83" y="511.5" ></text>
+</g>
+<g >
+<title>handle_mm_fault (186 samples, 0.17%)</title><rect x="1171.9" y="341" width="2.0" height="15.0" fill="rgb(221,5,13)" rx="2" ry="2" />
+<text  x="1174.94" y="351.5" ></text>
+</g>
+<g >
+<title>do_user_addr_fault (685 samples, 0.62%)</title><rect x="1160.1" y="229" width="7.2" height="15.0" fill="rgb(246,140,27)" rx="2" ry="2" />
+<text  x="1163.06" y="239.5" ></text>
+</g>
+<g >
+<title>core::fmt::float::float_to_decimal_common_shortest (39 samples, 0.04%)</title><rect x="1189.2" y="453" width="0.5" height="15.0" fill="rgb(247,128,35)" rx="2" ry="2" />
+<text  x="1192.25" y="463.5" ></text>
+</g>
+<g >
+<title>mem_cgroup_commit_charge (22 samples, 0.02%)</title><rect x="1165.8" y="165" width="0.2" height="15.0" fill="rgb(242,99,26)" rx="2" ry="2" />
+<text  x="1168.78" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::fold (8,839 samples, 7.95%)</title><rect x="261.5" y="405" width="93.8" height="15.0" fill="rgb(243,152,39)" rx="2" ry="2" />
+<text  x="264.48" y="415.5" >&lt;core::iter..</text>
+</g>
+<g >
+<title>core::cmp::PartialOrd::ge (81 samples, 0.07%)</title><rect x="1184.1" y="165" width="0.9" height="15.0" fill="rgb(211,1,22)" rx="2" ry="2" />
+<text  x="1187.11" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::from_iter (109,691 samples, 98.66%)</title><rect x="10.6" y="629" width="1164.2" height="15.0" fill="rgb(248,93,34)" rx="2" ry="2" />
+<text  x="13.59" y="639.5" >&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::from_iter</text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::fold (17 samples, 0.02%)</title><rect x="1176.3" y="629" width="0.2" height="15.0" fill="rgb(233,3,36)" rx="2" ry="2" />
+<text  x="1179.30" y="639.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve (10 samples, 0.01%)</title><rect x="1189.3" y="309" width="0.1" height="15.0" fill="rgb(225,116,50)" rx="2" ry="2" />
+<text  x="1192.34" y="319.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place (144 samples, 0.13%)</title><rect x="1174.8" y="629" width="1.5" height="15.0" fill="rgb(246,91,40)" rx="2" ry="2" />
+<text  x="1177.77" y="639.5" ></text>
+</g>
+<g >
+<title>brk (58 samples, 0.05%)</title><rect x="1156.9" y="213" width="0.6" height="15.0" fill="rgb(208,34,10)" rx="2" ry="2" />
+<text  x="1159.85" y="223.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::sum (924 samples, 0.83%)</title><rect x="10.8" y="485" width="9.8" height="15.0" fill="rgb(239,59,6)" rx="2" ry="2" />
+<text  x="13.83" y="495.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend (66,695 samples, 59.99%)</title><rect x="466.2" y="453" width="707.8" height="15.0" fill="rgb(221,55,24)" rx="2" ry="2" />
+<text  x="469.19" y="463.5" >&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend</text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::current_memory (61 samples, 0.05%)</title><rect x="260.5" y="389" width="0.6" height="15.0" fill="rgb(241,157,18)" rx="2" ry="2" />
+<text  x="263.45" y="399.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::AllocRef&gt;::alloc (19 samples, 0.02%)</title><rect x="1174.5" y="389" width="0.2" height="15.0" fill="rgb(216,94,36)" rx="2" ry="2" />
+<text  x="1177.49" y="399.5" ></text>
+</g>
+<g >
+<title>&lt;&amp;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::IntoIterator&gt;::into_iter (5,338 samples, 4.80%)</title><rect x="355.3" y="389" width="56.6" height="15.0" fill="rgb(233,118,3)" rx="2" ry="2" />
+<text  x="358.29" y="399.5" >&lt;&amp;allo..</text>
+</g>
+<g >
+<title>&lt;usize as core::ops::arith::AddAssign&gt;::add_assign (608 samples, 0.55%)</title><rect x="622.8" y="325" width="6.5" height="15.0" fill="rgb(234,176,29)" rx="2" ry="2" />
+<text  x="625.81" y="335.5" ></text>
+</g>
+<g >
+<title>core::ptr::write (589 samples, 0.53%)</title><rect x="1167.8" y="421" width="6.2" height="15.0" fill="rgb(243,195,44)" rx="2" ry="2" />
+<text  x="1170.78" y="431.5" ></text>
+</g>
+<g >
+<title>do_user_addr_fault (197 samples, 0.18%)</title><rect x="1171.9" y="357" width="2.0" height="15.0" fill="rgb(207,135,21)" rx="2" ry="2" />
+<text  x="1174.85" y="367.5" ></text>
+</g>
+<g >
+<title>core::cmp::max (152 samples, 0.14%)</title><rect x="436.8" y="293" width="1.6" height="15.0" fill="rgb(206,169,50)" rx="2" ry="2" />
+<text  x="439.76" y="303.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::fold (3,440 samples, 3.09%)</title><rect x="189.4" y="341" width="36.5" height="15.0" fill="rgb(241,109,54)" rx="2" ry="2" />
+<text  x="192.43" y="351.5" >cor..</text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::ops::deref::Deref&gt;::deref (5,338 samples, 4.80%)</title><rect x="355.3" y="373" width="56.6" height="15.0" fill="rgb(249,227,41)" rx="2" ry="2" />
+<text  x="358.29" y="383.5" >&lt;alloc..</text>
+</g>
+<g >
+<title>pointctl::fs::csv::read::{{closure}}::{{closure}} (501 samples, 0.45%)</title><rect x="1183.2" y="293" width="5.3" height="15.0" fill="rgb(225,4,48)" rx="2" ry="2" />
+<text  x="1186.18" y="303.5" ></text>
+</g>
+<g >
+<title>tick_sched_timer (10 samples, 0.01%)</title><rect x="1043.1" y="149" width="0.1" height="15.0" fill="rgb(221,222,34)" rx="2" ry="2" />
+<text  x="1046.10" y="159.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::zip (5,653 samples, 5.08%)</title><rect x="355.3" y="405" width="60.0" height="15.0" fill="rgb(240,9,38)" rx="2" ry="2" />
+<text  x="358.29" y="415.5" >core::..</text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::for_each::call::{{closure}} (16 samples, 0.01%)</title><rect x="10.6" y="533" width="0.2" height="15.0" fill="rgb(206,53,45)" rx="2" ry="2" />
+<text  x="13.59" y="543.5" ></text>
+</g>
+<g >
+<title>&lt;core::num::bignum::Big32x40 as core::cmp::PartialOrd&gt;::partial_cmp (67 samples, 0.06%)</title><rect x="1178.3" y="117" width="0.7" height="15.0" fill="rgb(245,64,15)" rx="2" ry="2" />
+<text  x="1181.31" y="127.5" ></text>
+</g>
+<g >
+<title>do_syscall_64 (15 samples, 0.01%)</title><rect x="10.1" y="837" width="0.2" height="15.0" fill="rgb(213,18,50)" rx="2" ry="2" />
+<text  x="13.15" y="847.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter (17 samples, 0.02%)</title><rect x="465.5" y="485" width="0.2" height="15.0" fill="rgb(225,218,2)" rx="2" ry="2" />
+<text  x="468.54" y="495.5" ></text>
+</g>
+<g >
+<title>perf_event_mmap (32 samples, 0.03%)</title><rect x="1157.0" y="133" width="0.3" height="15.0" fill="rgb(218,2,38)" rx="2" ry="2" />
+<text  x="1159.95" y="143.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::try_reserve (10 samples, 0.01%)</title><rect x="1189.3" y="293" width="0.1" height="15.0" fill="rgb(208,133,12)" rx="2" ry="2" />
+<text  x="1192.34" y="303.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::try_fold (508 samples, 0.46%)</title><rect x="1183.1" y="325" width="5.4" height="15.0" fill="rgb(248,116,8)" rx="2" ry="2" />
+<text  x="1186.10" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::fold (18 samples, 0.02%)</title><rect x="10.3" y="597" width="0.2" height="15.0" fill="rgb(232,118,16)" rx="2" ry="2" />
+<text  x="13.31" y="607.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::cmp::{{closure}} (32 samples, 0.03%)</title><rect x="1178.7" y="53" width="0.3" height="15.0" fill="rgb(208,153,14)" rx="2" ry="2" />
+<text  x="1181.67" y="63.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place (144 samples, 0.13%)</title><rect x="1174.8" y="597" width="1.5" height="15.0" fill="rgb(220,142,1)" rx="2" ry="2" />
+<text  x="1177.77" y="607.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::next (63,559 samples, 57.17%)</title><rect x="479.2" y="421" width="674.5" height="15.0" fill="rgb(228,77,53)" rx="2" ry="2" />
+<text  x="482.17" y="431.5" >&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::next</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place (2,463 samples, 2.22%)</title><rect x="235.0" y="437" width="26.1" height="15.0" fill="rgb(254,154,22)" rx="2" ry="2" />
+<text  x="237.96" y="447.5" >c..</text>
+</g>
+<g >
+<title>[libc-..o] (190 samples, 0.17%)</title><rect x="1156.0" y="277" width="2.0" height="15.0" fill="rgb(206,6,5)" rx="2" ry="2" />
+<text  x="1158.97" y="287.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place (15 samples, 0.01%)</title><rect x="1189.7" y="645" width="0.1" height="15.0" fill="rgb(239,68,13)" rx="2" ry="2" />
+<text  x="1192.66" y="655.5" ></text>
+</g>
+<g >
+<title>core::cmp::Ord::max (152 samples, 0.14%)</title><rect x="436.8" y="277" width="1.6" height="15.0" fill="rgb(236,129,10)" rx="2" ry="2" />
+<text  x="439.76" y="287.5" ></text>
+</g>
+<g >
+<title>core::iter::adapters::map_fold::{{closure}} (64 samples, 0.06%)</title><rect x="1189.0" y="533" width="0.7" height="15.0" fill="rgb(226,174,25)" rx="2" ry="2" />
+<text  x="1191.98" y="543.5" ></text>
+</g>
+<g >
+<title>core::cmp::min_by (255 samples, 0.23%)</title><rect x="123.3" y="293" width="2.7" height="15.0" fill="rgb(216,130,1)" rx="2" ry="2" />
+<text  x="126.29" y="303.5" ></text>
+</g>
+<g >
+<title>_alloc_pages_nodemask (14 samples, 0.01%)</title><rect x="1157.6" y="117" width="0.1" height="15.0" fill="rgb(254,3,51)" rx="2" ry="2" />
+<text  x="1160.56" y="127.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::collect (4,728 samples, 4.25%)</title><rect x="415.3" y="421" width="50.2" height="15.0" fill="rgb(211,225,28)" rx="2" ry="2" />
+<text  x="418.29" y="431.5" >core:..</text>
+</g>
+<g >
+<title>unmap_single_vma (106 samples, 0.10%)</title><rect x="1175.2" y="357" width="1.1" height="15.0" fill="rgb(235,200,8)" rx="2" ry="2" />
+<text  x="1178.17" y="367.5" ></text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::mul_small (15 samples, 0.01%)</title><rect x="1188.1" y="197" width="0.2" height="15.0" fill="rgb(220,73,37)" rx="2" ry="2" />
+<text  x="1191.12" y="207.5" ></text>
+</g>
+<g >
+<title>core::cmp::Ord::max (509 samples, 0.46%)</title><rect x="183.4" y="293" width="5.4" height="15.0" fill="rgb(237,123,22)" rx="2" ry="2" />
+<text  x="186.38" y="303.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::zip::Zip&lt;A,B&gt; as core::iter::traits::iterator::Iterator&gt;::next (781 samples, 0.70%)</title><rect x="440.1" y="309" width="8.3" height="15.0" fill="rgb(205,43,41)" rx="2" ry="2" />
+<text  x="443.14" y="319.5" ></text>
+</g>
+<g >
+<title>pointctl::fs::prelude::write (107 samples, 0.10%)</title><rect x="1188.9" y="677" width="1.1" height="15.0" fill="rgb(211,190,12)" rx="2" ry="2" />
+<text  x="1191.85" y="687.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::new (524 samples, 0.47%)</title><rect x="459.9" y="373" width="5.6" height="15.0" fill="rgb(208,33,16)" rx="2" ry="2" />
+<text  x="462.91" y="383.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend (109,691 samples, 98.66%)</title><rect x="10.6" y="613" width="1164.2" height="15.0" fill="rgb(237,179,52)" rx="2" ry="2" />
+<text  x="13.59" y="623.5" >&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend</text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::Ord for u32&gt;::cmp (32 samples, 0.03%)</title><rect x="1178.7" y="37" width="0.3" height="15.0" fill="rgb(219,27,32)" rx="2" ry="2" />
+<text  x="1181.67" y="47.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::zip::Zip&lt;A,B&gt; as core::iter::traits::iterator::Iterator&gt;::next (12 samples, 0.01%)</title><rect x="1181.2" y="133" width="0.1" height="15.0" fill="rgb(223,135,12)" rx="2" ry="2" />
+<text  x="1184.18" y="143.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Rev&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::next (15 samples, 0.01%)</title><rect x="1184.0" y="181" width="0.1" height="15.0" fill="rgb(241,101,51)" rx="2" ry="2" />
+<text  x="1186.95" y="191.5" ></text>
+</g>
+<g >
+<title>core::cmp::max_by (509 samples, 0.46%)</title><rect x="183.4" y="277" width="5.4" height="15.0" fill="rgb(238,27,52)" rx="2" ry="2" />
+<text  x="186.38" y="287.5" ></text>
+</g>
+<g >
+<title>_mod_lruvec_state (14 samples, 0.01%)</title><rect x="1165.4" y="101" width="0.1" height="15.0" fill="rgb(227,197,54)" rx="2" ry="2" />
+<text  x="1168.38" y="111.5" ></text>
+</g>
+<g >
+<title>_lru_cache_add (78 samples, 0.07%)</title><rect x="1164.9" y="149" width="0.9" height="15.0" fill="rgb(234,127,48)" rx="2" ry="2" />
+<text  x="1167.94" y="159.5" ></text>
+</g>
+<g >
+<title>core::fmt::Write::write_fmt (49 samples, 0.04%)</title><rect x="1189.1" y="485" width="0.6" height="15.0" fill="rgb(217,192,43)" rx="2" ry="2" />
+<text  x="1192.14" y="495.5" ></text>
+</g>
+<g >
+<title>zap_pte_rang.sr. (104 samples, 0.09%)</title><rect x="1175.2" y="325" width="1.1" height="15.0" fill="rgb(209,220,42)" rx="2" ry="2" />
+<text  x="1178.19" y="335.5" ></text>
+</g>
+<g >
+<title>pointctl (111,175 samples, 99.99%)</title><rect x="10.1" y="869" width="1179.9" height="15.0" fill="rgb(230,1,27)" rx="2" ry="2" />
+<text  x="13.07" y="879.5" >pointctl</text>
+</g>
+<g >
+<title>alloc_pages_vma (336 samples, 0.30%)</title><rect x="1161.3" y="165" width="3.6" height="15.0" fill="rgb(226,50,23)" rx="2" ry="2" />
+<text  x="1164.31" y="175.5" ></text>
+</g>
+<g >
+<title>std::rt::lang_start::{{closure}} (111,152 samples, 99.97%)</title><rect x="10.3" y="725" width="1179.7" height="15.0" fill="rgb(235,185,11)" rx="2" ry="2" />
+<text  x="13.31" y="735.5" >std::rt::lang_start::{{closure}}</text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::collect (1,085 samples, 0.98%)</title><rect x="1177.1" y="437" width="11.6" height="15.0" fill="rgb(208,199,21)" rx="2" ry="2" />
+<text  x="1180.15" y="447.5" ></text>
+</g>
+<g >
+<title>std::rt::lang_start_internal::{{closure}} (111,152 samples, 99.97%)</title><rect x="10.3" y="741" width="1179.7" height="15.0" fill="rgb(254,6,42)" rx="2" ry="2" />
+<text  x="13.31" y="751.5" >std::rt::lang_start_internal::{{closure}}</text>
+</g>
+<g >
+<title>all (111,182 samples, 100%)</title><rect x="10.0" y="885" width="1180.0" height="15.0" fill="rgb(228,60,20)" rx="2" ry="2" />
+<text  x="13.00" y="895.5" ></text>
+</g>
+<g >
+<title>mem_cgroup_throttle_swaprate (11 samples, 0.01%)</title><rect x="1173.6" y="277" width="0.1" height="15.0" fill="rgb(224,72,26)" rx="2" ry="2" />
+<text  x="1176.60" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter (109,691 samples, 98.66%)</title><rect x="10.6" y="645" width="1164.2" height="15.0" fill="rgb(206,84,30)" rx="2" ry="2" />
+<text  x="13.59" y="655.5" >&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter</text>
+</g>
+<g >
+<title>alloc::vec::SetLenOnDrop::increment_len (1,046 samples, 0.94%)</title><rect x="191.2" y="277" width="11.1" height="15.0" fill="rgb(226,228,33)" rx="2" ry="2" />
+<text  x="194.19" y="287.5" ></text>
+</g>
+<g >
+<title>std::panic::catch_unwind (111,152 samples, 99.97%)</title><rect x="10.3" y="789" width="1179.7" height="15.0" fill="rgb(206,172,11)" rx="2" ry="2" />
+<text  x="13.31" y="799.5" >std::panic::catch_unwind</text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::grow_amortized (5,338 samples, 4.80%)</title><rect x="132.1" y="325" width="56.7" height="15.0" fill="rgb(219,89,40)" rx="2" ry="2" />
+<text  x="135.15" y="335.5" >alloc:..</text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::collect (15,299 samples, 13.76%)</title><rect x="63.9" y="437" width="162.4" height="15.0" fill="rgb(212,218,29)" rx="2" ry="2" />
+<text  x="66.92" y="447.5" >core::iter::traits::..</text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend (10,533 samples, 9.47%)</title><rect x="114.1" y="389" width="111.8" height="15.0" fill="rgb(226,227,39)" rx="2" ry="2" />
+<text  x="117.15" y="399.5" >&lt;alloc::vec::..</text>
+</g>
+<g >
+<title>perf_iterate_ctx (22 samples, 0.02%)</title><rect x="1157.1" y="101" width="0.2" height="15.0" fill="rgb(211,48,6)" rx="2" ry="2" />
+<text  x="1160.06" y="111.5" ></text>
+</g>
+<g >
+<title>core::ptr::write (16 samples, 0.01%)</title><rect x="10.6" y="501" width="0.2" height="15.0" fill="rgb(251,52,24)" rx="2" ry="2" />
+<text  x="13.59" y="511.5" ></text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::from_u64 (10 samples, 0.01%)</title><rect x="1181.4" y="165" width="0.1" height="15.0" fill="rgb(236,202,14)" rx="2" ry="2" />
+<text  x="1184.37" y="175.5" ></text>
+</g>
+<g >
+<title>page_fault (260 samples, 0.23%)</title><rect x="1171.2" y="405" width="2.7" height="15.0" fill="rgb(239,147,35)" rx="2" ry="2" />
+<text  x="1174.18" y="415.5" ></text>
+</g>
+<g >
+<title>do_page_fault (712 samples, 0.64%)</title><rect x="1159.8" y="261" width="7.6" height="15.0" fill="rgb(238,207,27)" rx="2" ry="2" />
+<text  x="1162.84" y="271.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::with_capacity (16 samples, 0.01%)</title><rect x="1188.5" y="389" width="0.2" height="15.0" fill="rgb(215,203,29)" rx="2" ry="2" />
+<text  x="1191.49" y="399.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Rev&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::next (17 samples, 0.02%)</title><rect x="1180.9" y="133" width="0.2" height="15.0" fill="rgb(223,148,30)" rx="2" ry="2" />
+<text  x="1183.88" y="143.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::ops::deref::Deref&gt;::deref (34 samples, 0.03%)</title><rect x="261.1" y="405" width="0.4" height="15.0" fill="rgb(217,203,33)" rx="2" ry="2" />
+<text  x="264.12" y="415.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::ResultShunt&lt;I,E&gt; as core::iter::traits::iterator::Iterator&gt;::try_fold (534 samples, 0.48%)</title><rect x="1177.3" y="325" width="5.6" height="15.0" fill="rgb(215,205,48)" rx="2" ry="2" />
+<text  x="1180.27" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend (18 samples, 0.02%)</title><rect x="10.3" y="629" width="0.2" height="15.0" fill="rgb(235,118,34)" rx="2" ry="2" />
+<text  x="13.31" y="639.5" ></text>
+</g>
+<g >
+<title>core::num::flt2dec::to_shortest_str (20 samples, 0.02%)</title><rect x="1189.4" y="437" width="0.3" height="15.0" fill="rgb(211,173,6)" rx="2" ry="2" />
+<text  x="1192.45" y="447.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::try_reserve (2,167 samples, 1.95%)</title><rect x="417.1" y="325" width="23.0" height="15.0" fill="rgb(223,166,41)" rx="2" ry="2" />
+<text  x="420.14" y="335.5" >a..</text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::fold (64 samples, 0.06%)</title><rect x="1189.0" y="549" width="0.7" height="15.0" fill="rgb(219,38,22)" rx="2" ry="2" />
+<text  x="1191.98" y="559.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::extend_desugared (554 samples, 0.50%)</title><rect x="1177.2" y="373" width="5.9" height="15.0" fill="rgb(235,128,8)" rx="2" ry="2" />
+<text  x="1180.20" y="383.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::from_iter (68 samples, 0.06%)</title><rect x="1188.9" y="613" width="0.8" height="15.0" fill="rgb(212,61,31)" rx="2" ry="2" />
+<text  x="1191.94" y="623.5" ></text>
+</g>
+<g >
+<title>core::iter::range::&lt;impl core::iter::traits::double_ended::DoubleEndedIterator for core::ops::range::Range&lt;A&gt;&gt;::next_back (13 samples, 0.01%)</title><rect x="1178.2" y="133" width="0.1" height="15.0" fill="rgb(221,54,22)" rx="2" ry="2" />
+<text  x="1181.18" y="143.5" ></text>
+</g>
+<g >
+<title>&lt;usize as core::iter::traits::accum::Sum&gt;::sum (924 samples, 0.83%)</title><rect x="10.8" y="469" width="9.8" height="15.0" fill="rgb(208,138,44)" rx="2" ry="2" />
+<text  x="13.83" y="479.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::collect (109,691 samples, 98.66%)</title><rect x="10.6" y="661" width="1164.2" height="15.0" fill="rgb(229,136,7)" rx="2" ry="2" />
+<text  x="13.59" y="671.5" >core::iter::traits::iterator::Iterator::collect</text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::next (1,144 samples, 1.03%)</title><rect x="1176.6" y="565" width="12.1" height="15.0" fill="rgb(254,44,51)" rx="2" ry="2" />
+<text  x="1179.58" y="575.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend::{{closure}} (825 samples, 0.74%)</title><rect x="448.4" y="277" width="8.8" height="15.0" fill="rgb(216,162,23)" rx="2" ry="2" />
+<text  x="451.43" y="287.5" ></text>
+</g>
+<g >
+<title>get_page_from_freelist (88 samples, 0.08%)</title><rect x="1172.4" y="261" width="0.9" height="15.0" fill="rgb(247,106,49)" rx="2" ry="2" />
+<text  x="1175.38" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter (1,157 samples, 1.04%)</title><rect x="1176.6" y="629" width="12.3" height="15.0" fill="rgb(221,114,12)" rx="2" ry="2" />
+<text  x="1179.57" y="639.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (19 samples, 0.02%)</title><rect x="1174.5" y="421" width="0.2" height="15.0" fill="rgb(221,149,41)" rx="2" ry="2" />
+<text  x="1177.49" y="431.5" ></text>
+</g>
+<g >
+<title>core::iter::adapters::map_fold::{{closure}} (884 samples, 0.80%)</title><rect x="11.3" y="405" width="9.3" height="15.0" fill="rgb(236,98,2)" rx="2" ry="2" />
+<text  x="14.25" y="415.5" ></text>
+</g>
+<g >
+<title>cfree (349 samples, 0.31%)</title><rect x="256.7" y="357" width="3.8" height="15.0" fill="rgb(230,162,19)" rx="2" ry="2" />
+<text  x="259.75" y="367.5" ></text>
+</g>
+<g >
+<title>do_page_fault (11 samples, 0.01%)</title><rect x="1157.9" y="245" width="0.1" height="15.0" fill="rgb(222,72,12)" rx="2" ry="2" />
+<text  x="1160.85" y="255.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::finish_grow (1,258 samples, 1.13%)</title><rect x="1154.3" y="357" width="13.4" height="15.0" fill="rgb(225,208,4)" rx="2" ry="2" />
+<text  x="1157.33" y="367.5" ></text>
+</g>
+<g >
+<title>_rust_dealloc (171 samples, 0.15%)</title><rect x="254.9" y="357" width="1.8" height="15.0" fill="rgb(243,188,4)" rx="2" ry="2" />
+<text  x="257.93" y="367.5" ></text>
+</g>
+<g >
+<title>alloc_pages_vma (15 samples, 0.01%)</title><rect x="1157.6" y="133" width="0.1" height="15.0" fill="rgb(237,219,38)" rx="2" ry="2" />
+<text  x="1160.56" y="143.5" ></text>
+</g>
+<g >
+<title>_x64_sys_brk (49 samples, 0.04%)</title><rect x="1156.9" y="165" width="0.5" height="15.0" fill="rgb(227,190,26)" rx="2" ry="2" />
+<text  x="1159.87" y="175.5" ></text>
+</g>
+<g >
+<title>core::fmt::write (49 samples, 0.04%)</title><rect x="1189.1" y="469" width="0.6" height="15.0" fill="rgb(238,96,40)" rx="2" ry="2" />
+<text  x="1192.14" y="479.5" ></text>
+</g>
+<g >
+<title>std::io::Write::write_fmt (16 samples, 0.01%)</title><rect x="1189.8" y="645" width="0.2" height="15.0" fill="rgb(210,66,11)" rx="2" ry="2" />
+<text  x="1192.82" y="655.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place (144 samples, 0.13%)</title><rect x="1174.8" y="661" width="1.5" height="15.0" fill="rgb(229,125,13)" rx="2" ry="2" />
+<text  x="1177.77" y="671.5" ></text>
+</g>
+<g >
+<title>core::iter::adapters::map_fold::{{closure}} (40,637 samples, 36.55%)</title><rect x="34.2" y="469" width="431.3" height="15.0" fill="rgb(211,29,6)" rx="2" ry="2" />
+<text  x="37.18" y="479.5" >core::iter::adapters::map_fold::{{closure}}</text>
+</g>
+<g >
+<title>pointctl::main (111,152 samples, 99.97%)</title><rect x="10.3" y="709" width="1179.7" height="15.0" fill="rgb(223,104,29)" rx="2" ry="2" />
+<text  x="13.31" y="719.5" >pointctl::main</text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialOrd for usize&gt;::lt (13 samples, 0.01%)</title><rect x="1184.0" y="149" width="0.1" height="15.0" fill="rgb(230,53,37)" rx="2" ry="2" />
+<text  x="1186.97" y="159.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::convert (490 samples, 0.44%)</title><rect x="1177.5" y="197" width="5.2" height="15.0" fill="rgb(240,154,23)" rx="2" ry="2" />
+<text  x="1180.52" y="207.5" ></text>
+</g>
+<g >
+<title>core::iter::adapters::zip::Zip&lt;A,B&gt;::new (315 samples, 0.28%)</title><rect x="411.9" y="389" width="3.4" height="15.0" fill="rgb(210,187,32)" rx="2" ry="2" />
+<text  x="414.94" y="399.5" ></text>
+</g>
+<g >
+<title>exit_mmap (14 samples, 0.01%)</title><rect x="10.2" y="757" width="0.1" height="15.0" fill="rgb(235,163,31)" rx="2" ry="2" />
+<text  x="13.16" y="767.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter (1,085 samples, 0.98%)</title><rect x="1177.1" y="421" width="11.6" height="15.0" fill="rgb(235,113,17)" rx="2" ry="2" />
+<text  x="1180.15" y="431.5" ></text>
+</g>
+<g >
+<title>_handle_mm_fault (24 samples, 0.02%)</title><rect x="1157.6" y="165" width="0.2" height="15.0" fill="rgb(226,2,8)" rx="2" ry="2" />
+<text  x="1160.56" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend::{{closure}} (1,047 samples, 0.94%)</title><rect x="191.2" y="293" width="11.1" height="15.0" fill="rgb(206,41,10)" rx="2" ry="2" />
+<text  x="194.19" y="303.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::set_memory (68 samples, 0.06%)</title><rect x="133.9" y="309" width="0.7" height="15.0" fill="rgb(234,82,39)" rx="2" ry="2" />
+<text  x="136.91" y="319.5" ></text>
+</g>
+<g >
+<title>core::str::SplitInternal&lt;P&gt;::next (16 samples, 0.01%)</title><rect x="1177.3" y="261" width="0.1" height="15.0" fill="rgb(245,132,30)" rx="2" ry="2" />
+<text  x="1180.27" y="271.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::find (43 samples, 0.04%)</title><rect x="1174.0" y="421" width="0.5" height="15.0" fill="rgb(223,107,15)" rx="2" ry="2" />
+<text  x="1177.04" y="431.5" ></text>
+</g>
+<g >
+<title>[libc-..o] (112 samples, 0.10%)</title><rect x="1156.6" y="261" width="1.2" height="15.0" fill="rgb(221,144,22)" rx="2" ry="2" />
+<text  x="1159.63" y="271.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::grow_amortized (2,000 samples, 1.80%)</title><rect x="417.1" y="309" width="21.3" height="15.0" fill="rgb(230,73,38)" rx="2" ry="2" />
+<text  x="420.14" y="319.5" ></text>
+</g>
+<g >
+<title>_do_munmap (107 samples, 0.10%)</title><rect x="1175.2" y="405" width="1.1" height="15.0" fill="rgb(240,158,48)" rx="2" ry="2" />
+<text  x="1178.16" y="415.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::next (43 samples, 0.04%)</title><rect x="1174.0" y="453" width="0.5" height="15.0" fill="rgb(237,146,26)" rx="2" ry="2" />
+<text  x="1177.04" y="463.5" ></text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::calculate_global_contribution::{{closure}} (16 samples, 0.01%)</title><rect x="1176.3" y="597" width="0.2" height="15.0" fill="rgb(253,176,29)" rx="2" ry="2" />
+<text  x="1179.31" y="607.5" ></text>
+</g>
+<g >
+<title>&lt;core::result::Result&lt;V,E&gt; as core::iter::traits::collect::FromIterator&lt;core::result::Result&lt;A,E&gt;&gt;&gt;::from_iter::{{closure}} (1,085 samples, 0.98%)</title><rect x="1177.1" y="453" width="11.6" height="15.0" fill="rgb(227,189,31)" rx="2" ry="2" />
+<text  x="1180.15" y="463.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::for_each (109,691 samples, 98.66%)</title><rect x="10.6" y="597" width="1164.2" height="15.0" fill="rgb(251,21,46)" rx="2" ry="2" />
+<text  x="13.59" y="607.5" >core::iter::traits::iterator::Iterator::for_each</text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend (68 samples, 0.06%)</title><rect x="1188.9" y="597" width="0.8" height="15.0" fill="rgb(225,25,11)" rx="2" ry="2" />
+<text  x="1191.94" y="607.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place (2,227 samples, 2.00%)</title><rect x="202.3" y="245" width="23.6" height="15.0" fill="rgb(228,175,44)" rx="2" ry="2" />
+<text  x="205.30" y="255.5" >c..</text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Filter&lt;I,P&gt; as core::iter::traits::iterator::Iterator&gt;::count::to_usize::{{closure}} (656 samples, 0.59%)</title><rect x="11.3" y="373" width="6.9" height="15.0" fill="rgb(212,147,37)" rx="2" ry="2" />
+<text  x="14.25" y="383.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::set_memory (164 samples, 0.15%)</title><rect x="418.7" y="293" width="1.8" height="15.0" fill="rgb(239,43,49)" rx="2" ry="2" />
+<text  x="421.75" y="303.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::algorithm::algorithm_m (404 samples, 0.36%)</title><rect x="1177.6" y="181" width="4.2" height="15.0" fill="rgb(240,70,25)" rx="2" ry="2" />
+<text  x="1180.55" y="191.5" ></text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::div_rem (361 samples, 0.32%)</title><rect x="1183.5" y="197" width="3.8" height="15.0" fill="rgb(235,159,44)" rx="2" ry="2" />
+<text  x="1186.48" y="207.5" ></text>
+</g>
+<g >
+<title>[libc-..o] (13 samples, 0.01%)</title><rect x="1188.5" y="277" width="0.1" height="15.0" fill="rgb(237,154,2)" rx="2" ry="2" />
+<text  x="1191.50" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;f32 as core::ops::arith::Sub&gt;::sub (15 samples, 0.01%)</title><rect x="355.1" y="325" width="0.1" height="15.0" fill="rgb(245,182,23)" rx="2" ry="2" />
+<text  x="358.07" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;u32 as core::num::bignum::FullOps&gt;::full_mul (17 samples, 0.02%)</title><rect x="1182.5" y="149" width="0.2" height="15.0" fill="rgb(234,117,40)" rx="2" ry="2" />
+<text  x="1185.52" y="159.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend::{{closure}} (16 samples, 0.01%)</title><rect x="10.6" y="517" width="0.2" height="15.0" fill="rgb(234,228,9)" rx="2" ry="2" />
+<text  x="13.59" y="527.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::zip::Zip&lt;A,B&gt; as core::iter::adapters::zip::ZipImpl&lt;A,B&gt;&gt;::next (1,784 samples, 1.60%)</title><rect x="261.5" y="357" width="18.9" height="15.0" fill="rgb(243,127,39)" rx="2" ry="2" />
+<text  x="264.48" y="367.5" ></text>
+</g>
+<g >
+<title>mem_cgroup_try_charge (11 samples, 0.01%)</title><rect x="1173.7" y="277" width="0.1" height="15.0" fill="rgb(242,176,5)" rx="2" ry="2" />
+<text  x="1176.72" y="287.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::fold (109,691 samples, 98.66%)</title><rect x="10.6" y="565" width="1164.2" height="15.0" fill="rgb(241,131,53)" rx="2" ry="2" />
+<text  x="13.59" y="575.5" >core::iter::traits::iterator::Iterator::fold</text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::for_each (1,854 samples, 1.67%)</title><rect x="440.1" y="357" width="19.7" height="15.0" fill="rgb(214,154,50)" rx="2" ry="2" />
+<text  x="443.14" y="367.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::dec2flt (511 samples, 0.46%)</title><rect x="1177.4" y="213" width="5.5" height="15.0" fill="rgb(234,148,10)" rx="2" ry="2" />
+<text  x="1180.44" y="223.5" ></text>
+</g>
+<g >
+<title>free_pcppages_bulk (22 samples, 0.02%)</title><rect x="1176.0" y="229" width="0.2" height="15.0" fill="rgb(210,102,2)" rx="2" ry="2" />
+<text  x="1178.99" y="239.5" ></text>
+</g>
+<g >
+<title>core::cmp::min (255 samples, 0.23%)</title><rect x="123.3" y="325" width="2.7" height="15.0" fill="rgb(248,91,4)" rx="2" ry="2" />
+<text  x="126.29" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Enumerate&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::try_fold::enumerate::{{closure}} (47,963 samples, 43.14%)</title><rect x="622.8" y="341" width="509.1" height="15.0" fill="rgb(208,201,40)" rx="2" ry="2" />
+<text  x="625.81" y="351.5" >&lt;core::iter::adapters::Enumerate&lt;I&gt; as core::iter::traits::iterator::..</text>
+</g>
+<g >
+<title>&lt;std::io::Lines&lt;B&gt; as core::iter::traits::iterator::Iterator&gt;::next (45 samples, 0.04%)</title><rect x="1176.6" y="549" width="0.5" height="15.0" fill="rgb(222,120,3)" rx="2" ry="2" />
+<text  x="1179.58" y="559.5" ></text>
+</g>
+<g >
+<title>core::iter::adapters::map_try_fold::{{closure}} (518 samples, 0.47%)</title><rect x="1177.4" y="277" width="5.5" height="15.0" fill="rgb(207,109,4)" rx="2" ry="2" />
+<text  x="1180.44" y="287.5" ></text>
+</g>
+<g >
+<title>std::panicking::try (111,152 samples, 99.97%)</title><rect x="10.3" y="773" width="1179.7" height="15.0" fill="rgb(209,55,17)" rx="2" ry="2" />
+<text  x="13.31" y="783.5" >std::panicking::try</text>
+</g>
+<g >
+<title>&lt;alloc::string::String as core::fmt::Write&gt;::write_str (11 samples, 0.01%)</title><rect x="1189.3" y="389" width="0.1" height="15.0" fill="rgb(220,36,13)" rx="2" ry="2" />
+<text  x="1192.33" y="399.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Filter&lt;I,P&gt; as core::iter::traits::iterator::Iterator&gt;::next (43 samples, 0.04%)</title><rect x="1174.0" y="437" width="0.5" height="15.0" fill="rgb(212,176,39)" rx="2" ry="2" />
+<text  x="1177.04" y="447.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::alloc (19 samples, 0.02%)</title><rect x="1174.5" y="373" width="0.2" height="15.0" fill="rgb(218,184,34)" rx="2" ry="2" />
+<text  x="1177.49" y="383.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::reserve (10 samples, 0.01%)</title><rect x="1176.9" y="437" width="0.1" height="15.0" fill="rgb(214,61,44)" rx="2" ry="2" />
+<text  x="1179.86" y="447.5" ></text>
+</g>
+<g >
+<title>do_page_fault (28 samples, 0.03%)</title><rect x="1157.5" y="229" width="0.3" height="15.0" fill="rgb(252,111,30)" rx="2" ry="2" />
+<text  x="1160.52" y="239.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::try_fold (43 samples, 0.04%)</title><rect x="1174.0" y="389" width="0.5" height="15.0" fill="rgb(222,190,27)" rx="2" ry="2" />
+<text  x="1177.04" y="399.5" ></text>
+</g>
+<g >
+<title>error_entry (10 samples, 0.01%)</title><rect x="1158.1" y="277" width="0.1" height="15.0" fill="rgb(252,98,29)" rx="2" ry="2" />
+<text  x="1161.05" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Rev&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::next (19 samples, 0.02%)</title><rect x="1186.9" y="165" width="0.2" height="15.0" fill="rgb(247,167,41)" rx="2" ry="2" />
+<text  x="1189.91" y="175.5" ></text>
+</g>
+<g >
+<title>core::iter::adapters::map_fold::{{closure}} (18 samples, 0.02%)</title><rect x="10.3" y="565" width="0.2" height="15.0" fill="rgb(252,57,40)" rx="2" ry="2" />
+<text  x="13.31" y="575.5" ></text>
+</g>
+<g >
+<title>start (111,152 samples, 99.97%)</title><rect x="10.3" y="853" width="1179.7" height="15.0" fill="rgb(254,142,49)" rx="2" ry="2" />
+<text  x="13.31" y="863.5" >start</text>
+</g>
+<g >
+<title>core::num::flt2dec::strategy::grisu::format_shortest (18 samples, 0.02%)</title><rect x="1189.5" y="405" width="0.2" height="15.0" fill="rgb(213,76,25)" rx="2" ry="2" />
+<text  x="1192.47" y="415.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::finish_grow (1,340 samples, 1.21%)</title><rect x="420.5" y="293" width="14.2" height="15.0" fill="rgb(251,193,4)" rx="2" ry="2" />
+<text  x="423.49" y="303.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl usize&gt;::checked_mul (490 samples, 0.44%)</title><rect x="178.2" y="277" width="5.2" height="15.0" fill="rgb(242,94,10)" rx="2" ry="2" />
+<text  x="181.18" y="287.5" ></text>
+</g>
+<g >
+<title>cfree (321 samples, 0.29%)</title><rect x="222.5" y="181" width="3.4" height="15.0" fill="rgb(209,80,32)" rx="2" ry="2" />
+<text  x="225.53" y="191.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::zip::Zip&lt;A,B&gt; as core::iter::adapters::zip::ZipImpl&lt;A,B&gt;&gt;::new (315 samples, 0.28%)</title><rect x="411.9" y="373" width="3.4" height="15.0" fill="rgb(228,99,16)" rx="2" ry="2" />
+<text  x="414.94" y="383.5" ></text>
+</g>
+<g >
+<title>smp_apic_timer_interrupt (13 samples, 0.01%)</title><rect x="1043.1" y="197" width="0.1" height="15.0" fill="rgb(214,146,24)" rx="2" ry="2" />
+<text  x="1046.09" y="207.5" ></text>
+</g>
+<g >
+<title>brk (107 samples, 0.10%)</title><rect x="1175.2" y="469" width="1.1" height="15.0" fill="rgb(206,175,27)" rx="2" ry="2" />
+<text  x="1178.16" y="479.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place (2,227 samples, 2.00%)</title><rect x="202.3" y="309" width="23.6" height="15.0" fill="rgb(227,145,50)" rx="2" ry="2" />
+<text  x="205.30" y="319.5" >c..</text>
+</g>
+<g >
+<title>[libc-..o] (1,527 samples, 1.37%)</title><rect x="237.0" y="357" width="16.2" height="15.0" fill="rgb(242,171,3)" rx="2" ry="2" />
+<text  x="240.03" y="367.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::raw_vec::RawVec&lt;T,A&gt; as core::ops::drop::Drop&gt;::drop (144 samples, 0.13%)</title><rect x="1174.8" y="581" width="1.5" height="15.0" fill="rgb(208,223,14)" rx="2" ry="2" />
+<text  x="1177.77" y="591.5" ></text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::sub (19 samples, 0.02%)</title><rect x="1187.1" y="181" width="0.2" height="15.0" fill="rgb(235,104,20)" rx="2" ry="2" />
+<text  x="1190.11" y="191.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::IntoIterator&gt;::into_iter (817 samples, 0.73%)</title><rect x="226.3" y="421" width="8.7" height="15.0" fill="rgb(247,210,52)" rx="2" ry="2" />
+<text  x="229.29" y="431.5" ></text>
+</g>
+<g >
+<title>_libc_start_main (111,152 samples, 99.97%)</title><rect x="10.3" y="837" width="1179.7" height="15.0" fill="rgb(249,165,53)" rx="2" ry="2" />
+<text  x="13.31" y="847.5" >_libc_start_main</text>
+</g>
+<g >
+<title>&lt;core::result::Result&lt;V,E&gt; as core::iter::traits::collect::FromIterator&lt;core::result::Result&lt;A,E&gt;&gt;&gt;::from_iter (1,086 samples, 0.98%)</title><rect x="1177.1" y="485" width="11.6" height="15.0" fill="rgb(233,31,2)" rx="2" ry="2" />
+<text  x="1180.14" y="495.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::convert (482 samples, 0.43%)</title><rect x="1183.2" y="229" width="5.1" height="15.0" fill="rgb(231,126,54)" rx="2" ry="2" />
+<text  x="1186.23" y="239.5" ></text>
+</g>
+<g >
+<title>core::num::flt2dec::strategy::grisu::format_shortest_opt (18 samples, 0.02%)</title><rect x="1189.5" y="389" width="0.2" height="15.0" fill="rgb(253,69,50)" rx="2" ry="2" />
+<text  x="1192.47" y="399.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::zip::Zip&lt;A,B&gt; as core::iter::adapters::zip::ZipImpl&lt;A,B&gt;&gt;::next (11 samples, 0.01%)</title><rect x="1187.2" y="149" width="0.1" height="15.0" fill="rgb(211,212,14)" rx="2" ry="2" />
+<text  x="1190.17" y="159.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::AllocRef&gt;::dealloc (144 samples, 0.13%)</title><rect x="1174.8" y="565" width="1.5" height="15.0" fill="rgb(245,154,42)" rx="2" ry="2" />
+<text  x="1177.77" y="575.5" ></text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::calculate_distance_contribution::{{closure}} (248 samples, 0.22%)</title><rect x="457.2" y="293" width="2.6" height="15.0" fill="rgb(241,167,22)" rx="2" ry="2" />
+<text  x="460.19" y="303.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place (2,227 samples, 2.00%)</title><rect x="202.3" y="325" width="23.6" height="15.0" fill="rgb(248,77,12)" rx="2" ry="2" />
+<text  x="205.30" y="335.5" >c..</text>
+</g>
+<g >
+<title>&lt;core::str::pattern::CharSearcher as core::str::pattern::Searcher&gt;::next_match (15 samples, 0.01%)</title><rect x="1177.3" y="245" width="0.1" height="15.0" fill="rgb(209,122,0)" rx="2" ry="2" />
+<text  x="1180.27" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::fold (11 samples, 0.01%)</title><rect x="465.6" y="421" width="0.1" height="15.0" fill="rgb(215,156,24)" rx="2" ry="2" />
+<text  x="468.60" y="431.5" ></text>
+</g>
+<g >
+<title>core::str::&lt;impl str&gt;::parse (511 samples, 0.46%)</title><rect x="1177.4" y="245" width="5.5" height="15.0" fill="rgb(210,158,17)" rx="2" ry="2" />
+<text  x="1180.44" y="255.5" ></text>
+</g>
+<g >
+<title>core::ops::function::FnMut::call_mut (71 samples, 0.06%)</title><rect x="18.2" y="373" width="0.8" height="15.0" fill="rgb(210,68,38)" rx="2" ry="2" />
+<text  x="21.21" y="383.5" ></text>
+</g>
+<g >
+<title>core::cmp::Ord::min (315 samples, 0.28%)</title><rect x="411.9" y="341" width="3.4" height="15.0" fill="rgb(228,63,40)" rx="2" ry="2" />
+<text  x="414.94" y="351.5" ></text>
+</g>
+<g >
+<title>_rdl_dealloc (151 samples, 0.14%)</title><rect x="216.9" y="181" width="1.6" height="15.0" fill="rgb(209,127,33)" rx="2" ry="2" />
+<text  x="219.86" y="191.5" ></text>
+</g>
+<g >
+<title>do_anonymous_page (24 samples, 0.02%)</title><rect x="1157.6" y="149" width="0.2" height="15.0" fill="rgb(236,90,21)" rx="2" ry="2" />
+<text  x="1160.56" y="159.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::&lt;impl core::str::FromStr for f32&gt;::from_str (498 samples, 0.45%)</title><rect x="1183.2" y="261" width="5.3" height="15.0" fill="rgb(207,99,22)" rx="2" ry="2" />
+<text  x="1186.18" y="271.5" ></text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::explain::{{closure}} (109,675 samples, 98.64%)</title><rect x="10.8" y="533" width="1164.0" height="15.0" fill="rgb(220,225,7)" rx="2" ry="2" />
+<text  x="13.76" y="543.5" >pointctl::exp::da_silva::explain::{{closure}}</text>
+</g>
+<g >
+<title>_do_page_fault (11 samples, 0.01%)</title><rect x="1157.9" y="229" width="0.1" height="15.0" fill="rgb(250,7,14)" rx="2" ry="2" />
+<text  x="1160.85" y="239.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place (2,227 samples, 2.00%)</title><rect x="202.3" y="277" width="23.6" height="15.0" fill="rgb(243,2,35)" rx="2" ry="2" />
+<text  x="205.30" y="287.5" >c..</text>
+</g>
+<g >
+<title>core::iter::adapters::map_fold::{{closure}} (17 samples, 0.02%)</title><rect x="1176.3" y="613" width="0.2" height="15.0" fill="rgb(211,183,5)" rx="2" ry="2" />
+<text  x="1179.30" y="623.5" ></text>
+</g>
+<g >
+<title>hrtimer_interrupt (29 samples, 0.03%)</title><rect x="1131.4" y="245" width="0.3" height="15.0" fill="rgb(247,72,49)" rx="2" ry="2" />
+<text  x="1134.44" y="255.5" ></text>
+</g>
+<g >
+<title>mem_cgroup_try_charge (58 samples, 0.05%)</title><rect x="1166.4" y="149" width="0.6" height="15.0" fill="rgb(240,53,1)" rx="2" ry="2" />
+<text  x="1169.40" y="159.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::fold (1,854 samples, 1.67%)</title><rect x="440.1" y="341" width="19.7" height="15.0" fill="rgb(216,67,40)" rx="2" ry="2" />
+<text  x="443.14" y="351.5" ></text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::calculate_distance_contribution (19,254 samples, 17.32%)</title><rect x="261.1" y="437" width="204.4" height="15.0" fill="rgb(214,77,50)" rx="2" ry="2" />
+<text  x="264.12" y="447.5" >pointctl::exp::da_silva::c..</text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::add_small (15 samples, 0.01%)</title><rect x="1182.1" y="165" width="0.2" height="15.0" fill="rgb(245,131,24)" rx="2" ry="2" />
+<text  x="1185.15" y="175.5" ></text>
+</g>
+<g >
+<title>pagevec_lru_move_fn (13 samples, 0.01%)</title><rect x="1173.4" y="261" width="0.1" height="15.0" fill="rgb(243,166,28)" rx="2" ry="2" />
+<text  x="1176.39" y="271.5" ></text>
+</g>
+<g >
+<title>core::iter::adapters::map_fold::{{closure}} (109,691 samples, 98.66%)</title><rect x="10.6" y="549" width="1164.2" height="15.0" fill="rgb(223,195,15)" rx="2" ry="2" />
+<text  x="13.59" y="559.5" >core::iter::adapters::map_fold::{{closure}}</text>
+</g>
+<g >
+<title>&lt;&amp;mut W as core::fmt::Write&gt;::write_str (13 samples, 0.01%)</title><rect x="1189.3" y="405" width="0.1" height="15.0" fill="rgb(218,27,25)" rx="2" ry="2" />
+<text  x="1192.31" y="415.5" ></text>
+</g>
+<g >
+<title>core::ptr::write (12 samples, 0.01%)</title><rect x="1188.7" y="565" width="0.2" height="15.0" fill="rgb(242,38,5)" rx="2" ry="2" />
+<text  x="1191.73" y="575.5" ></text>
+</g>
+<g >
+<title>_rust_dealloc (383 samples, 0.34%)</title><rect x="218.5" y="181" width="4.0" height="15.0" fill="rgb(212,169,14)" rx="2" ry="2" />
+<text  x="221.47" y="191.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::&lt;impl core::str::FromStr for f32&gt;::from_str (511 samples, 0.46%)</title><rect x="1177.4" y="229" width="5.5" height="15.0" fill="rgb(228,65,44)" rx="2" ry="2" />
+<text  x="1180.44" y="239.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::extend_desugared (1,157 samples, 1.04%)</title><rect x="1176.6" y="581" width="12.3" height="15.0" fill="rgb(232,21,19)" rx="2" ry="2" />
+<text  x="1179.57" y="591.5" ></text>
+</g>
+<g >
+<title>&lt;core::str::Split&lt;P&gt; as core::iter::traits::iterator::Iterator&gt;::next (16 samples, 0.01%)</title><rect x="1177.3" y="277" width="0.1" height="15.0" fill="rgb(221,0,7)" rx="2" ry="2" />
+<text  x="1180.27" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;nalgebra::geometry::point::Point&lt;f32,nalgebra::base::dimension::U3&gt; as pointctl::exp::common::Distance&gt;::distance (15 samples, 0.01%)</title><rect x="1174.3" y="309" width="0.2" height="15.0" fill="rgb(240,134,22)" rx="2" ry="2" />
+<text  x="1177.31" y="319.5" ></text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::mul_pow2 (185 samples, 0.17%)</title><rect x="1185.1" y="181" width="2.0" height="15.0" fill="rgb(243,203,1)" rx="2" ry="2" />
+<text  x="1188.15" y="191.5" ></text>
+</g>
+<g >
+<title>do_syscall_64 (50 samples, 0.04%)</title><rect x="1156.9" y="181" width="0.5" height="15.0" fill="rgb(230,216,29)" rx="2" ry="2" />
+<text  x="1159.85" y="191.5" ></text>
+</g>
+<g >
+<title>alloc::string::String::push_str (11 samples, 0.01%)</title><rect x="1189.3" y="373" width="0.1" height="15.0" fill="rgb(217,192,15)" rx="2" ry="2" />
+<text  x="1192.33" y="383.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::ptr (451 samples, 0.41%)</title><rect x="57.5" y="405" width="4.8" height="15.0" fill="rgb(227,149,20)" rx="2" ry="2" />
+<text  x="60.53" y="415.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::cmp (79 samples, 0.07%)</title><rect x="1184.1" y="117" width="0.9" height="15.0" fill="rgb(236,224,44)" rx="2" ry="2" />
+<text  x="1187.12" y="127.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter (68 samples, 0.06%)</title><rect x="1188.9" y="629" width="0.8" height="15.0" fill="rgb(250,47,53)" rx="2" ry="2" />
+<text  x="1191.94" y="639.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::grow_amortized (10 samples, 0.01%)</title><rect x="1189.3" y="277" width="0.1" height="15.0" fill="rgb(254,22,32)" rx="2" ry="2" />
+<text  x="1192.34" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::zip::Zip&lt;A,B&gt; as core::iter::adapters::zip::ZipImpl&lt;A,B&gt;&gt;::next (781 samples, 0.70%)</title><rect x="440.1" y="293" width="8.3" height="15.0" fill="rgb(217,96,4)" rx="2" ry="2" />
+<text  x="443.14" y="303.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::raw_vec::RawVec&lt;T,A&gt; as core::ops::drop::Drop&gt;::drop (2,227 samples, 2.00%)</title><rect x="202.3" y="229" width="23.6" height="15.0" fill="rgb(242,21,39)" rx="2" ry="2" />
+<text  x="205.30" y="239.5" >&lt;..</text>
+</g>
+<g >
+<title>_count_memcg_events (22 samples, 0.02%)</title><rect x="1160.5" y="197" width="0.2" height="15.0" fill="rgb(223,152,0)" rx="2" ry="2" />
+<text  x="1163.52" y="207.5" ></text>
+</g>
+<g >
+<title>core::fmt::Formatter::write_formatted_parts (15 samples, 0.01%)</title><rect x="1189.3" y="437" width="0.1" height="15.0" fill="rgb(214,101,2)" rx="2" ry="2" />
+<text  x="1192.29" y="447.5" ></text>
+</g>
+<g >
+<title>do_page_fault (200 samples, 0.18%)</title><rect x="1171.8" y="389" width="2.1" height="15.0" fill="rgb(208,65,29)" rx="2" ry="2" />
+<text  x="1174.82" y="399.5" ></text>
+</g>
+<g >
+<title>mem_cgroup_try_charge_delay (92 samples, 0.08%)</title><rect x="1166.0" y="165" width="1.0" height="15.0" fill="rgb(222,50,46)" rx="2" ry="2" />
+<text  x="1169.04" y="175.5" ></text>
+</g>
+<g >
+<title>_libc_malloc (14 samples, 0.01%)</title><rect x="1188.5" y="293" width="0.1" height="15.0" fill="rgb(250,93,33)" rx="2" ry="2" />
+<text  x="1191.49" y="303.5" ></text>
+</g>
+<g >
+<title>core::cmp::min (315 samples, 0.28%)</title><rect x="411.9" y="357" width="3.4" height="15.0" fill="rgb(206,122,12)" rx="2" ry="2" />
+<text  x="414.94" y="367.5" ></text>
+</g>
+<g >
+<title>pointctl::fs::csv::read::{{closure}}::{{closure}} (518 samples, 0.47%)</title><rect x="1177.4" y="261" width="5.5" height="15.0" fill="rgb(238,140,33)" rx="2" ry="2" />
+<text  x="1180.44" y="271.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::algorithm::quick_start (24 samples, 0.02%)</title><rect x="1187.5" y="197" width="0.2" height="15.0" fill="rgb(216,189,3)" rx="2" ry="2" />
+<text  x="1190.46" y="207.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::as_ptr (451 samples, 0.41%)</title><rect x="57.5" y="421" width="4.8" height="15.0" fill="rgb(223,79,26)" rx="2" ry="2" />
+<text  x="60.53" y="431.5" ></text>
+</g>
+<g >
+<title>update_process_times (22 samples, 0.02%)</title><rect x="1131.5" y="181" width="0.2" height="15.0" fill="rgb(231,56,25)" rx="2" ry="2" />
+<text  x="1134.51" y="191.5" ></text>
+</g>
+<g >
+<title>perf_iterate_sb (29 samples, 0.03%)</title><rect x="1157.0" y="117" width="0.3" height="15.0" fill="rgb(251,217,1)" rx="2" ry="2" />
+<text  x="1159.98" y="127.5" ></text>
+</g>
+<g >
+<title>lru_cache_add_active_or_unevictable (16 samples, 0.01%)</title><rect x="1173.4" y="293" width="0.1" height="15.0" fill="rgb(207,78,42)" rx="2" ry="2" />
+<text  x="1176.36" y="303.5" ></text>
+</g>
+<g >
+<title>core::alloc::layout::Layout::array (193 samples, 0.17%)</title><rect x="434.7" y="293" width="2.1" height="15.0" fill="rgb(240,7,17)" rx="2" ry="2" />
+<text  x="437.71" y="303.5" ></text>
+</g>
+<g >
+<title>_default_morecore (107 samples, 0.10%)</title><rect x="1175.2" y="501" width="1.1" height="15.0" fill="rgb(211,116,4)" rx="2" ry="2" />
+<text  x="1178.16" y="511.5" ></text>
+</g>
+<g >
+<title>core::cmp::max (509 samples, 0.46%)</title><rect x="183.4" y="309" width="5.4" height="15.0" fill="rgb(214,228,36)" rx="2" ry="2" />
+<text  x="186.38" y="319.5" ></text>
+</g>
+<g >
+<title>do_user_addr_fault (28 samples, 0.03%)</title><rect x="1157.5" y="197" width="0.3" height="15.0" fill="rgb(213,30,20)" rx="2" ry="2" />
+<text  x="1160.52" y="207.5" ></text>
+</g>
+<g >
+<title>get_page_from_freelist (11 samples, 0.01%)</title><rect x="1157.6" y="101" width="0.1" height="15.0" fill="rgb(207,194,41)" rx="2" ry="2" />
+<text  x="1160.59" y="111.5" ></text>
+</g>
+<g >
+<title>core::slice::&lt;impl core::ops::index::Index&lt;I&gt; for [T]&gt;::index (10 samples, 0.01%)</title><rect x="63.8" y="421" width="0.1" height="15.0" fill="rgb(241,0,15)" rx="2" ry="2" />
+<text  x="66.81" y="431.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Enumerate&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::try_fold (63,559 samples, 57.17%)</title><rect x="479.2" y="373" width="674.5" height="15.0" fill="rgb(218,102,36)" rx="2" ry="2" />
+<text  x="482.17" y="383.5" >&lt;core::iter::adapters::Enumerate&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::try_fold</text>
+</g>
+<g >
+<title>core::iter::range::&lt;impl core::iter::traits::double_ended::DoubleEndedIterator for core::ops::range::Range&lt;A&gt;&gt;::next_back (15 samples, 0.01%)</title><rect x="1184.0" y="165" width="0.1" height="15.0" fill="rgb(219,166,45)" rx="2" ry="2" />
+<text  x="1186.95" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;f32 as core::ops::arith::Sub&gt;::sub (9,971 samples, 8.97%)</title><rect x="937.4" y="229" width="105.8" height="15.0" fill="rgb(212,185,31)" rx="2" ry="2" />
+<text  x="940.42" y="239.5" >&lt;f32 as core..</text>
+</g>
+<g >
+<title>&lt;core::num::bignum::Big32x40 as core::cmp::Ord&gt;::cmp (81 samples, 0.07%)</title><rect x="1184.1" y="133" width="0.9" height="15.0" fill="rgb(231,4,39)" rx="2" ry="2" />
+<text  x="1187.11" y="143.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::finish_grow (3,594 samples, 3.23%)</title><rect x="134.6" y="309" width="38.2" height="15.0" fill="rgb(233,60,4)" rx="2" ry="2" />
+<text  x="137.63" y="319.5" >all..</text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::cmp (63 samples, 0.06%)</title><rect x="1178.3" y="85" width="0.7" height="15.0" fill="rgb(216,97,33)" rx="2" ry="2" />
+<text  x="1181.34" y="95.5" ></text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::Ord for u32&gt;::cmp (44 samples, 0.04%)</title><rect x="1184.5" y="69" width="0.5" height="15.0" fill="rgb(245,9,9)" rx="2" ry="2" />
+<text  x="1187.49" y="79.5" ></text>
+</g>
+<g >
+<title>&lt;core::slice::Iter&lt;T&gt; as core::iter::traits::iterator::Iterator&gt;::next (141 samples, 0.13%)</title><rect x="32.7" y="469" width="1.5" height="15.0" fill="rgb(242,79,43)" rx="2" ry="2" />
+<text  x="35.66" y="479.5" ></text>
+</g>
+<g >
+<title>core::alloc::layout::Layout::repeat (193 samples, 0.17%)</title><rect x="434.7" y="277" width="2.1" height="15.0" fill="rgb(220,132,13)" rx="2" ry="2" />
+<text  x="437.71" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::zip::Zip&lt;A,B&gt; as core::iter::traits::iterator::Iterator&gt;::next (166 samples, 0.15%)</title><rect x="189.4" y="325" width="1.8" height="15.0" fill="rgb(209,33,23)" rx="2" ry="2" />
+<text  x="192.43" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Enumerate&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::try_fold::enumerate::{{closure}} (41 samples, 0.04%)</title><rect x="1174.0" y="373" width="0.5" height="15.0" fill="rgb(229,135,13)" rx="2" ry="2" />
+<text  x="1177.04" y="383.5" ></text>
+</g>
+<g >
+<title>[libc-..o] (144 samples, 0.13%)</title><rect x="1174.8" y="533" width="1.5" height="15.0" fill="rgb(226,25,4)" rx="2" ry="2" />
+<text  x="1177.77" y="543.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::grow_amortized (1,272 samples, 1.14%)</title><rect x="1154.3" y="373" width="13.5" height="15.0" fill="rgb(207,216,6)" rx="2" ry="2" />
+<text  x="1157.28" y="383.5" ></text>
+</g>
+<g >
+<title>amd_pmu_disable_all (11 samples, 0.01%)</title><rect x="1131.6" y="101" width="0.1" height="15.0" fill="rgb(253,108,31)" rx="2" ry="2" />
+<text  x="1134.57" y="111.5" ></text>
+</g>
+<g >
+<title>tick_sched_handle (22 samples, 0.02%)</title><rect x="1131.5" y="197" width="0.2" height="15.0" fill="rgb(215,20,5)" rx="2" ry="2" />
+<text  x="1134.51" y="207.5" ></text>
+</g>
+<g >
+<title>_sbrk (107 samples, 0.10%)</title><rect x="1175.2" y="485" width="1.1" height="15.0" fill="rgb(241,216,9)" rx="2" ry="2" />
+<text  x="1178.16" y="495.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Rev&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::next (13 samples, 0.01%)</title><rect x="1178.2" y="149" width="0.1" height="15.0" fill="rgb(227,176,35)" rx="2" ry="2" />
+<text  x="1181.18" y="159.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::for_each (3,499 samples, 3.15%)</title><rect x="188.8" y="373" width="37.1" height="15.0" fill="rgb(252,110,1)" rx="2" ry="2" />
+<text  x="191.80" y="383.5" >cor..</text>
+</g>
+<g >
+<title>rmqueue (22 samples, 0.02%)</title><rect x="1173.1" y="245" width="0.2" height="15.0" fill="rgb(209,175,51)" rx="2" ry="2" />
+<text  x="1176.08" y="255.5" ></text>
+</g>
+<g >
+<title>clear_page_rep (62 samples, 0.06%)</title><rect x="1172.4" y="245" width="0.7" height="15.0" fill="rgb(209,104,16)" rx="2" ry="2" />
+<text  x="1175.39" y="255.5" ></text>
+</g>
+<g >
+<title>[libc-..o] (12 samples, 0.01%)</title><rect x="1183.3" y="197" width="0.1" height="15.0" fill="rgb(222,9,41)" rx="2" ry="2" />
+<text  x="1186.29" y="207.5" ></text>
+</g>
+<g >
+<title>_handle_mm_fault (166 samples, 0.15%)</title><rect x="1172.1" y="325" width="1.8" height="15.0" fill="rgb(251,176,8)" rx="2" ry="2" />
+<text  x="1175.10" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::IntoIter&lt;T&gt; as core::iter::traits::iterator::Iterator&gt;::next (106 samples, 0.10%)</title><rect x="190.1" y="293" width="1.1" height="15.0" fill="rgb(207,149,36)" rx="2" ry="2" />
+<text  x="193.06" y="303.5" ></text>
+</g>
+<g >
+<title>main (111,152 samples, 99.97%)</title><rect x="10.3" y="821" width="1179.7" height="15.0" fill="rgb(209,191,28)" rx="2" ry="2" />
+<text  x="13.31" y="831.5" >main</text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::fold (924 samples, 0.83%)</title><rect x="10.8" y="437" width="9.8" height="15.0" fill="rgb(228,203,33)" rx="2" ry="2" />
+<text  x="13.83" y="447.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::extend_desugared (66,695 samples, 59.99%)</title><rect x="466.2" y="437" width="707.8" height="15.0" fill="rgb(216,79,11)" rx="2" ry="2" />
+<text  x="469.19" y="447.5" >alloc::vec::Vec&lt;T&gt;::extend_desugared</text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::fold (18 samples, 0.02%)</title><rect x="10.3" y="581" width="0.2" height="15.0" fill="rgb(209,104,6)" rx="2" ry="2" />
+<text  x="13.31" y="591.5" ></text>
+</g>
+<g >
+<title>core::iter::adapters::map_fold::{{closure}} (727 samples, 0.65%)</title><rect x="11.3" y="389" width="7.7" height="15.0" fill="rgb(236,199,14)" rx="2" ry="2" />
+<text  x="14.25" y="399.5" ></text>
+</g>
+<g >
+<title>std::io::read_until (30 samples, 0.03%)</title><rect x="1176.7" y="485" width="0.4" height="15.0" fill="rgb(228,110,49)" rx="2" ry="2" />
+<text  x="1179.74" y="495.5" ></text>
+</g>
+<g >
+<title>&lt;core::num::bignum::Big32x40 as core::cmp::PartialOrd&gt;::partial_cmp (81 samples, 0.07%)</title><rect x="1184.1" y="149" width="0.9" height="15.0" fill="rgb(226,26,4)" rx="2" ry="2" />
+<text  x="1187.11" y="159.5" ></text>
+</g>
+<g >
+<title>apic_timer_interrupt (31 samples, 0.03%)</title><rect x="1131.4" y="277" width="0.4" height="15.0" fill="rgb(235,130,42)" rx="2" ry="2" />
+<text  x="1134.44" y="287.5" ></text>
+</g>
+<g >
+<title>core::fmt::write (12 samples, 0.01%)</title><rect x="1189.9" y="629" width="0.1" height="15.0" fill="rgb(231,212,14)" rx="2" ry="2" />
+<text  x="1192.86" y="639.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::try_fold (63,559 samples, 57.17%)</title><rect x="479.2" y="357" width="674.5" height="15.0" fill="rgb(237,175,26)" rx="2" ry="2" />
+<text  x="482.17" y="367.5" >core::iter::traits::iterator::Iterator::try_fold</text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::reserve (10 samples, 0.01%)</title><rect x="1189.3" y="325" width="0.1" height="15.0" fill="rgb(220,105,11)" rx="2" ry="2" />
+<text  x="1192.34" y="335.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::dealloc (2,320 samples, 2.09%)</title><rect x="235.8" y="373" width="24.7" height="15.0" fill="rgb(218,89,8)" rx="2" ry="2" />
+<text  x="238.83" y="383.5" >a..</text>
+</g>
+<g >
+<title>pointctl::fs::ply::write::{{closure}} (58 samples, 0.05%)</title><rect x="1189.0" y="517" width="0.7" height="15.0" fill="rgb(225,154,29)" rx="2" ry="2" />
+<text  x="1192.04" y="527.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::try_fold (534 samples, 0.48%)</title><rect x="1177.3" y="293" width="5.6" height="15.0" fill="rgb(219,143,39)" rx="2" ry="2" />
+<text  x="1180.27" y="303.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (16 samples, 0.01%)</title><rect x="1188.5" y="357" width="0.2" height="15.0" fill="rgb(248,50,7)" rx="2" ry="2" />
+<text  x="1191.49" y="367.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::AllocRef&gt;::dealloc (14 samples, 0.01%)</title><rect x="465.8" y="453" width="0.1" height="15.0" fill="rgb(253,76,26)" rx="2" ry="2" />
+<text  x="468.79" y="463.5" ></text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (107 samples, 0.10%)</title><rect x="1175.2" y="453" width="1.1" height="15.0" fill="rgb(218,99,19)" rx="2" ry="2" />
+<text  x="1178.16" y="463.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::reserve (1,321 samples, 1.19%)</title><rect x="1153.8" y="421" width="14.0" height="15.0" fill="rgb(211,224,20)" rx="2" ry="2" />
+<text  x="1156.76" y="431.5" ></text>
+</g>
+<g >
+<title>do_brk_flags (42 samples, 0.04%)</title><rect x="1156.9" y="149" width="0.5" height="15.0" fill="rgb(248,29,19)" rx="2" ry="2" />
+<text  x="1159.92" y="159.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::fold (17 samples, 0.02%)</title><rect x="1176.3" y="645" width="0.2" height="15.0" fill="rgb(228,140,21)" rx="2" ry="2" />
+<text  x="1179.30" y="655.5" ></text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialOrd for usize&gt;::lt (12 samples, 0.01%)</title><rect x="1178.2" y="117" width="0.1" height="15.0" fill="rgb(219,135,9)" rx="2" ry="2" />
+<text  x="1181.19" y="127.5" ></text>
+</g>
+<g >
+<title>get_page_from_freelist (288 samples, 0.26%)</title><rect x="1161.7" y="133" width="3.0" height="15.0" fill="rgb(253,106,10)" rx="2" ry="2" />
+<text  x="1164.67" y="143.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::raw_vec::RawVec&lt;T,A&gt; as core::ops::drop::Drop&gt;::drop (14 samples, 0.01%)</title><rect x="465.8" y="469" width="0.1" height="15.0" fill="rgb(213,194,45)" rx="2" ry="2" />
+<text  x="468.79" y="479.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::collect (66,779 samples, 60.06%)</title><rect x="466.0" y="501" width="708.7" height="15.0" fill="rgb(222,209,38)" rx="2" ry="2" />
+<text  x="468.95" y="511.5" >core::iter::traits::iterator::Iterator::collect</text>
+</g>
+<g >
+<title>alloc::alloc::alloc (16 samples, 0.01%)</title><rect x="1188.5" y="309" width="0.2" height="15.0" fill="rgb(231,95,1)" rx="2" ry="2" />
+<text  x="1191.49" y="319.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::for_each::call::{{closure}} (825 samples, 0.74%)</title><rect x="448.4" y="293" width="8.8" height="15.0" fill="rgb(222,51,21)" rx="2" ry="2" />
+<text  x="451.43" y="303.5" ></text>
+</g>
+<g >
+<title>do_anonymous_page (156 samples, 0.14%)</title><rect x="1172.2" y="309" width="1.6" height="15.0" fill="rgb(212,151,15)" rx="2" ry="2" />
+<text  x="1175.19" y="319.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::dealloc (2,227 samples, 2.00%)</title><rect x="202.3" y="197" width="23.6" height="15.0" fill="rgb(241,110,14)" rx="2" ry="2" />
+<text  x="205.30" y="207.5" >a..</text>
+</g>
+<g >
+<title>mem_cgroup_try_charge_delay (22 samples, 0.02%)</title><rect x="1173.6" y="293" width="0.2" height="15.0" fill="rgb(242,118,49)" rx="2" ry="2" />
+<text  x="1176.60" y="303.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::AllocRef&gt;::dealloc (2,227 samples, 2.00%)</title><rect x="202.3" y="213" width="23.6" height="15.0" fill="rgb(217,80,37)" rx="2" ry="2" />
+<text  x="205.30" y="223.5" >&lt;..</text>
+</g>
+<g >
+<title>lru_cache_add_active_or_unevictable (83 samples, 0.07%)</title><rect x="1164.9" y="165" width="0.9" height="15.0" fill="rgb(237,229,10)" rx="2" ry="2" />
+<text  x="1167.89" y="175.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::capacity_from_bytes (68 samples, 0.06%)</title><rect x="133.9" y="293" width="0.7" height="15.0" fill="rgb(238,200,21)" rx="2" ry="2" />
+<text  x="136.91" y="303.5" ></text>
+</g>
+<g >
+<title>mem_cgroup_charge_statistics (19 samples, 0.02%)</title><rect x="1165.8" y="149" width="0.2" height="15.0" fill="rgb(224,143,28)" rx="2" ry="2" />
+<text  x="1168.79" y="159.5" ></text>
+</g>
+<g >
+<title>&lt;usize as core::slice::SliceIndex&lt;[T]&gt;&gt;::index (10 samples, 0.01%)</title><rect x="63.8" y="405" width="0.1" height="15.0" fill="rgb(234,201,50)" rx="2" ry="2" />
+<text  x="66.81" y="415.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::num::digits_to_big (29 samples, 0.03%)</title><rect x="1188.0" y="213" width="0.3" height="15.0" fill="rgb(216,220,47)" rx="2" ry="2" />
+<text  x="1190.97" y="223.5" ></text>
+</g>
+<g >
+<title>try_charge (18 samples, 0.02%)</title><rect x="1166.8" y="133" width="0.2" height="15.0" fill="rgb(234,106,6)" rx="2" ry="2" />
+<text  x="1169.82" y="143.5" ></text>
+</g>
+<g >
+<title>&lt;usize as core::ops::arith::Add&gt;::add (71 samples, 0.06%)</title><rect x="18.2" y="357" width="0.8" height="15.0" fill="rgb(230,182,10)" rx="2" ry="2" />
+<text  x="21.21" y="367.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::fold (8,839 samples, 7.95%)</title><rect x="261.5" y="389" width="93.8" height="15.0" fill="rgb(242,157,42)" rx="2" ry="2" />
+<text  x="264.48" y="399.5" >core::iter:..</text>
+</g>
+<g >
+<title>alloc::alloc::realloc (1,256 samples, 1.13%)</title><rect x="1154.4" y="325" width="13.3" height="15.0" fill="rgb(219,65,20)" rx="2" ry="2" />
+<text  x="1157.35" y="335.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::fold (1,854 samples, 1.67%)</title><rect x="440.1" y="325" width="19.7" height="15.0" fill="rgb(230,207,45)" rx="2" ry="2" />
+<text  x="443.14" y="335.5" ></text>
+</g>
+<g >
+<title>unmap_vmas (106 samples, 0.10%)</title><rect x="1175.2" y="373" width="1.1" height="15.0" fill="rgb(236,134,30)" rx="2" ry="2" />
+<text  x="1178.17" y="383.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::fold (64 samples, 0.06%)</title><rect x="1189.0" y="565" width="0.7" height="15.0" fill="rgb(249,10,42)" rx="2" ry="2" />
+<text  x="1191.98" y="575.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::collect (17 samples, 0.02%)</title><rect x="465.5" y="501" width="0.2" height="15.0" fill="rgb(237,209,53)" rx="2" ry="2" />
+<text  x="468.54" y="511.5" ></text>
+</g>
+<g >
+<title>pointctl::fs::csv::read::{{closure}} (1,093 samples, 0.98%)</title><rect x="1177.1" y="517" width="11.6" height="15.0" fill="rgb(245,30,4)" rx="2" ry="2" />
+<text  x="1180.13" y="527.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::ops::index::Index&lt;I&gt;&gt;::index (151 samples, 0.14%)</title><rect x="62.3" y="437" width="1.6" height="15.0" fill="rgb(237,159,22)" rx="2" ry="2" />
+<text  x="65.31" y="447.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::new (29 samples, 0.03%)</title><rect x="225.9" y="389" width="0.3" height="15.0" fill="rgb(243,86,26)" rx="2" ry="2" />
+<text  x="228.94" y="399.5" ></text>
+</g>
+<g >
+<title>_libc_malloc (859 samples, 0.77%)</title><rect x="420.6" y="277" width="9.1" height="15.0" fill="rgb(212,80,5)" rx="2" ry="2" />
+<text  x="423.62" y="287.5" ></text>
+</g>
+<g >
+<title>core::cmp::max_by (152 samples, 0.14%)</title><rect x="436.8" y="261" width="1.6" height="15.0" fill="rgb(237,156,50)" rx="2" ry="2" />
+<text  x="439.76" y="271.5" ></text>
+</g>
+<g >
+<title>page_fault (14 samples, 0.01%)</title><rect x="1157.8" y="261" width="0.2" height="15.0" fill="rgb(206,129,22)" rx="2" ry="2" />
+<text  x="1160.82" y="271.5" ></text>
+</g>
+<g >
+<title>_default_morecore (60 samples, 0.05%)</title><rect x="1156.8" y="245" width="0.7" height="15.0" fill="rgb(207,38,9)" rx="2" ry="2" />
+<text  x="1159.83" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;nalgebra::geometry::point::Point&lt;f32,nalgebra::base::dimension::U3&gt; as pointctl::exp::common::Distance&gt;::distance (21,374 samples, 19.22%)</title><rect x="904.6" y="277" width="226.8" height="15.0" fill="rgb(228,132,51)" rx="2" ry="2" />
+<text  x="907.59" y="287.5" >&lt;nalgebra::geometry::point::Po..</text>
+</g>
+<g >
+<title>core::ops::function::impls::&lt;impl core::ops::function::FnOnce&lt;A&gt; for &amp;mut F&gt;::call_once (1,094 samples, 0.98%)</title><rect x="1177.1" y="533" width="11.6" height="15.0" fill="rgb(226,143,21)" rx="2" ry="2" />
+<text  x="1180.12" y="543.5" ></text>
+</g>
+<g >
+<title>_rust_alloc (312 samples, 0.28%)</title><rect x="165.8" y="293" width="3.3" height="15.0" fill="rgb(253,119,17)" rx="2" ry="2" />
+<text  x="168.77" y="303.5" ></text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::calculate_top_ranking (17 samples, 0.02%)</title><rect x="465.8" y="517" width="0.1" height="15.0" fill="rgb(253,162,14)" rx="2" ry="2" />
+<text  x="468.75" y="527.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::spec_extend (557 samples, 0.50%)</title><rect x="1177.2" y="389" width="5.9" height="15.0" fill="rgb(234,35,38)" rx="2" ry="2" />
+<text  x="1180.17" y="399.5" ></text>
+</g>
+<g >
+<title>perf_pmu_disabl.ar. (11 samples, 0.01%)</title><rect x="1131.6" y="133" width="0.1" height="15.0" fill="rgb(220,1,0)" rx="2" ry="2" />
+<text  x="1134.57" y="143.5" ></text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::calculate_annotation (926 samples, 0.83%)</title><rect x="10.8" y="517" width="9.8" height="15.0" fill="rgb(214,25,12)" rx="2" ry="2" />
+<text  x="13.81" y="527.5" ></text>
+</g>
+<g >
+<title>&lt;nalgebra::geometry::point::Point&lt;f32,nalgebra::base::dimension::U3&gt; as pointctl::exp::common::Distance&gt;::sq_distance (15 samples, 0.01%)</title><rect x="1174.3" y="293" width="0.2" height="15.0" fill="rgb(248,215,12)" rx="2" ry="2" />
+<text  x="1177.31" y="303.5" ></text>
+</g>
+<g >
+<title>_rust_alloc (308 samples, 0.28%)</title><rect x="431.4" y="277" width="3.3" height="15.0" fill="rgb(243,99,3)" rx="2" ry="2" />
+<text  x="434.39" y="287.5" ></text>
+</g>
+<g >
+<title>mem_cgroup_from_task (10 samples, 0.01%)</title><rect x="1167.1" y="197" width="0.1" height="15.0" fill="rgb(247,68,52)" rx="2" ry="2" />
+<text  x="1170.13" y="207.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::dealloc (14 samples, 0.01%)</title><rect x="465.8" y="437" width="0.1" height="15.0" fill="rgb(232,56,30)" rx="2" ry="2" />
+<text  x="468.79" y="447.5" ></text>
+</g>
+<g >
+<title>get_vma_polic.ar. (12 samples, 0.01%)</title><rect x="1164.8" y="149" width="0.1" height="15.0" fill="rgb(230,178,12)" rx="2" ry="2" />
+<text  x="1167.75" y="159.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::for_each (11 samples, 0.01%)</title><rect x="465.6" y="437" width="0.1" height="15.0" fill="rgb(240,64,27)" rx="2" ry="2" />
+<text  x="468.60" y="447.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::from_iter (66,779 samples, 60.06%)</title><rect x="466.0" y="469" width="708.7" height="15.0" fill="rgb(213,146,27)" rx="2" ry="2" />
+<text  x="468.95" y="479.5" >&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::from_iter</text>
+</g>
+<g >
+<title>core::num::&lt;impl usize&gt;::overflowing_mul (181 samples, 0.16%)</title><rect x="434.8" y="245" width="2.0" height="15.0" fill="rgb(212,210,33)" rx="2" ry="2" />
+<text  x="437.84" y="255.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve (10 samples, 0.01%)</title><rect x="1176.9" y="421" width="0.1" height="15.0" fill="rgb(253,75,12)" rx="2" ry="2" />
+<text  x="1179.86" y="431.5" ></text>
+</g>
+<g >
+<title>zap_pte_rang.sr. (12 samples, 0.01%)</title><rect x="10.2" y="693" width="0.1" height="15.0" fill="rgb(244,86,49)" rx="2" ry="2" />
+<text  x="13.18" y="703.5" ></text>
+</g>
+<g >
+<title>std::f32::&lt;impl f32&gt;::sqrt (8,308 samples, 7.47%)</title><rect x="1043.3" y="261" width="88.1" height="15.0" fill="rgb(249,213,30)" rx="2" ry="2" />
+<text  x="1046.26" y="271.5" >std::f32::..</text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::collect (1,157 samples, 1.04%)</title><rect x="1176.6" y="645" width="12.3" height="15.0" fill="rgb(222,182,35)" rx="2" ry="2" />
+<text  x="1179.57" y="655.5" ></text>
+</g>
+<g >
+<title>[libc-..o] (13 samples, 0.01%)</title><rect x="1177.6" y="165" width="0.1" height="15.0" fill="rgb(225,149,46)" rx="2" ry="2" />
+<text  x="1180.59" y="175.5" ></text>
+</g>
+<g >
+<title>core::result::Result&lt;T,E&gt;::map_err (348 samples, 0.31%)</title><rect x="169.1" y="293" width="3.7" height="15.0" fill="rgb(228,80,37)" rx="2" ry="2" />
+<text  x="172.08" y="303.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::raw_vec::RawVec&lt;T,A&gt; as core::ops::drop::Drop&gt;::drop (2,463 samples, 2.22%)</title><rect x="235.0" y="405" width="26.1" height="15.0" fill="rgb(234,188,34)" rx="2" ry="2" />
+<text  x="237.96" y="415.5" >&lt;..</text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::try_fold (534 samples, 0.48%)</title><rect x="1177.3" y="309" width="5.6" height="15.0" fill="rgb(226,88,36)" rx="2" ry="2" />
+<text  x="1180.27" y="319.5" ></text>
+</g>
+<g >
+<title>core::cmp::PartialOrd::ge (67 samples, 0.06%)</title><rect x="1178.3" y="133" width="0.7" height="15.0" fill="rgb(229,83,46)" rx="2" ry="2" />
+<text  x="1181.31" y="143.5" ></text>
+</g>
+<g >
+<title>_handle_mm_fault (601 samples, 0.54%)</title><rect x="1160.7" y="197" width="6.4" height="15.0" fill="rgb(207,44,38)" rx="2" ry="2" />
+<text  x="1163.75" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::from_iter (1,157 samples, 1.04%)</title><rect x="1176.6" y="613" width="12.3" height="15.0" fill="rgb(219,215,11)" rx="2" ry="2" />
+<text  x="1179.57" y="623.5" ></text>
+</g>
+<g >
+<title>alloc_pages_vma (101 samples, 0.09%)</title><rect x="1172.3" y="293" width="1.1" height="15.0" fill="rgb(219,216,22)" rx="2" ry="2" />
+<text  x="1175.29" y="303.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::try_reserve (5,565 samples, 5.01%)</title><rect x="129.7" y="341" width="59.1" height="15.0" fill="rgb(217,46,31)" rx="2" ry="2" />
+<text  x="132.74" y="351.5" >alloc:..</text>
+</g>
+<g >
+<title>apic_timer_interrupt (14 samples, 0.01%)</title><rect x="1043.1" y="213" width="0.1" height="15.0" fill="rgb(239,37,35)" rx="2" ry="2" />
+<text  x="1046.08" y="223.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve (1,300 samples, 1.17%)</title><rect x="1154.0" y="405" width="13.8" height="15.0" fill="rgb(248,217,1)" rx="2" ry="2" />
+<text  x="1156.98" y="415.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::ops::deref::Deref&gt;::deref (451 samples, 0.41%)</title><rect x="57.5" y="437" width="4.8" height="15.0" fill="rgb(226,175,4)" rx="2" ry="2" />
+<text  x="60.53" y="447.5" ></text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::get_bit (13 samples, 0.01%)</title><rect x="1179.1" y="149" width="0.1" height="15.0" fill="rgb(251,113,32)" rx="2" ry="2" />
+<text  x="1182.07" y="159.5" ></text>
+</g>
+<g >
+<title>core::iter::adapters::process_results (1,086 samples, 0.98%)</title><rect x="1177.1" y="469" width="11.6" height="15.0" fill="rgb(224,175,10)" rx="2" ry="2" />
+<text  x="1180.14" y="479.5" ></text>
+</g>
+<g >
+<title>clear_page_rep (207 samples, 0.19%)</title><rect x="1161.8" y="117" width="2.2" height="15.0" fill="rgb(233,97,12)" rx="2" ry="2" />
+<text  x="1164.78" y="127.5" ></text>
+</g>
+<g >
+<title>_libc_malloc (11 samples, 0.01%)</title><rect x="1174.5" y="357" width="0.1" height="15.0" fill="rgb(249,124,28)" rx="2" ry="2" />
+<text  x="1177.49" y="367.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl usize&gt;::checked_mul (181 samples, 0.16%)</title><rect x="434.8" y="261" width="2.0" height="15.0" fill="rgb(248,145,43)" rx="2" ry="2" />
+<text  x="437.84" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::ResultShunt&lt;I,E&gt; as core::iter::traits::iterator::Iterator&gt;::next (510 samples, 0.46%)</title><rect x="1183.1" y="389" width="5.4" height="15.0" fill="rgb(249,161,14)" rx="2" ry="2" />
+<text  x="1186.08" y="399.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::extend_from_slice (11 samples, 0.01%)</title><rect x="1176.9" y="469" width="0.1" height="15.0" fill="rgb(208,163,40)" rx="2" ry="2" />
+<text  x="1179.86" y="479.5" ></text>
+</g>
+<g >
+<title>_mod_memcg_state (14 samples, 0.01%)</title><rect x="1165.8" y="133" width="0.2" height="15.0" fill="rgb(231,151,20)" rx="2" ry="2" />
+<text  x="1168.84" y="143.5" ></text>
+</g>
+<g >
+<title>_do_page_fault (711 samples, 0.64%)</title><rect x="1159.8" y="245" width="7.6" height="15.0" fill="rgb(213,124,20)" rx="2" ry="2" />
+<text  x="1162.85" y="255.5" ></text>
+</g>
+<g >
+<title>do_anonymous_page (571 samples, 0.51%)</title><rect x="1161.0" y="181" width="6.1" height="15.0" fill="rgb(252,38,53)" rx="2" ry="2" />
+<text  x="1163.99" y="191.5" ></text>
+</g>
+<g >
+<title>core::ops::function::impls::&lt;impl core::ops::function::FnMut&lt;A&gt; for &amp;mut F&gt;::call_mut (34 samples, 0.03%)</title><rect x="1174.1" y="341" width="0.4" height="15.0" fill="rgb(233,146,14)" rx="2" ry="2" />
+<text  x="1177.11" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::size_hint (1,033 samples, 0.93%)</title><rect x="115.0" y="373" width="11.0" height="15.0" fill="rgb(227,2,37)" rx="2" ry="2" />
+<text  x="118.03" y="383.5" ></text>
+</g>
+<g >
+<title>_libc_malloc (2,603 samples, 2.34%)</title><rect x="136.2" y="293" width="27.7" height="15.0" fill="rgb(243,187,16)" rx="2" ry="2" />
+<text  x="139.24" y="303.5" >_..</text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::for_each::call::{{closure}} (1,047 samples, 0.94%)</title><rect x="191.2" y="309" width="11.1" height="15.0" fill="rgb(237,180,21)" rx="2" ry="2" />
+<text  x="194.19" y="319.5" ></text>
+</g>
+<g >
+<title>handle_mm_fault (647 samples, 0.58%)</title><rect x="1160.4" y="213" width="6.8" height="15.0" fill="rgb(234,114,14)" rx="2" ry="2" />
+<text  x="1163.37" y="223.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::cmp::{{closure}} (44 samples, 0.04%)</title><rect x="1184.5" y="85" width="0.5" height="15.0" fill="rgb(251,184,43)" rx="2" ry="2" />
+<text  x="1187.49" y="95.5" ></text>
+</g>
+<g >
+<title>realloc (1,231 samples, 1.11%)</title><rect x="1154.6" y="309" width="13.1" height="15.0" fill="rgb(245,99,12)" rx="2" ry="2" />
+<text  x="1157.62" y="319.5" ></text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::mul_small (31 samples, 0.03%)</title><rect x="1182.4" y="165" width="0.3" height="15.0" fill="rgb(229,54,33)" rx="2" ry="2" />
+<text  x="1185.37" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;core::slice::Iter&lt;T&gt; as core::iter::traits::iterator::Iterator&gt;::next (40 samples, 0.04%)</title><rect x="10.8" y="405" width="0.5" height="15.0" fill="rgb(232,96,25)" rx="2" ry="2" />
+<text  x="13.83" y="415.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve (10 samples, 0.01%)</title><rect x="1183.0" y="341" width="0.1" height="15.0" fill="rgb(228,31,18)" rx="2" ry="2" />
+<text  x="1185.96" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;f32&gt; as pointctl::exp::common::Distance&gt;::sq_distance (14,526 samples, 13.07%)</title><rect x="261.1" y="421" width="154.2" height="15.0" fill="rgb(231,165,23)" rx="2" ry="2" />
+<text  x="264.12" y="431.5" >&lt;alloc::vec::Vec&lt;f3..</text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::from_iter (18 samples, 0.02%)</title><rect x="10.3" y="645" width="0.2" height="15.0" fill="rgb(251,160,26)" rx="2" ry="2" />
+<text  x="13.31" y="655.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::fold (41,907 samples, 37.69%)</title><rect x="20.7" y="501" width="444.8" height="15.0" fill="rgb(254,68,0)" rx="2" ry="2" />
+<text  x="23.71" y="511.5" >&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::itera..</text>
+</g>
+<g >
+<title>core::iter::range::&lt;impl core::iter::traits::double_ended::DoubleEndedIterator for core::ops::range::Range&lt;A&gt;&gt;::next_back (19 samples, 0.02%)</title><rect x="1186.9" y="149" width="0.2" height="15.0" fill="rgb(206,49,0)" rx="2" ry="2" />
+<text  x="1189.91" y="159.5" ></text>
+</g>
+<g >
+<title>handle_mm_fault (27 samples, 0.02%)</title><rect x="1157.5" y="181" width="0.3" height="15.0" fill="rgb(233,98,19)" rx="2" ry="2" />
+<text  x="1160.52" y="191.5" ></text>
+</g>
+<g >
+<title>core::alloc::layout::Layout::repeat (999 samples, 0.90%)</title><rect x="172.8" y="293" width="10.6" height="15.0" fill="rgb(219,19,33)" rx="2" ry="2" />
+<text  x="175.78" y="303.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::zip::Zip&lt;A,B&gt; as core::iter::adapters::zip::ZipImpl&lt;A,B&gt;&gt;::next (166 samples, 0.15%)</title><rect x="189.4" y="309" width="1.8" height="15.0" fill="rgb(210,194,6)" rx="2" ry="2" />
+<text  x="192.43" y="319.5" ></text>
+</g>
+<g >
+<title>core::iter::range::&lt;impl core::iter::traits::double_ended::DoubleEndedIterator for core::ops::range::Range&lt;A&gt;&gt;::next_back (17 samples, 0.02%)</title><rect x="1180.9" y="117" width="0.2" height="15.0" fill="rgb(208,20,30)" rx="2" ry="2" />
+<text  x="1183.88" y="127.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::ops::drop::Drop&gt;::drop (144 samples, 0.13%)</title><rect x="1174.8" y="645" width="1.5" height="15.0" fill="rgb(242,128,3)" rx="2" ry="2" />
+<text  x="1177.77" y="655.5" ></text>
+</g>
+<g >
+<title>unmap_region (107 samples, 0.10%)</title><rect x="1175.2" y="389" width="1.1" height="15.0" fill="rgb(243,117,31)" rx="2" ry="2" />
+<text  x="1178.16" y="399.5" ></text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::sub (28 samples, 0.03%)</title><rect x="1181.1" y="149" width="0.3" height="15.0" fill="rgb(207,93,2)" rx="2" ry="2" />
+<text  x="1184.06" y="159.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::cmp_by (63 samples, 0.06%)</title><rect x="1178.3" y="69" width="0.7" height="15.0" fill="rgb(213,112,52)" rx="2" ry="2" />
+<text  x="1181.34" y="79.5" ></text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialOrd for usize&gt;::lt (12 samples, 0.01%)</title><rect x="1187.0" y="133" width="0.1" height="15.0" fill="rgb(229,192,35)" rx="2" ry="2" />
+<text  x="1189.99" y="143.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::parse::parse_decimal (10 samples, 0.01%)</title><rect x="1182.8" y="197" width="0.1" height="15.0" fill="rgb(247,95,38)" rx="2" ry="2" />
+<text  x="1185.76" y="207.5" ></text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialOrd&lt;&amp;B&gt; for &amp;A&gt;::ge (81 samples, 0.07%)</title><rect x="1184.1" y="181" width="0.9" height="15.0" fill="rgb(249,169,17)" rx="2" ry="2" />
+<text  x="1187.11" y="191.5" ></text>
+</g>
+<g >
+<title>get_task_polic.ar. (12 samples, 0.01%)</title><rect x="1164.8" y="133" width="0.1" height="15.0" fill="rgb(229,212,42)" rx="2" ry="2" />
+<text  x="1167.75" y="143.5" ></text>
+</g>
+<g >
+<title>_rdl_alloc (179 samples, 0.16%)</title><rect x="163.9" y="293" width="1.9" height="15.0" fill="rgb(243,139,1)" rx="2" ry="2" />
+<text  x="166.87" y="303.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::AllocRef&gt;::alloc (16 samples, 0.01%)</title><rect x="1188.5" y="325" width="0.2" height="15.0" fill="rgb(236,96,23)" rx="2" ry="2" />
+<text  x="1191.49" y="335.5" ></text>
+</g>
+<g >
+<title>[libc-..o] (1,371 samples, 1.23%)</title><rect x="202.3" y="181" width="14.6" height="15.0" fill="rgb(219,128,19)" rx="2" ry="2" />
+<text  x="205.31" y="191.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::capacity_from_bytes (164 samples, 0.15%)</title><rect x="418.7" y="277" width="1.8" height="15.0" fill="rgb(215,146,53)" rx="2" ry="2" />
+<text  x="421.75" y="287.5" ></text>
+</g>
+<g >
+<title>release_pages (72 samples, 0.06%)</title><rect x="1175.5" y="277" width="0.8" height="15.0" fill="rgb(217,215,0)" rx="2" ry="2" />
+<text  x="1178.53" y="287.5" ></text>
+</g>
+<g >
+<title>sync_regs (18 samples, 0.02%)</title><rect x="1167.5" y="277" width="0.2" height="15.0" fill="rgb(239,62,24)" rx="2" ry="2" />
+<text  x="1170.49" y="287.5" ></text>
+</g>
+<g >
+<title>std::rt::lang_start_internal (111,152 samples, 99.97%)</title><rect x="10.3" y="805" width="1179.7" height="15.0" fill="rgb(250,23,27)" rx="2" ry="2" />
+<text  x="13.31" y="815.5" >std::rt::lang_start_internal</text>
+</g>
+<g >
+<title>&lt;T as alloc::string::ToString&gt;::to_string (58 samples, 0.05%)</title><rect x="1189.0" y="501" width="0.7" height="15.0" fill="rgb(213,50,20)" rx="2" ry="2" />
+<text  x="1192.04" y="511.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::zip::Zip&lt;A,B&gt; as core::iter::traits::iterator::Iterator&gt;::next (1,784 samples, 1.60%)</title><rect x="261.5" y="373" width="18.9" height="15.0" fill="rgb(250,28,6)" rx="2" ry="2" />
+<text  x="264.48" y="383.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::AllocRef&gt;::grow (1,256 samples, 1.13%)</title><rect x="1154.4" y="341" width="13.3" height="15.0" fill="rgb(231,159,16)" rx="2" ry="2" />
+<text  x="1157.35" y="351.5" ></text>
+</g>
+<g >
+<title>page_fault (33 samples, 0.03%)</title><rect x="1157.5" y="245" width="0.3" height="15.0" fill="rgb(244,157,1)" rx="2" ry="2" />
+<text  x="1160.47" y="255.5" ></text>
+</g>
+<g >
+<title>core::ptr::const_ptr::&lt;impl *const T&gt;::offset (70 samples, 0.06%)</title><rect x="190.4" y="277" width="0.8" height="15.0" fill="rgb(219,190,43)" rx="2" ry="2" />
+<text  x="193.45" y="287.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::collect (1,086 samples, 0.98%)</title><rect x="1177.1" y="501" width="11.6" height="15.0" fill="rgb(217,79,0)" rx="2" ry="2" />
+<text  x="1180.14" y="511.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place (144 samples, 0.13%)</title><rect x="1174.8" y="613" width="1.5" height="15.0" fill="rgb(231,52,31)" rx="2" ry="2" />
+<text  x="1177.77" y="623.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::from_iter (15,007 samples, 13.50%)</title><rect x="67.0" y="405" width="159.3" height="15.0" fill="rgb(221,191,6)" rx="2" ry="2" />
+<text  x="70.01" y="415.5" >&lt;alloc::vec::Vec&lt;T&gt; ..</text>
+</g>
+<g >
+<title>std::io::BufRead::read_line (45 samples, 0.04%)</title><rect x="1176.6" y="533" width="0.5" height="15.0" fill="rgb(232,69,46)" rx="2" ry="2" />
+<text  x="1179.58" y="543.5" ></text>
+</g>
+<g >
+<title>_lru_cache_add (14 samples, 0.01%)</title><rect x="1173.4" y="277" width="0.1" height="15.0" fill="rgb(241,105,14)" rx="2" ry="2" />
+<text  x="1176.38" y="287.5" ></text>
+</g>
+<g >
+<title>pointctl::fs::csv::read (1,159 samples, 1.04%)</title><rect x="1176.6" y="661" width="12.3" height="15.0" fill="rgb(211,101,9)" rx="2" ry="2" />
+<text  x="1179.55" y="671.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::from_iter (17 samples, 0.02%)</title><rect x="465.5" y="469" width="0.2" height="15.0" fill="rgb(241,139,30)" rx="2" ry="2" />
+<text  x="468.54" y="479.5" ></text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::mul_pow2 (175 samples, 0.16%)</title><rect x="1179.2" y="149" width="1.9" height="15.0" fill="rgb(229,154,1)" rx="2" ry="2" />
+<text  x="1182.21" y="159.5" ></text>
+</g>
+<g >
+<title>core::str::&lt;impl str&gt;::parse (498 samples, 0.45%)</title><rect x="1183.2" y="277" width="5.3" height="15.0" fill="rgb(218,203,33)" rx="2" ry="2" />
+<text  x="1186.18" y="287.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::fold (11 samples, 0.01%)</title><rect x="465.6" y="405" width="0.1" height="15.0" fill="rgb(242,143,12)" rx="2" ry="2" />
+<text  x="468.60" y="415.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;T,I&gt;&gt;::from_iter (4,728 samples, 4.25%)</title><rect x="415.3" y="389" width="50.2" height="15.0" fill="rgb(233,209,46)" rx="2" ry="2" />
+<text  x="418.29" y="399.5" >&lt;allo..</text>
+</g>
+<g >
+<title>unmap_page_range (12 samples, 0.01%)</title><rect x="10.2" y="709" width="0.1" height="15.0" fill="rgb(250,63,18)" rx="2" ry="2" />
+<text  x="13.18" y="719.5" ></text>
+</g>
+<g >
+<title>core::slice::memchr::memchr (10 samples, 0.01%)</title><rect x="1177.3" y="229" width="0.1" height="15.0" fill="rgb(208,4,19)" rx="2" ry="2" />
+<text  x="1180.33" y="239.5" ></text>
+</g>
+<g >
+<title>smp_apic_timer_interrupt (31 samples, 0.03%)</title><rect x="1131.4" y="261" width="0.4" height="15.0" fill="rgb(228,124,44)" rx="2" ry="2" />
+<text  x="1134.44" y="271.5" ></text>
+</g>
+<g >
+<title>perf_event_task_tick (11 samples, 0.01%)</title><rect x="1131.6" y="149" width="0.1" height="15.0" fill="rgb(236,53,15)" rx="2" ry="2" />
+<text  x="1134.57" y="159.5" ></text>
+</g>
+<g >
+<title>[libc-..o] (107 samples, 0.10%)</title><rect x="1175.2" y="517" width="1.1" height="15.0" fill="rgb(228,218,22)" rx="2" ry="2" />
+<text  x="1178.16" y="527.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::allocate_in (16 samples, 0.01%)</title><rect x="1188.5" y="341" width="0.2" height="15.0" fill="rgb(227,191,16)" rx="2" ry="2" />
+<text  x="1191.49" y="351.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::with_capacity (19 samples, 0.02%)</title><rect x="1174.5" y="453" width="0.2" height="15.0" fill="rgb(233,219,4)" rx="2" ry="2" />
+<text  x="1177.49" y="463.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place (14 samples, 0.01%)</title><rect x="465.8" y="501" width="0.1" height="15.0" fill="rgb(219,90,41)" rx="2" ry="2" />
+<text  x="468.79" y="511.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T&gt;::extend_from_slice (11 samples, 0.01%)</title><rect x="1189.3" y="357" width="0.1" height="15.0" fill="rgb(224,80,48)" rx="2" ry="2" />
+<text  x="1192.33" y="367.5" ></text>
+</g>
+<g >
+<title>smp_apic_timer_interrupt (10 samples, 0.01%)</title><rect x="1131.3" y="229" width="0.1" height="15.0" fill="rgb(221,114,47)" rx="2" ry="2" />
+<text  x="1134.33" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::zip::Zip&lt;A,B&gt; as core::iter::traits::iterator::Iterator&gt;::size_hint (1,033 samples, 0.93%)</title><rect x="115.0" y="357" width="11.0" height="15.0" fill="rgb(219,135,54)" rx="2" ry="2" />
+<text  x="118.03" y="367.5" ></text>
+</g>
+<g >
+<title>x86_pmu_disable (11 samples, 0.01%)</title><rect x="1131.6" y="117" width="0.1" height="15.0" fill="rgb(221,121,48)" rx="2" ry="2" />
+<text  x="1134.57" y="127.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place (14 samples, 0.01%)</title><rect x="465.8" y="485" width="0.1" height="15.0" fill="rgb(220,81,5)" rx="2" ry="2" />
+<text  x="468.79" y="495.5" ></text>
+</g>
+<g >
+<title>do_group_exit (14 samples, 0.01%)</title><rect x="10.2" y="805" width="0.1" height="15.0" fill="rgb(230,79,34)" rx="2" ry="2" />
+<text  x="13.16" y="815.5" ></text>
+</g>
+<g >
+<title>[libc-..o] (12 samples, 0.01%)</title><rect x="465.8" y="421" width="0.1" height="15.0" fill="rgb(213,204,38)" rx="2" ry="2" />
+<text  x="468.79" y="431.5" ></text>
+</g>
+<g >
+<title>&lt;&lt;alloc::vec::IntoIter&lt;T&gt; as core::ops::drop::Drop&gt;::drop::DropGuard&lt;T&gt; as core::ops::drop::Drop&gt;::drop (2,227 samples, 2.00%)</title><rect x="202.3" y="261" width="23.6" height="15.0" fill="rgb(209,23,7)" rx="2" ry="2" />
+<text  x="205.30" y="271.5" >&lt;..</text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialOrd&lt;&amp;B&gt; for &amp;A&gt;::ge (67 samples, 0.06%)</title><rect x="1178.3" y="149" width="0.7" height="15.0" fill="rgb(238,56,5)" rx="2" ry="2" />
+<text  x="1181.31" y="159.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::fold (924 samples, 0.83%)</title><rect x="10.8" y="421" width="9.8" height="15.0" fill="rgb(235,163,48)" rx="2" ry="2" />
+<text  x="13.83" y="431.5" ></text>
+</g>
+<g >
+<title>do_user_addr_fault (11 samples, 0.01%)</title><rect x="1157.9" y="213" width="0.1" height="15.0" fill="rgb(242,2,4)" rx="2" ry="2" />
+<text  x="1160.85" y="223.5" ></text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::find_neighbors::{{closure}} (34 samples, 0.03%)</title><rect x="1174.1" y="325" width="0.4" height="15.0" fill="rgb(227,147,17)" rx="2" ry="2" />
+<text  x="1177.11" y="335.5" ></text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::get_bit (13 samples, 0.01%)</title><rect x="1185.0" y="181" width="0.1" height="15.0" fill="rgb(208,173,16)" rx="2" ry="2" />
+<text  x="1188.01" y="191.5" ></text>
+</g>
+<g >
+<title>std::io::append_to_string (45 samples, 0.04%)</title><rect x="1176.6" y="517" width="0.5" height="15.0" fill="rgb(235,198,33)" rx="2" ry="2" />
+<text  x="1179.58" y="527.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::allocate_in (19 samples, 0.02%)</title><rect x="1174.5" y="405" width="0.2" height="15.0" fill="rgb(217,204,7)" rx="2" ry="2" />
+<text  x="1177.49" y="415.5" ></text>
+</g>
+<g >
+<title>_do_page_fault (28 samples, 0.03%)</title><rect x="1157.5" y="213" width="0.3" height="15.0" fill="rgb(225,119,1)" rx="2" ry="2" />
+<text  x="1160.52" y="223.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve (5,587 samples, 5.03%)</title><rect x="129.5" y="357" width="59.3" height="15.0" fill="rgb(207,222,35)" rx="2" ry="2" />
+<text  x="132.50" y="367.5" >alloc:..</text>
+</g>
+<g >
+<title>std::sys::unix::alloc::&lt;impl core::alloc::global::GlobalAlloc for std::alloc::System&gt;::dealloc (160 samples, 0.14%)</title><rect x="253.2" y="341" width="1.7" height="15.0" fill="rgb(226,77,31)" rx="2" ry="2" />
+<text  x="256.23" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::zip::Zip&lt;A,B&gt; as core::iter::adapters::zip::ZipImpl&lt;A,B&gt;&gt;::next (12 samples, 0.01%)</title><rect x="1181.2" y="117" width="0.1" height="15.0" fill="rgb(229,146,32)" rx="2" ry="2" />
+<text  x="1184.18" y="127.5" ></text>
+</g>
+<g >
+<title>_do_page_fault (200 samples, 0.18%)</title><rect x="1171.8" y="373" width="2.1" height="15.0" fill="rgb(254,183,35)" rx="2" ry="2" />
+<text  x="1174.82" y="383.5" ></text>
+</g>
+<g >
+<title>pointctl::explain_command::{{closure}} (10 samples, 0.01%)</title><rect x="10.4" y="549" width="0.1" height="15.0" fill="rgb(237,68,3)" rx="2" ry="2" />
+<text  x="13.39" y="559.5" ></text>
+</g>
+<g >
+<title>_x64_sys_exit_group (14 samples, 0.01%)</title><rect x="10.2" y="821" width="0.1" height="15.0" fill="rgb(239,111,42)" rx="2" ry="2" />
+<text  x="13.16" y="831.5" ></text>
+</g>
+<g >
+<title>core::ptr::write (825 samples, 0.74%)</title><rect x="448.4" y="261" width="8.8" height="15.0" fill="rgb(234,173,0)" rx="2" ry="2" />
+<text  x="451.43" y="271.5" ></text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::calculate_annotation::{{closure}} (656 samples, 0.59%)</title><rect x="11.3" y="357" width="6.9" height="15.0" fill="rgb(232,207,2)" rx="2" ry="2" />
+<text  x="14.25" y="367.5" ></text>
+</g>
+<g >
+<title>std::panicking::try::do_call (111,152 samples, 99.97%)</title><rect x="10.3" y="757" width="1179.7" height="15.0" fill="rgb(210,31,38)" rx="2" ry="2" />
+<text  x="13.31" y="767.5" >std::panicking::try::do_call</text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::explain (109,859 samples, 98.81%)</title><rect x="10.6" y="677" width="1166.0" height="15.0" fill="rgb(238,161,2)" rx="2" ry="2" />
+<text  x="13.59" y="687.5" >pointctl::exp::da_silva::explain</text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter (18 samples, 0.02%)</title><rect x="10.3" y="661" width="0.2" height="15.0" fill="rgb(248,108,0)" rx="2" ry="2" />
+<text  x="13.31" y="671.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::find (63,559 samples, 57.17%)</title><rect x="479.2" y="389" width="674.5" height="15.0" fill="rgb(254,103,47)" rx="2" ry="2" />
+<text  x="482.17" y="399.5" >core::iter::traits::iterator::Iterator::find</text>
+</g>
+<g >
+<title>core::num::&lt;impl usize&gt;::overflowing_mul (490 samples, 0.44%)</title><rect x="178.2" y="261" width="5.2" height="15.0" fill="rgb(209,44,14)" rx="2" ry="2" />
+<text  x="181.18" y="271.5" ></text>
+</g>
+<g >
+<title>core::option::Option&lt;T&gt;::map (1,099 samples, 0.99%)</title><rect x="1177.1" y="549" width="11.6" height="15.0" fill="rgb(222,93,4)" rx="2" ry="2" />
+<text  x="1180.06" y="559.5" ></text>
+</g>
+<g >
+<title>core::iter::adapters::map_fold::{{closure}} (1,047 samples, 0.94%)</title><rect x="191.2" y="325" width="11.1" height="15.0" fill="rgb(248,172,51)" rx="2" ry="2" />
+<text  x="194.19" y="335.5" ></text>
+</g>
+<g >
+<title>pagevec_lru_move_fn (69 samples, 0.06%)</title><rect x="1165.0" y="133" width="0.7" height="15.0" fill="rgb(206,172,47)" rx="2" ry="2" />
+<text  x="1168.02" y="143.5" ></text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::from_u64 (10 samples, 0.01%)</title><rect x="1187.3" y="197" width="0.1" height="15.0" fill="rgb(251,3,52)" rx="2" ry="2" />
+<text  x="1190.33" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;std::io::buffered::BufReader&lt;R&gt; as std::io::BufRead&gt;::fill_buf (10 samples, 0.01%)</title><rect x="1176.8" y="469" width="0.1" height="15.0" fill="rgb(231,49,49)" rx="2" ry="2" />
+<text  x="1179.75" y="479.5" ></text>
+</g>
+<g >
+<title>free_unref_page_list (37 samples, 0.03%)</title><rect x="1175.9" y="261" width="0.4" height="15.0" fill="rgb(207,102,4)" rx="2" ry="2" />
+<text  x="1178.87" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;nalgebra::geometry::point::Point&lt;f32,nalgebra::base::dimension::U3&gt; as pointctl::exp::common::Distance&gt;::sq_distance (13,066 samples, 11.75%)</title><rect x="904.6" y="261" width="138.7" height="15.0" fill="rgb(216,28,8)" rx="2" ry="2" />
+<text  x="907.59" y="271.5" >&lt;nalgebra::geomet..</text>
+</g>
+<g >
+<title>core::num::bignum::Big32x40::bit_length (10 samples, 0.01%)</title><rect x="1181.6" y="149" width="0.1" height="15.0" fill="rgb(228,88,42)" rx="2" ry="2" />
+<text  x="1184.64" y="159.5" ></text>
+</g>
+<g >
+<title>core::cmp::min_by (315 samples, 0.28%)</title><rect x="411.9" y="325" width="3.4" height="15.0" fill="rgb(216,225,50)" rx="2" ry="2" />
+<text  x="414.94" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::SpecExtend&lt;&amp;T,core::slice::Iter&lt;T&gt;&gt;&gt;::spec_extend (11 samples, 0.01%)</title><rect x="1176.9" y="453" width="0.1" height="15.0" fill="rgb(234,93,14)" rx="2" ry="2" />
+<text  x="1179.86" y="463.5" ></text>
+</g>
+<g >
+<title>core::iter::adapters::map_fold::{{closure}} (7,055 samples, 6.35%)</title><rect x="280.4" y="373" width="74.9" height="15.0" fill="rgb(223,4,51)" rx="2" ry="2" />
+<text  x="283.41" y="383.5" >core::it..</text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T&gt;::with_capacity (19 samples, 0.02%)</title><rect x="1174.5" y="437" width="0.2" height="15.0" fill="rgb(207,115,18)" rx="2" ry="2" />
+<text  x="1177.49" y="447.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Filter&lt;I,P&gt; as core::iter::traits::iterator::Iterator&gt;::next (63,559 samples, 57.17%)</title><rect x="479.2" y="405" width="674.5" height="15.0" fill="rgb(252,221,32)" rx="2" ry="2" />
+<text  x="482.17" y="415.5" >&lt;core::iter::adapters::Filter&lt;I,P&gt; as core::iter::traits::iterator::Iterator&gt;::next</text>
+</g>
+<g >
+<title>core::fmt::Formatter::write_formatted_parts::write_bytes (13 samples, 0.01%)</title><rect x="1189.3" y="421" width="0.1" height="15.0" fill="rgb(232,46,16)" rx="2" ry="2" />
+<text  x="1192.31" y="431.5" ></text>
+</g>
+<g >
+<title>pointctl::fs::prelude::read (1,159 samples, 1.04%)</title><rect x="1176.6" y="677" width="12.3" height="15.0" fill="rgb(212,195,2)" rx="2" ry="2" />
+<text  x="1179.55" y="687.5" ></text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::calculate_local_contributions (41,940 samples, 37.72%)</title><rect x="20.6" y="517" width="445.2" height="15.0" fill="rgb(248,219,10)" rx="2" ry="2" />
+<text  x="23.63" y="527.5" >pointctl::exp::da_silva::calculate_local_contributions</text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (50 samples, 0.04%)</title><rect x="1156.9" y="197" width="0.5" height="15.0" fill="rgb(217,32,21)" rx="2" ry="2" />
+<text  x="1159.85" y="207.5" ></text>
+</g>
+<g >
+<title>_sbrk (60 samples, 0.05%)</title><rect x="1156.8" y="229" width="0.7" height="15.0" fill="rgb(253,36,2)" rx="2" ry="2" />
+<text  x="1159.83" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::Map&lt;I,F&gt; as core::iter::traits::iterator::Iterator&gt;::fold (924 samples, 0.83%)</title><rect x="10.8" y="453" width="9.8" height="15.0" fill="rgb(229,83,46)" rx="2" ry="2" />
+<text  x="13.83" y="463.5" ></text>
+</g>
+<g >
+<title>pointctl::exp::da_silva::calculate_annotation::{{closure}} (157 samples, 0.14%)</title><rect x="19.0" y="389" width="1.6" height="15.0" fill="rgb(207,11,31)" rx="2" ry="2" />
+<text  x="21.97" y="399.5" ></text>
+</g>
+<g >
+<title>tlb_flush_mmu (78 samples, 0.07%)</title><rect x="1175.5" y="309" width="0.8" height="15.0" fill="rgb(215,117,48)" rx="2" ry="2" />
+<text  x="1178.47" y="319.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;f32&gt; as pointctl::exp::common::Distance&gt;::sq_distance::{{closure}} (7,055 samples, 6.35%)</title><rect x="280.4" y="357" width="74.9" height="15.0" fill="rgb(232,29,48)" rx="2" ry="2" />
+<text  x="283.41" y="367.5" >&lt;alloc::..</text>
+</g>
+<g >
+<title>unmap_vmas (12 samples, 0.01%)</title><rect x="10.2" y="741" width="0.1" height="15.0" fill="rgb(240,186,28)" rx="2" ry="2" />
+<text  x="13.18" y="751.5" ></text>
+</g>
+<g >
+<title>do_syscall_64 (107 samples, 0.10%)</title><rect x="1175.2" y="437" width="1.1" height="15.0" fill="rgb(228,58,17)" rx="2" ry="2" />
+<text  x="1178.16" y="447.5" ></text>
+</g>
+<g >
+<title>std::io::BufRead::read_line::{{closure}} (30 samples, 0.03%)</title><rect x="1176.7" y="501" width="0.4" height="15.0" fill="rgb(224,148,15)" rx="2" ry="2" />
+<text  x="1179.74" y="511.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::dec2flt (498 samples, 0.45%)</title><rect x="1183.2" y="245" width="5.3" height="15.0" fill="rgb(246,133,12)" rx="2" ry="2" />
+<text  x="1186.18" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::ops::deref::Deref&gt;::deref (141 samples, 0.13%)</title><rect x="62.3" y="421" width="1.5" height="15.0" fill="rgb(254,91,52)" rx="2" ry="2" />
+<text  x="65.31" y="431.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::algorithm::algorithm_m (432 samples, 0.39%)</title><rect x="1183.2" y="213" width="4.6" height="15.0" fill="rgb(246,186,49)" rx="2" ry="2" />
+<text  x="1186.23" y="223.5" ></text>
+</g>
+</g>
+</svg>
