@@ -32,7 +32,9 @@ impl<T> AnnotatedPoint<T>{
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct IndexedPoint {
     pub index: usize,
-    pub point: Point3
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
 }
 
 // implement the rstar point for the IndexedPoint so
@@ -46,16 +48,18 @@ impl rstar::Point for IndexedPoint {
         IndexedPoint {
             // Can't index since we do not now the global state
             index: 0,
-            point: Point3::new(generator(0), generator(1), generator(2))
+            x: generator(0),
+            y: generator(1),
+            z: generator(2)
         }
     }
 
     fn nth(&self, index: usize) -> Self::Scalar
     {
       match index {
-        0 => self.point.x,
-        1 => self.point.y,
-        2 => self.point.z,
+        0 => self.x,
+        1 => self.y,
+        2 => self.z,
         _ => unreachable!()
       }
     }
@@ -63,9 +67,9 @@ impl rstar::Point for IndexedPoint {
     fn nth_mut(&mut self, index: usize) -> &mut Self::Scalar
     {
       match index {
-        0 => &mut self.point.x,
-        1 => &mut self.point.y,
-        2 => &mut self.point.z,
+        0 => &mut self.x,
+        1 => &mut self.y,
+        2 => &mut self.z,
         _ => unreachable!()
       }
     }

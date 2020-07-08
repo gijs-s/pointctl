@@ -16,7 +16,7 @@
 // - Store the data in a more space efficient way
 // - Warning in case of tiny neighborhoods
 
-use rstar::RTree;
+use rstar::{RTree, RTreeParams, RStarInsertionStrategy};
 
 use super::common::{Distance, IndexedPoint};
 use crate::util::types::{Point3, PointN};
@@ -38,8 +38,19 @@ pub struct DaSilvaExplanation {
     pub confidence: f32,
 }
 
+
+// This example uses an rtree with larger internal nodes.
+pub struct LargeNodeParameters;
+impl RTreeParams for LargeNodeParameters
+{
+    const MIN_SIZE: usize = 10;
+    const MAX_SIZE: usize = 30;
+    const REINSERTION_COUNT: usize = 5;
+    type DefaultInsertionStrategy = RStarInsertionStrategy;
+}
+
 pub struct DaSilvaMechanismState<'a> {
-    pub rtree: RTree<IndexedPoint>,
+    pub rtree: RTree<IndexedPoint, LargeNodeParameters>,
     pub original_points: &'a Vec<PointN>
 }
 
@@ -48,9 +59,9 @@ impl<'a> DaSilvaMechanismState<'a> {
         let indexed_points: Vec<IndexedPoint> = reduced_points
             .into_iter()
             .enumerate()
-            .map(|(index, point)| IndexedPoint { index, point })
+            .map(|(index, point)| IndexedPoint { index, x: point.x, y: point.y, z: point.z })
             .collect();
-        let rtree = RTree::<IndexedPoint>::bulk_load(indexed_points);
+        let rtree = RTree::<IndexedPoint, LargeNodeParameters>::bulk_load_with_params(indexed_points);
         DaSilvaMechanismState {
             rtree, original_points
         }
@@ -67,7 +78,7 @@ impl<'a> DaSilvaMechanismState<'a> {
         // do this for every (unorderd) element in the rtree so we sort after.
         let mut indexed_neighborhoods: Vec<(usize, NeighborIndices)> = self.rtree
             .iter()
-            .map(|indexed_point|(indexed_point.index, self.find_neighbors(neighborhood_size, indexed_point)))
+            .map(|indexed_point|(indexed_point.index, self.find_neighbors(neighborhood_size, *indexed_point)))
             .collect();
         indexed_neighborhoods.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap());
         let neighborhoods: Vec<NeighborIndices> = indexed_neighborhoods.into_iter().map(|(_, n)| n).collect();
@@ -98,11 +109,10 @@ impl<'a> DaSilvaMechanismState<'a> {
     }
 
     // Get a reference to all neighbors within a certain range. This used the rtree.
-    fn find_neighbors(&self, neighborhood_size: f32, indexed_point: &IndexedPoint) -> NeighborIndices {
+    fn find_neighbors(&self, neighborhood_size: f32, indexed_point: IndexedPoint) -> NeighborIndices {
         self.rtree
-            .nearest_neighbor_iter_with_distance_2(indexed_point)
-            .take_while(|(_, dist)| dist.sqrt() - neighborhood_size <= 0.0)
-            .map(|(elem, _)| elem.index)
+            .locate_within_distance(indexed_point, neighborhood_size * neighborhood_size)
+            .map(|elem| elem.index)
             .filter(|&index| index != indexed_point.index )
             .collect::<NeighborIndices>()
     }
@@ -252,7 +262,7 @@ impl<'a> DaSilvaMechanismState<'a> {
         local_contributions
             .iter()
             .enumerate()
-            .max_by(|(_, &a), (_, &b)| b.partial_cmp(&a).unwrap_or(Ordering::Equal))
+            .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
             .map(|(index, &f)| (index, f))
             .unwrap()
     }
@@ -276,9 +286,8 @@ mod tests {
         let mechanism = DaSilvaMechanismState::new(points_3, &points_n);
 
         // Check neighbors
-        let point = Point3::new(2.0, 2.0, 2.0);
-        assert_eq!(mechanism.find_neighbors(2.0, &IndexedPoint{ index: 2, point}), vec![1]);
-        assert_eq!(mechanism.find_neighbors(4.0, &IndexedPoint{ index: 2, point}), vec![1, 0]);
+        assert_eq!(mechanism.find_neighbors(2.0, &IndexedPoint{ index: 2, x: 2.0, y: 2.0, z: 2.0}), vec![1]);
+        assert_eq!(mechanism.find_neighbors(4.0, &IndexedPoint{ index: 2, x: 2.0, y: 2.0, z: 2.0}), vec![1, 0]);
     }
 
     #[test]
@@ -293,9 +302,9 @@ mod tests {
 
     #[test]
     fn calculates_correct_top_ranking() {
-        assert_eq!(DaSilvaMechanismState::calculate_top_ranking(vec![0.0f32, 0.8, 0.3]), (1, 0.8));
-        assert_eq!(DaSilvaMechanismState::calculate_top_ranking(vec![0.0f32, 0.0, 0.3]), (2, 0.3));
-        assert_eq!(DaSilvaMechanismState::calculate_top_ranking(vec![0.0f32, 0.0, 0.0]), (2, 0.0));
+        assert_eq!(DaSilvaMechanismState::calculate_top_ranking(vec![0.8f32, 0.1, 0.3]), (1, 0.1));
+        assert_eq!(DaSilvaMechanismState::calculate_top_ranking(vec![0.0f32, 0.0, 0.3]), (0, 0.0));
+        assert_eq!(DaSilvaMechanismState::calculate_top_ranking(vec![0.3f32, 0.3, 0.0]), (2, 0.0));
     }
 
     #[test]
@@ -304,7 +313,7 @@ mod tests {
             vec![(2, 0.7), (1, 0.4), (1, 0.9), (1, 0.6), (1, 0.4), (3, 0.5)];
 
         assert_eq!(
-            DaSilvaMechanismState::calculate_annotation(0, &rankings, vec![1, 2, 3, 4]),
+            DaSilvaMechanismState::calculate_annotation(0, &rankings, &vec![1, 2, 3, 4]),
             DaSilvaExplanation {
                 attribute_index: 2,
                 confidence: 0.0
@@ -312,7 +321,7 @@ mod tests {
         );
 
         assert_eq!(
-            DaSilvaMechanismState::calculate_annotation(1, &rankings, vec![2, 3, 4]),
+            DaSilvaMechanismState::calculate_annotation(1, &rankings, &vec![2, 3, 4]),
             DaSilvaExplanation {
                 attribute_index: 1,
                 confidence: 1.0
@@ -320,7 +329,7 @@ mod tests {
         );
 
         assert_eq!(
-            DaSilvaMechanismState::calculate_annotation(1, &rankings, vec![0, 2, 3, 4]),
+            DaSilvaMechanismState::calculate_annotation(1, &rankings, &vec![0, 2, 3, 4]),
             DaSilvaExplanation {
                 attribute_index: 1,
                 confidence: 0.75
@@ -328,7 +337,7 @@ mod tests {
         );
 
         assert_eq!(
-            DaSilvaMechanismState::calculate_annotation(1, &rankings, vec![0, 2, 3, 5]),
+            DaSilvaMechanismState::calculate_annotation(1, &rankings, &vec![0, 2, 3, 5]),
             DaSilvaExplanation {
                 attribute_index: 1,
                 confidence: 0.50
