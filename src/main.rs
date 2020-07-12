@@ -168,7 +168,7 @@ fn explain_command(matches: &ArgMatches) {
     // Create a Da Silva explanation mechanism
     let da_silva_mechanism =
         exp::da_silva::DaSilvaMechanismState::new(clean_reduced_points, &original_points);
-    let (da_silva_explanation, _dimension_ranking) = da_silva_mechanism.explain(0.1);
+    let (da_silva_explanation, _dimension_ranking) = da_silva_mechanism.explain(0.1, 250);
 
     // Write the annotations to file
     let annotations = da_silva_explanation

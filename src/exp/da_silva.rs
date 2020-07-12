@@ -21,6 +21,7 @@ use rstar::{RStarInsertionStrategy, RTree, RTreeParams};
 use super::common::{Distance, IndexedPoint};
 use crate::util::types::{Point3, PointN};
 
+use rand::{seq::SliceRandom, thread_rng};
 use std::cmp::Ordering;
 
 // Types to make the code more readable
@@ -77,7 +78,11 @@ impl<'a> DaSilvaMechanismState<'a> {
         }
     }
 
-    pub fn explain(&self, neighborhood_size: f32) -> (Vec<DaSilvaExplanation>, DimensionOrder) {
+    pub fn explain(
+        &self,
+        neighborhood_size: f32,
+        neighborhood_bound: usize,
+    ) -> (Vec<DaSilvaExplanation>, DimensionOrder) {
         // Calculate the global contribution of each point (centroid of the nD space and
         //_every_ point in its neighborhood)
         let centroid: PointN = Self::find_centroid(&self.original_points);
@@ -87,14 +92,24 @@ impl<'a> DaSilvaMechanismState<'a> {
         // Pre-compute all neighborhoods, each neighborhood consists of all points witing
         // p v_i for point p_i in 3d. The nd neighborhood is {P(p) \in v_i}. Note that we
         // do this for every (unorderd) element in the rtree so we sort after.
+        let mut rng = thread_rng();
         let mut indexed_neighborhoods: Vec<(usize, NeighborIndices)> = self
             .rtree
             .iter()
             .map(|indexed_point| {
-                (
-                    indexed_point.index,
-                    self.find_neighbors(neighborhood_size, *indexed_point),
-                )
+                let neighbors = self.find_neighbors(neighborhood_size, *indexed_point);
+                // limit the neigborhoods size by the bound. If it exceeds this bound we take random
+                // samples without replacement.
+                if neighbors.len() < neighborhood_bound {
+                    (indexed_point.index, neighbors)
+                } else {
+                    // sample from the original neighbors.
+                    let neighbors_samples = neighbors
+                        .choose_multiple(&mut rng, neighborhood_bound)
+                        .cloned()
+                        .collect();
+                    (indexed_point.index, neighbors_samples)
+                }
             })
             .collect();
         indexed_neighborhoods.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap());
