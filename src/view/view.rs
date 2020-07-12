@@ -32,7 +32,7 @@ pub fn init_create_state(
     points: Vec<Point3<f32>>,
     explanations: Vec<DaSilvaExplanation>,
 ) -> AppState {
-    let mut point_cloud_renderer = PointCloudRenderer::new(4.0);
+    let mut point_cloud_renderer = PointCloudRenderer::new(6.0);
     let max_confidence = explanations
         .iter()
         .map(|v| v.confidence)

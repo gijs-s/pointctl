@@ -50,6 +50,8 @@ impl RTreeParams for LargeNodeParameters {
 pub struct DaSilvaMechanismState<'a> {
     pub rtree: RTree<IndexedPoint, LargeNodeParameters>,
     pub original_points: &'a Vec<PointN>,
+    // How large the total projection is. mesured by the two points furthest apart.
+    // pub projection_width: f32,
 }
 
 impl<'a> DaSilvaMechanismState<'a> {
@@ -123,8 +125,9 @@ impl<'a> DaSilvaMechanismState<'a> {
             })
             .collect();
 
-        // TODO: Calculate the global ranking of dimension confidence, useful for the colour encoding.
-        (explanation, vec![1])
+        let dimension_rankings = self.calculate_dimension_rankings(&explanation);
+
+        (explanation, dimension_rankings)
     }
 
     // Get a reference to all neighbors within a certain range. This used the rtree.
@@ -289,6 +292,32 @@ impl<'a> DaSilvaMechanismState<'a> {
             .map(|(index, &f)| (index, f))
             .unwrap()
     }
+
+    pub fn calculate_dimension_rankings(
+        &self,
+        explanations: &Vec<DaSilvaExplanation>,
+    ) -> Vec<usize> {
+        let dimension_count = self.original_points.first().unwrap().len();
+        let mut ranking_counts = explanations
+            .iter()
+            .map(|exp| exp.attribute_index)
+            // Count the occurrences of each dimension
+            .fold(vec![0usize; dimension_count], |mut acc, attribute_index| {
+                acc[attribute_index] += 1;
+                acc
+            })
+            .into_iter()
+            // Add an index to the count of each dimension
+            .enumerate()
+            .collect::<Vec<(usize, usize)>>();
+
+        // Sort desc
+        ranking_counts.sort_by(|(_, a), (_, b)| b.cmp(a));
+        ranking_counts
+            .iter()
+            .map(|&(index, _)| index)
+            .collect::<Vec<usize>>()
+    }
 }
 
 #[cfg(test)]
@@ -399,5 +428,26 @@ mod tests {
                 confidence: 0.50
             }
         );
+    }
+
+    #[test]
+    fn calculates_correct_dimension_rankings() {
+        // Add single dummy points, used for finding the dimensionality
+        let points_n = vec![vec![0.0f32, 0.0, 0.0]];
+        let mechanism = DaSilvaMechanismState::new(vec![], &points_n);
+
+        let indexes = vec![0, 1, 1, 1, 2, 2];
+        let explanations = indexes
+            .into_iter()
+            .map(|index| DaSilvaExplanation {
+                attribute_index: index,
+                confidence: 0.5,
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            mechanism.calculate_dimension_rankings(&explanations),
+            vec![1, 2, 0]
+        )
     }
 }
