@@ -19,20 +19,28 @@ use crate::exp::da_silva::DaSilvaExplanation;
 use std::cmp::Ordering;
 // TODO: This looks like hot garbage, Fix is based on the example from the rstar repo
 
-pub fn display(title: &str, points: Vec<Point3<f32>>, explanations: Vec<DaSilvaExplanation>) {
+pub fn display(
+    title: &str,
+    points: Vec<Point3<f32>>,
+    explanations: Vec<DaSilvaExplanation>,
+    dimension_ranking: Vec<usize>,
+) {
     // Create the window
     let mut window = Window::new(title);
     window.set_background_color(1.0, 1.0, 1.0);
 
-    let app = init_create_state(points, explanations);
+    let app = init_create_state(points, explanations, dimension_ranking);
     window.render_loop(app)
 }
 
 pub fn init_create_state(
     points: Vec<Point3<f32>>,
     explanations: Vec<DaSilvaExplanation>,
+    dimension_ranking: Vec<usize>,
 ) -> AppState {
     let mut point_cloud_renderer = PointCloudRenderer::new(6.0);
+
+    // Normalize the confidence
     let max_confidence = explanations
         .iter()
         .map(|v| v.confidence)
@@ -46,11 +54,13 @@ pub fn init_create_state(
 
     for (&p, e) in points.iter().zip(explanations) {
         let normalized_conf = (e.confidence - min_confidence) / (max_confidence - min_confidence);
-        let color = Point3::<f32>::new(0.33f32 * e.attribute_index as f32, 1.0f32, normalized_conf);
+        let color = find_colour(e.attribute_index, normalized_conf, 4, &dimension_ranking);
         point_cloud_renderer.push(p, color);
     }
 
-    // Create arcball camera with customer FOV.
+    print_colours(4, &dimension_ranking);
+
+    // Create arcball camera with custom FOV.
     let eye = Point3::new(0.0f32, 0.0, -1.5);
     let at = Point3::new(0.0f32, 0.0f32, 0.0f32);
     let arc_ball = ArcBall::new_with_frustrum(std::f32::consts::PI / 3.0, 0.01, 1024.0, eye, at);
@@ -58,6 +68,37 @@ pub fn init_create_state(
     AppState {
         camera: arc_ball,
         point_cloud_renderer,
+    }
+}
+
+pub fn find_colour(
+    attribute_index: usize,
+    confidence: f32,
+    pallet_size: usize,
+    dimension_ranking: &Vec<usize>,
+) -> Point3<f32> {
+    // The attribute gets a color if it is one of the top n=`pallet_size` in dimension_ranking
+    match dimension_ranking
+        .iter()
+        .take(pallet_size)
+        .find(|&&index| index == attribute_index)
+    {
+        Some(&rank) => {
+            Point3::<f32>::new((1.0 / pallet_size as f32) * rank as f32, 1.0f32, confidence)
+        }
+        // Greyscale color, prevent if from being white by bounding confidence.
+        None => Point3::<f32>::new(0.0f32, 0.0f32, confidence * 0.9),
+    }
+}
+
+pub fn print_colours(pallet_size: usize, dimension_ranking: &Vec<usize>) {
+    for (rank, dim) in dimension_ranking.iter().take(pallet_size).enumerate() {
+        println!(
+            "Rank {} - Dimension {}: H: {}, S: 100, V: 100 (value depends on confidence)",
+            rank,
+            dim,
+            ((1.0 / pallet_size as f32) * (rank * 360) as f32) as i32
+        )
     }
 }
 

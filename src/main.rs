@@ -239,11 +239,35 @@ fn view_command(matches: &ArgMatches) {
             attribute_index: v[0] as usize,
             confidence: v[1],
         })
-        .collect();
+        .collect::<Vec<exp::da_silva::DaSilvaExplanation>>();
+
+    // XXX: Hack in the dimension ranking calculation.
+    let dimension_count = da_silva_explanations.iter().map(|d| d.attribute_index).max().unwrap();
+    let mut ranking_counts = da_silva_explanations
+        .iter()
+        .map(|exp| exp.attribute_index)
+        // Count the occurrences of each dimension
+        .fold(vec![0usize; dimension_count+1], |mut acc, attribute_index| {
+            acc[attribute_index] += 1;
+            acc
+        })
+        .into_iter()
+        // Add an index to the count of each dimension
+        .enumerate()
+        .collect::<Vec<(usize, usize)>>();
+
+    // Sort desc
+    ranking_counts.sort_by(|(_, a), (_, b)| b.cmp(a));
+
+    let rankings = ranking_counts
+        .iter()
+        .map(|&(index, _)| index)
+        .collect::<Vec<usize>>();
 
     display(
         "Da silva explanation",
         clean_reduced_points,
         da_silva_explanations,
+        rankings
     );
 }
