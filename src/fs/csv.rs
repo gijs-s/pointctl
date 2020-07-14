@@ -48,7 +48,10 @@ pub fn read(file_path: &Path) -> std::io::Result<(Vec<PointN>, usize)> {
                     // All floats parsed successfully, return the point
                     Ok(point) => point,
                     Err(e) => {
-                        eprintln!("Error parsing float in csv file: `{:?}`. Affected line:\n{}", e, line);
+                        eprintln!(
+                            "Error parsing float in csv file: `{:?}`. Affected line:\n{}",
+                            e, line
+                        );
                         exit(11)
                     }
                 }

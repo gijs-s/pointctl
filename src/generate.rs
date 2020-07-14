@@ -1,8 +1,8 @@
 // extern crate nalgebra as na;
 
-use rand::Rng;
 use rand::rngs::ThreadRng;
-use rand_distr::{Normal, Distribution};
+use rand::Rng;
+use rand_distr::{Distribution, Normal};
 
 /// Create a vector of points that each have 0 zero axis.
 ///
@@ -15,7 +15,7 @@ pub fn generate_cube(points: i32, noise: f32) -> Vec<Vec<f32>> {
 
     let update_interval = points / 10;
 
-    for i in 0 .. points {
+    for i in 0..points {
         if i % update_interval == 0 && i != 0 {
             println!("Generated {} points", i)
         }
@@ -40,7 +40,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn generate_correct_number(){
+    fn generate_correct_number() {
         assert_eq!(0, generate_cube(0, 0.0).len());
         assert_eq!(10, generate_cube(10, 0.0).len());
         assert_eq!(10_000, generate_cube(10_000, 0.0).len());

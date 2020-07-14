@@ -54,11 +54,11 @@ pub fn init_create_state(
 
     for (&p, e) in points.iter().zip(explanations) {
         let normalized_conf = (e.confidence - min_confidence) / (max_confidence - min_confidence);
-        let color = find_colour(e.attribute_index, normalized_conf, 4, &dimension_ranking);
+        let color = find_colour(e.attribute_index, normalized_conf, 5, &dimension_ranking);
         point_cloud_renderer.push(p, color);
     }
 
-    print_colours(4, &dimension_ranking);
+    print_colours(5, &dimension_ranking);
 
     // Create arcball camera with custom FOV.
     let eye = Point3::new(0.0f32, 0.0, -1.5);

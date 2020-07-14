@@ -6,6 +6,10 @@
 # Generated dataset files
 *.ply
 *.csv
+data/projection-explainer
 
 # Perf data files
 perf.data*
+
+# Generated flamegraphs
+flame.svg

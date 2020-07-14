@@ -7,5 +7,5 @@ pub mod common;
 
 #[derive(Debug, PartialEq)]
 pub enum SupportedExplanations {
-    DaSilva
+    DaSilva,
 }

@@ -12,7 +12,7 @@ use pc::exp;
 use pc::fs::prelude::{read, write};
 use pc::generate::generate_cube;
 use pc::util::{types::Point3, validator};
-use pc::view::view::display;
+use pc::view::view2::display;
 
 fn main() {
     // TODO: Move this entire mess to a yaml file. See https://docs.rs/clap/2.33.1/clap/
@@ -51,8 +51,15 @@ fn main() {
             SubCommand::with_name("view")
                 .about("View a set of possibly annotated points")
                 .arg(
-                    Arg::with_name("reduced_data")
+                    Arg::with_name("original_data")
                         .short("i")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The original dataset in ply or csv format"),
+                )
+                .arg(
+                    Arg::with_name("reduced_data")
+                        .short("r")
                         .required(true)
                         .takes_value(true)
                         .help("The reduced dataset in ply or csv format"),
@@ -168,7 +175,7 @@ fn explain_command(matches: &ArgMatches) {
     // Create a Da Silva explanation mechanism
     let da_silva_mechanism =
         exp::da_silva::DaSilvaMechanismState::new(clean_reduced_points, &original_points);
-    let (da_silva_explanation, _dimension_ranking) = da_silva_mechanism.explain(0.1, 250);
+    let da_silva_explanation = da_silva_mechanism.explain(5.0, 250);
 
     // Write the annotations to file
     let annotations = da_silva_explanation
@@ -198,6 +205,16 @@ fn view_command(matches: &ArgMatches) {
     //  - Create a color pallet for dimensions based on the global dimension randing
     //  - Render all the points with the given color
     // The viewing mechanism should allow basic navigation but need the ability for custom interactions in the future
+
+    // Retrieve the points from the original dataset
+    let original_data_path = matches.value_of("original_data").unwrap();
+    let original_data = Path::new(original_data_path);
+    let (original_points, n) = read(original_data);
+    println!(
+        "Original data loaded. Consists of {} points with {} dimensions",
+        original_points.len(),
+        n
+    );
 
     // Retrieve the points from the reduced dataset
     let reduced_data_path = matches.value_of("reduced_data").unwrap();
@@ -241,33 +258,10 @@ fn view_command(matches: &ArgMatches) {
         })
         .collect::<Vec<exp::da_silva::DaSilvaExplanation>>();
 
-    // XXX: Hack in the dimension ranking calculation.
-    let dimension_count = da_silva_explanations.iter().map(|d| d.attribute_index).max().unwrap();
-    let mut ranking_counts = da_silva_explanations
-        .iter()
-        .map(|exp| exp.attribute_index)
-        // Count the occurrences of each dimension
-        .fold(vec![0usize; dimension_count+1], |mut acc, attribute_index| {
-            acc[attribute_index] += 1;
-            acc
-        })
-        .into_iter()
-        // Add an index to the count of each dimension
-        .enumerate()
-        .collect::<Vec<(usize, usize)>>();
-
-    // Sort desc
-    ranking_counts.sort_by(|(_, a), (_, b)| b.cmp(a));
-
-    let rankings = ranking_counts
-        .iter()
-        .map(|&(index, _)| index)
-        .collect::<Vec<usize>>();
-
     display(
-        "Da silva explanation",
+        original_points,
         clean_reduced_points,
         da_silva_explanations,
-        rankings
+        None,
     );
 }

@@ -14,7 +14,7 @@ publish = false
 # Used for parsing CLI commands
 clap = "^2.33.1"
 # Used for visualization
-kiss3d="0.24.*"
+kiss3d={version = "0.24.*", features = ["conrod"]}
 nalgebra = "*"
 # Used for generarting random points
 rand = "^0.7"
@@ -22,9 +22,9 @@ rand_distr = "*"
 # A n-dimensional r*-tree implementation. Used for fast NN
 rstar = "*"
 # Used for calling CUDA FFI
-rustacuda = "0.1"
-rustacuda_core = "0.1"
-rustacuda_derive = "0.1"
+# rustacuda = "0.1"
+# rustacuda_core = "0.1"
+# rustacuda_derive = "0.1"
 
 [profile.release]
 debug = true

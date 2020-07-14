@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate rustacuda;
 
-use rustacuda::prelude::*;
 use rustacuda::memory::DeviceBox;
+use rustacuda::prelude::*;
 use std::error::Error;
 use std::ffi::CString;
 
@@ -14,8 +14,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let device = Device::get_device(0)?;
 
     // Create a context associated to this device
-    let _context = Context::create_and_push(
-        ContextFlags::MAP_HOST | ContextFlags::SCHED_AUTO, device)?;
+    let _context =
+        Context::create_and_push(ContextFlags::MAP_HOST | ContextFlags::SCHED_AUTO, device)?;
 
     // Load the module containing the function we want to call
     let module_data = CString::new(include_str!("../kernels/compiled/add.ptx"))?;

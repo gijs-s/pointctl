@@ -1,10 +1,10 @@
 //! Main interface with file system.
 
-use std::path::Path;
 use std::ffi::OsStr;
+use std::path::Path;
 use std::process::exit;
 
-use super::{ply,csv};
+use super::{csv, ply};
 use crate::util::types::PointN;
 
 // Enum for supported file formats
@@ -27,7 +27,7 @@ pub fn write(file_path: &Path, points: Vec<PointN>) -> () {
         Err(e) => {
             eprintln!("Error when writing to file: {:?}", e);
             exit(31);
-        },
+        }
     };
 }
 
@@ -36,7 +36,7 @@ pub fn write(file_path: &Path, points: Vec<PointN>) -> () {
 pub fn read(file_path: &Path) -> (Vec<PointN>, usize) {
     let res = match get_file_extension(file_path) {
         SupportedFileFormat::CSV => csv::read(file_path),
-        SupportedFileFormat::PLY => ply::read(file_path)
+        SupportedFileFormat::PLY => ply::read(file_path),
     };
 
     match res {
@@ -54,7 +54,10 @@ fn get_file_extension(file_path: &Path) -> SupportedFileFormat {
             "csv" => SupportedFileFormat::CSV,
             "ply" => SupportedFileFormat::PLY,
             alt => {
-                print!("Unsupported file format `{}` passed, writing to file as CSV", alt);
+                print!(
+                    "Unsupported file format `{}` passed, writing to file as CSV",
+                    alt
+                );
                 SupportedFileFormat::CSV
             }
         },

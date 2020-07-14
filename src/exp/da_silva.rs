@@ -16,9 +16,9 @@
 // - Store the data in a more space efficient way
 // - Warning in case of tiny neighborhoods
 
-use rstar::{RStarInsertionStrategy, RTree, RTreeParams};
+use rstar::RTree;
 
-use super::common::{Distance, IndexedPoint};
+use super::common::{Distance, IndexedPoint3D, RTreeParameters3D};
 use crate::util::types::{Point3, PointN};
 
 use rand::{seq::SliceRandom, thread_rng};
@@ -29,7 +29,6 @@ type NeighborIndices = Vec<usize>;
 type LocalContributions = Vec<f32>;
 type GlobalContribution = Vec<f32>;
 type Ranking = (usize, f32);
-type DimensionOrder = Vec<usize>;
 
 #[derive(Debug, PartialEq)]
 pub struct DaSilvaExplanation {
@@ -39,17 +38,51 @@ pub struct DaSilvaExplanation {
     pub confidence: f32,
 }
 
-// This example uses an rtree with larger internal nodes.
-pub struct LargeNodeParameters;
-impl RTreeParams for LargeNodeParameters {
-    const MIN_SIZE: usize = 10;
-    const MAX_SIZE: usize = 30;
-    const REINSERTION_COUNT: usize = 5;
-    type DefaultInsertionStrategy = RStarInsertionStrategy;
+impl DaSilvaExplanation {
+    pub fn calculate_dimension_rankings(
+        dimensions: usize,
+        explanations: &Vec<DaSilvaExplanation>,
+    ) -> Vec<usize> {
+        let mut ranking_counts = explanations
+            .iter()
+            .map(|exp| exp.attribute_index)
+            // Count the occurrences of each dimension
+            .fold(vec![0usize; dimensions], |mut acc, attribute_index| {
+                acc[attribute_index] += 1;
+                acc
+            })
+            .into_iter()
+            // Add an index to the count of each dimension
+            .enumerate()
+            .collect::<Vec<(usize, usize)>>();
+
+        // Sort desc
+        ranking_counts.sort_by(|(_, a), (_, b)| b.cmp(a));
+        ranking_counts
+            .iter()
+            .map(|&(index, _)| index)
+            .collect::<Vec<usize>>()
+    }
+
+    pub fn max_confidence(explanations: &Vec<DaSilvaExplanation>) -> f32 {
+        explanations
+            .iter()
+            .map(|v| v.confidence)
+            .max_by(|a, b| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
+            .unwrap()
+    }
+
+    pub fn min_confidence(explanations: &Vec<DaSilvaExplanation>) -> f32 {
+        explanations
+            .iter()
+            .map(|v| v.confidence)
+            .min_by(|a, b| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
+            .unwrap()
+    }
 }
 
 pub struct DaSilvaMechanismState<'a> {
-    pub rtree: RTree<IndexedPoint, LargeNodeParameters>,
+    pub rtree: RTree<IndexedPoint3D, RTreeParameters3D>,
     pub original_points: &'a Vec<PointN>,
     // How large the total projection is. mesured by the two points furthest apart.
     // pub projection_width: f32,
@@ -60,10 +93,10 @@ impl<'a> DaSilvaMechanismState<'a> {
         reduced_points: Vec<Point3>,
         original_points: &'a Vec<PointN>,
     ) -> DaSilvaMechanismState<'a> {
-        let indexed_points: Vec<IndexedPoint> = reduced_points
+        let indexed_points: Vec<IndexedPoint3D> = reduced_points
             .into_iter()
             .enumerate()
-            .map(|(index, point)| IndexedPoint {
+            .map(|(index, point)| IndexedPoint3D {
                 index,
                 x: point.x,
                 y: point.y,
@@ -71,7 +104,7 @@ impl<'a> DaSilvaMechanismState<'a> {
             })
             .collect();
         let rtree =
-            RTree::<IndexedPoint, LargeNodeParameters>::bulk_load_with_params(indexed_points);
+            RTree::<IndexedPoint3D, RTreeParameters3D>::bulk_load_with_params(indexed_points);
         DaSilvaMechanismState {
             rtree,
             original_points,
@@ -82,7 +115,7 @@ impl<'a> DaSilvaMechanismState<'a> {
         &self,
         neighborhood_size: f32,
         neighborhood_bound: usize,
-    ) -> (Vec<DaSilvaExplanation>, DimensionOrder) {
+    ) -> Vec<DaSilvaExplanation> {
         // Calculate the global contribution of each point (centroid of the nD space and
         //_every_ point in its neighborhood)
         let centroid: PointN = Self::find_centroid(&self.original_points);
@@ -132,24 +165,20 @@ impl<'a> DaSilvaMechanismState<'a> {
             })
             .collect();
 
-        let explanation: Vec<DaSilvaExplanation> = (0..self.original_points.len())
+        (0..self.original_points.len())
             .into_iter()
             .zip(&neighborhoods)
             .map(|(index, neighborhood)| {
                 Self::calculate_annotation(index, &ranking_vectors, neighborhood)
             })
-            .collect();
-
-        let dimension_rankings = self.calculate_dimension_rankings(&explanation);
-
-        (explanation, dimension_rankings)
+            .collect::<Vec<DaSilvaExplanation>>()
     }
 
     // Get a reference to all neighbors within a certain range. This used the rtree.
     fn find_neighbors(
         &self,
         neighborhood_size: f32,
-        indexed_point: IndexedPoint,
+        indexed_point: IndexedPoint3D,
     ) -> NeighborIndices {
         let query_point = [indexed_point.x, indexed_point.y, indexed_point.z];
         self.rtree
@@ -307,32 +336,6 @@ impl<'a> DaSilvaMechanismState<'a> {
             .map(|(index, &f)| (index, f))
             .unwrap()
     }
-
-    pub fn calculate_dimension_rankings(
-        &self,
-        explanations: &Vec<DaSilvaExplanation>,
-    ) -> Vec<usize> {
-        let dimension_count = self.original_points.first().unwrap().len();
-        let mut ranking_counts = explanations
-            .iter()
-            .map(|exp| exp.attribute_index)
-            // Count the occurrences of each dimension
-            .fold(vec![0usize; dimension_count], |mut acc, attribute_index| {
-                acc[attribute_index] += 1;
-                acc
-            })
-            .into_iter()
-            // Add an index to the count of each dimension
-            .enumerate()
-            .collect::<Vec<(usize, usize)>>();
-
-        // Sort desc
-        ranking_counts.sort_by(|(_, a), (_, b)| b.cmp(a));
-        ranking_counts
-            .iter()
-            .map(|&(index, _)| index)
-            .collect::<Vec<usize>>()
-    }
 }
 
 #[cfg(test)]
@@ -355,7 +358,7 @@ mod tests {
         assert_eq!(
             mechanism.find_neighbors(
                 2.0,
-                IndexedPoint {
+                IndexedPoint3D {
                     index: 2,
                     x: 2.0,
                     y: 2.0,
@@ -367,7 +370,7 @@ mod tests {
         assert_eq!(
             mechanism.find_neighbors(
                 4.0,
-                IndexedPoint {
+                IndexedPoint3D {
                     index: 2,
                     x: 2.0,
                     y: 2.0,
@@ -448,8 +451,6 @@ mod tests {
     #[test]
     fn calculates_correct_dimension_rankings() {
         // Add single dummy points, used for finding the dimensionality
-        let points_n = vec![vec![0.0f32, 0.0, 0.0]];
-        let mechanism = DaSilvaMechanismState::new(vec![], &points_n);
 
         let indexes = vec![0, 1, 1, 1, 2, 2];
         let explanations = indexes
@@ -461,7 +462,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(
-            mechanism.calculate_dimension_rankings(&explanations),
+            DaSilvaExplanation::calculate_dimension_rankings(3, &explanations),
             vec![1, 2, 0]
         )
     }
