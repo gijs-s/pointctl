@@ -70,7 +70,7 @@ impl ColorMap {
             Some(5) => Point3::new(0.08301, 1.00000, 1.00000), // ff7f00 Orange
             Some(6) => Point3::new(0.32838, 0.57715, 0.68627), // 4daf4a Green
             Some(7) => Point3::new(0.06085, 0.75904, 0.65098), // a65628 Crimson brown
-            _ => Point3::new(0.00000,  0.00000,  0.60000), // 999999 Grey
+            _ => Point3::new(0.00000, 0.00000, 0.60000),       // 999999 Grey
         };
         ColorMap::scale_color(normalized_conf, base_color)
     }

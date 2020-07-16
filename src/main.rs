@@ -258,7 +258,6 @@ fn view_command(matches: &ArgMatches) {
         })
         .collect::<Vec<Point3>>();
 
-
     // Retrieve the points from the reduced dataset
     let annotations_path = matches.value_of("annotations").unwrap();
     let annotations_data = Path::new(annotations_path);
@@ -294,7 +293,8 @@ fn view_command(matches: &ArgMatches) {
                         eprint!("Points with {} dimensions is not supported yet", vec.len());
                         exit(15)
                     }
-                }).collect::<Vec<Point2<f32>>>();
+                })
+                .collect::<Vec<Point2<f32>>>();
             Some(reduced_points)
         } else {
             None
@@ -322,12 +322,11 @@ fn view_command(matches: &ArgMatches) {
         }
     };
 
-
     display(
         original_points,
         clean_reduced_points,
         explanations_3d,
         reduced_points_2d,
-        explanations_2d
+        explanations_2d,
     );
 }

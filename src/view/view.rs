@@ -228,7 +228,10 @@ impl Scene {
     pub fn switch_render_mode(&mut self) -> bool {
         match self.render_mode {
             // You can always switch to 3D because 3D state is always present
-            RenderMode::TwoD => {self.render_mode = RenderMode::ThreeD; true},
+            RenderMode::TwoD => {
+                self.render_mode = RenderMode::ThreeD;
+                true
+            }
             // Only switch to 2D if the 2d state is available
             RenderMode::ThreeD => match self.state_2d.initialized {
                 false => {
@@ -236,7 +239,10 @@ impl Scene {
                     self.render_mode = RenderMode::ThreeD;
                     false
                 }
-                true => {self.render_mode = RenderMode::TwoD; true},
+                true => {
+                    self.render_mode = RenderMode::TwoD;
+                    true
+                }
             },
         }
     }
@@ -282,7 +288,9 @@ impl Scene {
 
         // use conrod::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
         let mut conrod_ui = window.conrod_ui_mut().set_widgets();
-        widget::Text::new(&num_points_text).color(Color::Rgba(1.0,0.0,0.0,0.0)).set(self.conrod_ids.text, &mut conrod_ui);
+        widget::Text::new(&num_points_text)
+            .color(Color::Rgba(1.0, 0.0, 0.0, 0.0))
+            .set(self.conrod_ids.text, &mut conrod_ui);
 
         // window.draw_text(
         //     &num_points_text,
