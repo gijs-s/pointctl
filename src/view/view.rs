@@ -96,7 +96,9 @@ impl VisualizationState3D {
         // Create arcball camera with custom FOV.
         let eye = Point3::new(0.0f32, 0.0, -1.5);
         let at = Point3::new(0.0f32, 0.0f32, 0.0f32);
-        ArcBall::new_with_frustrum(std::f32::consts::PI / 3.0, 0.01, 1024.0, eye, at)
+        let mut cam = ArcBall::new_with_frustrum(std::f32::consts::PI / 3.0, 0.01, 1024.0, eye, at);
+        cam.set_dist_step(10.0);
+        cam
     }
 }
 
@@ -162,8 +164,12 @@ impl VisualizationState2D {
         self.initialized = true;
     }
 
+    // TODO: Get a good camera that just views all the points
     fn get_default_camera() -> Sidescroll {
-        return Sidescroll::new();
+        let mut cam = Sidescroll::new();
+        cam.set_zoom(8.0);
+        cam.set_zoom_step(2.7);
+        cam
     }
 }
 
@@ -287,18 +293,18 @@ impl Scene {
         let num_points_text = format!("Number of points: {}", self.original_points.len());
 
         // use conrod::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
-        let mut conrod_ui = window.conrod_ui_mut().set_widgets();
-        widget::Text::new(&num_points_text)
-            .color(Color::Rgba(1.0, 0.0, 0.0, 0.0))
-            .set(self.conrod_ids.text, &mut conrod_ui);
+        // let mut conrod_ui = window.conrod_ui_mut().set_widgets();
+        // widget::Text::new(&num_points_text)
+        //     .color(Color::Rgba(1.0, 0.0, 0.0, 0.0))
+        //     .set(self.conrod_ids.text, &mut conrod_ui);
 
-        // window.draw_text(
-        //     &num_points_text,
-        //     &Point2::new(0.0, 20.0),
-        //     60.0,
-        //     &Font::default(),
-        //     &Point3::new(0.0, 0.0, 0.0),
-        // );
+        window.draw_text(
+            &num_points_text,
+            &Point2::new(0.0, 20.0),
+            60.0,
+            &Font::default(),
+            &Point3::new(0.0, 0.0, 0.0),
+        );
     }
 }
 
