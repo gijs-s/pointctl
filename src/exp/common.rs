@@ -148,7 +148,7 @@ pub struct RTreeParameters3D;
 impl RTreeParams for RTreeParameters2D {
     const MIN_SIZE: usize = 5;
     const MAX_SIZE: usize = 9;
-    const REINSERTION_COUNT: usize = 5;
+    const REINSERTION_COUNT: usize = 3;
     type DefaultInsertionStrategy = RStarInsertionStrategy;
 }
 
@@ -157,6 +157,6 @@ impl RTreeParams for RTreeParameters2D {
 impl RTreeParams for RTreeParameters3D {
     const MIN_SIZE: usize = 10;
     const MAX_SIZE: usize = 20;
-    const REINSERTION_COUNT: usize = 5;
+    const REINSERTION_COUNT: usize = 3;
     type DefaultInsertionStrategy = RStarInsertionStrategy;
 }

@@ -643,8 +643,6 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 [[package]]
 name = "kiss3d"
 version = "0.24.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29af8ebcec84061a12da7313d32f92f8ad9e9cc4be4d9e2727c0c197e0acc5ce"
 dependencies = [
  "bitflags",
  "conrod_core",
