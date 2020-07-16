@@ -2,6 +2,7 @@ extern crate kiss3d;
 extern crate nalgebra as na;
 
 // Third party
+use super::marcos;
 use crate::view::color_map::ColorMap;
 use kiss3d::camera::Camera;
 use kiss3d::context::Context;
@@ -10,7 +11,6 @@ use kiss3d::renderer::Renderer;
 use kiss3d::resource::{
     AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform,
 };
-use super::marcos;
 use na::{Matrix3, Matrix4, Point3};
 
 /// 3D
@@ -64,7 +64,7 @@ impl PointRenderer3D {
     }
 
     /// Insert a large number of points with colors at once
-    pub fn batch_insert(&mut self, points_x_colors: Vec<(Point3<f32>, Point3<f32>)>){
+    pub fn batch_insert(&mut self, points_x_colors: Vec<(Point3<f32>, Point3<f32>)>) {
         for points_buffer in self.points.data_mut().iter_mut() {
             for &(point, color) in points_x_colors.iter() {
                 points_buffer.push(point);

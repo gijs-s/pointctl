@@ -1,6 +1,6 @@
+pub mod color_map;
 pub mod view;
 pub mod view2;
-pub mod color_map;
 
 mod marcos;
 // mod window;

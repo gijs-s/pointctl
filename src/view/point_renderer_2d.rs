@@ -1,17 +1,16 @@
 extern crate nalgebra as na;
 
 // Third party
-use kiss3d::renderer::PlanarRenderer;
+use super::marcos;
 use kiss3d::camera::Camera;
 use kiss3d::context::Context;
 use kiss3d::planar_camera::PlanarCamera;
+use kiss3d::renderer::PlanarRenderer;
 use kiss3d::renderer::Renderer;
 use kiss3d::resource::{
     AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform,
 };
-use super::marcos;
 use na::{Matrix3, Point2, Point3};
-
 
 /// 2D
 #[allow(dead_code)]
@@ -54,7 +53,7 @@ impl PointRenderer2D {
             shader,
             // GL variables
             point_size: 4.0,
-            visible: true
+            visible: true,
         }
     }
 

@@ -2,7 +2,6 @@ extern crate kiss3d;
 extern crate nalgebra as na;
 
 // Third party
-use kiss3d::renderer::PlanarRenderer;
 use crate::util::types::PointN;
 use kiss3d::camera::ArcBall;
 use kiss3d::camera::Camera;
@@ -10,9 +9,10 @@ use kiss3d::event::{Action, WindowEvent};
 use kiss3d::light::Light;
 use kiss3d::planar_camera::{PlanarCamera, Sidescroll};
 use kiss3d::post_processing::PostProcessingEffect;
+use kiss3d::renderer::PlanarRenderer;
 use kiss3d::renderer::Renderer;
 use kiss3d::text::Font;
-use kiss3d::window::{ExtendedState, CustomWindow};
+use kiss3d::window::{CustomWindow, ExtendedState};
 
 // Conrod
 use kiss3d::conrod::{widget, widget_ids, Widget};
@@ -20,9 +20,9 @@ use na::{Point2, Point3};
 use rstar::RTree;
 
 // First party
+use super::color_map::ColorMap;
 use super::point_renderer_2d::PointRenderer2D;
 use super::point_renderer_3d::PointRenderer3D;
-use super::color_map::ColorMap;
 use crate::exp::common::{IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D};
 use crate::exp::da_silva::DaSilvaExplanation;
 
@@ -52,13 +52,15 @@ pub struct VisualizationState3D {
     pub tree: RTree<IndexedPoint3D, RTreeParameters3D>,
     // Used for rendering points.
     pub renderer: PointRenderer3D,
+    // Colour map used by the 3D visualizer
+    pub color_map: ColorMap,
 }
 
 impl VisualizationState3D {
     fn new(
         points: Vec<Point3<f32>>,
-        explanations: &Vec<DaSilvaExplanation>,
-        color_map: &ColorMap,
+        explanations: Vec<DaSilvaExplanation>,
+        color_map: ColorMap,
     ) -> VisualizationState3D {
         // Create the tree
         let indexed_points: Vec<IndexedPoint3D> = points
@@ -85,6 +87,7 @@ impl VisualizationState3D {
             camera: VisualizationState3D::get_default_camera(),
             tree: rtree,
             renderer: point_renderer,
+            color_map: color_map,
         }
     }
 
@@ -104,26 +107,62 @@ pub struct VisualizationState2D {
     pub tree: RTree<IndexedPoint2D, RTreeParameters2D>,
     // Used for rendering points. TODO BUILD THIS
     pub renderer: PointRenderer2D,
+    // Colour map used by the 3D visualizer
+    pub color_map: ColorMap,
     // Used to denote if the 2d data is present. if not than this state will be empty
     pub initialized: bool,
 }
 
 impl VisualizationState2D {
-    // TODO: Add init for 2D state
-    fn new(_points: Vec<Point2<f32>>,
-        _explanations: &Vec<DaSilvaExplanation>,
-        _color_map: &ColorMap,
-    ) -> VisualizationState2D {
+    pub fn new_empty() -> VisualizationState2D {
         VisualizationState2D {
             camera: VisualizationState2D::get_default_camera(),
             tree: RTree::<IndexedPoint2D, RTreeParameters2D>::new_with_params(),
             renderer: PointRenderer2D::new(),
-            initialized: false
+            color_map: ColorMap::new_dummy(),
+            initialized: false,
         }
     }
 
+    pub fn new(
+        points: Vec<Point2<f32>>,
+        explanations: Vec<DaSilvaExplanation>,
+        color_map: ColorMap,
+    ) -> VisualizationState2D {
+        let mut state = VisualizationState2D::new_empty();
+        state.initialize(points, explanations, color_map);
+        state
+    }
+
+    pub fn initialize(
+        &mut self,
+        points: Vec<Point2<f32>>,
+        explanations: Vec<DaSilvaExplanation>,
+        color_map: ColorMap,
+    ) {
+        let indexed_points: Vec<IndexedPoint2D> = points
+            .iter()
+            .enumerate()
+            .map(|(index, point)| IndexedPoint2D {
+                index,
+                x: point.x,
+                y: point.y,
+            })
+            .collect();
+        self.tree =
+            RTree::<IndexedPoint2D, RTreeParameters2D>::bulk_load_with_params(indexed_points);
+        // Ensure the renderer is empty.
+        self.renderer.clear();
+        // Then add all the points.
+        for (&p, e) in points.iter().zip(explanations) {
+            let color = color_map.get_colour(e.attribute_index, e.confidence);
+            self.renderer.push(p, color);
+        }
+        self.initialized = true;
+    }
+
     fn get_default_camera() -> Sidescroll {
-        return Sidescroll::new()
+        return Sidescroll::new();
     }
 }
 
@@ -136,53 +175,69 @@ pub struct Scene {
     pub state_3d: VisualizationState3D,
     // 2D state
     pub state_2d: VisualizationState2D,
-    // Used for decided what color each point should get given its dimension and confidence.
-    pub colors: ColorMap,
     // Used by conrod to assign widget ids
-    pub conrod_ids: Ids
+    pub conrod_ids: Ids,
 }
 
 impl Scene {
-    // Create a new 3D visualization
+    // Create a new 3D visualization without a initializing the 2D view
     pub fn new(
         points_3d: Vec<Point3<f32>>,
-        points_2d: Vec<Point2<f32>>,
-        original_points: Vec<PointN>,
         explanations: Vec<DaSilvaExplanation>,
+        original_points: Vec<PointN>,
         conrod_ids: Ids,
     ) -> Scene {
         let dimension_count = original_points.first().unwrap().len();
-        let color_map = ColorMap::new(
-            DaSilvaExplanation::min_confidence(&explanations),
-            DaSilvaExplanation::max_confidence(&explanations),
-            DaSilvaExplanation::calculate_dimension_rankings(dimension_count, &explanations),
-        );
+        let color_map = ColorMap::from_explanations(&explanations, dimension_count);
 
         Scene {
             render_mode: RenderMode::ThreeD,
-            state_3d: VisualizationState3D::new(points_3d, &explanations, &color_map),
-            state_2d: VisualizationState2D::new(points_2d, &explanations, &color_map),
+            state_3d: VisualizationState3D::new(points_3d, explanations, color_map),
+            state_2d: VisualizationState2D::new_empty(),
             original_points: original_points,
-            colors: color_map,
-            conrod_ids
+            conrod_ids,
+        }
+    }
+
+    // Creata a new 3D visualization with a 2D view.
+    pub fn new_both(
+        points_3d: Vec<Point3<f32>>,
+        explanations_3d: Vec<DaSilvaExplanation>,
+        points_2d: Vec<Point2<f32>>,
+        explanations_2d: Vec<DaSilvaExplanation>,
+        original_points: Vec<PointN>,
+        conrod_ids: Ids,
+    ) -> Scene {
+        let dimension_count = original_points.first().unwrap().len();
+        let color_map_2d = ColorMap::from_explanations(&explanations_2d, dimension_count);
+        let color_map_3d = ColorMap::from_explanations(&explanations_3d, dimension_count);
+
+        Scene {
+            render_mode: RenderMode::ThreeD,
+            state_3d: VisualizationState3D::new(points_3d, explanations_3d, color_map_3d),
+            state_2d: VisualizationState2D::new(points_2d, explanations_2d, color_map_2d),
+            original_points: original_points,
+            conrod_ids,
         }
     }
 
     // Switch the render mode of the visualization if possible
     // You can not switch if the 2D view is not present.
-    pub fn switch_render_mode(&mut self) {
-        self.render_mode = match self.render_mode {
+    // Returns a boolean representing if the mode changed
+    pub fn switch_render_mode(&mut self) -> bool {
+        match self.render_mode {
             // You can always switch to 3D because 3D state is always present
-            RenderMode::TwoD => RenderMode::ThreeD,
+            RenderMode::TwoD => {self.render_mode = RenderMode::ThreeD; true},
             // Only switch to 2D if the 2d state is available
             RenderMode::ThreeD => match self.state_2d.initialized {
                 false => {
                     println!("Cannot switch to 2D since there is no 2D data loaded");
-                    RenderMode::ThreeD
-                },
-                true => RenderMode::TwoD,
+                    self.render_mode = RenderMode::ThreeD;
+                    false
+                }
+                true => {self.render_mode = RenderMode::TwoD; true},
             },
-        };
+        }
     }
 
     // TODO: handle is dirty case?
@@ -196,14 +251,19 @@ impl Scene {
                     println!("Gamma down pressed")
                 }
                 WindowEvent::Key(buttons::SWITCH_RENDER_MODE, Action::Press, _) => {
-                    println!("Switch render mode");
-                    self.switch_render_mode()
+                    if self.switch_render_mode() {
+                        window.switch_rendering_mode();
+                    }
                 }
                 WindowEvent::Key(buttons::RESET_VIEW, Action::Press, _) => {
                     println!("Reset render mode");
                     match self.render_mode {
-                        RenderMode::ThreeD => self.state_3d.camera = VisualizationState3D::get_default_camera(),
-                        RenderMode::TwoD => self.state_2d.camera = VisualizationState2D::get_default_camera(),
+                        RenderMode::ThreeD => {
+                            self.state_3d.camera = VisualizationState3D::get_default_camera()
+                        }
+                        RenderMode::TwoD => {
+                            self.state_2d.camera = VisualizationState2D::get_default_camera()
+                        }
                     }
                 }
                 WindowEvent::Key(buttons::ESC, Action::Release, _)
@@ -222,13 +282,12 @@ impl Scene {
         // use conrod::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
         // widget::Text::new("fooBAR").set(self.conrod_ids.text, &mut conrod_ui);
 
-
         window.draw_text(
             &num_points_text,
             &Point2::new(0.0, 20.0),
             60.0,
             &Font::default(),
-            &Point3::new(1.0, 1.0, 1.0),
+            &Point3::new(0.0, 0.0, 0.0),
         );
     }
 }
@@ -265,21 +324,33 @@ impl ExtendedState for Scene {
 pub fn display(
     original_points: Vec<Vec<f32>>,
     points_3d: Vec<Point3<f32>>,
-    explanations: Vec<DaSilvaExplanation>,
-    _point_2d: Option<Vec<Point2<f32>>>,
+    explanations_3d: Vec<DaSilvaExplanation>,
+    points_2d: Option<Vec<Point2<f32>>>,
+    explanations_2d: Option<Vec<DaSilvaExplanation>>,
 ) {
     const WINDOW_WIDTH: u32 = 1024;
     const WINDOW_HEIGHT: u32 = 768;
-    let mut window = CustomWindow::new_with_size("Pointctl visualizer", WINDOW_WIDTH, WINDOW_HEIGHT);
+    let mut window =
+        CustomWindow::new_with_size("Pointctl visualizer", WINDOW_WIDTH, WINDOW_HEIGHT);
     window.set_background_color(1.0, 1.0, 1.0);
     window.set_light(Light::StickToCamera);
 
-    // Fix this init
     let conrod_ids = Ids::new(window.conrod_ui_mut().widget_id_generator());
-    let points_2d = Vec::new();
-    let scene = Scene::new(points_3d, points_2d, original_points, explanations, conrod_ids);
 
-    // Start the render loop, this will _not_ work with 2D scenes yet.
+    // only init the scene with 2d points if both the points and explanations are provided
+    let scene = match (points_2d, explanations_2d) {
+        (Some(points), Some(explanations)) => Scene::new_both(
+            points_3d,
+            explanations_3d,
+            points,
+            explanations,
+            original_points,
+            conrod_ids,
+        ),
+        _ => Scene::new(points_3d, explanations_3d, original_points, conrod_ids),
+    };
+
+    // Start the render loop.
     window.render_loop(scene)
 }
 

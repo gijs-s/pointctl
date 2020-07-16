@@ -1,6 +1,7 @@
 extern crate pointctl as pc;
 
 // Build in imports
+use nalgebra::Point2;
 use std::path::Path;
 use std::process::exit;
 
@@ -50,6 +51,11 @@ fn main() {
         .subcommand(
             SubCommand::with_name("view")
                 .about("View a set of possibly annotated points")
+                .help(
+                    "Allows you to view 3D data points given the original data, reduced points and the annotations.\
+                    This command assumes that the reduced points, original data and annotations have matching indexes.\n\n
+                    There is also support for showing a 2D reduction, simple provide the 2d reduction and its annotations\
+                    via the command line.")
                 .arg(
                     Arg::with_name("original_data")
                         .short("i")
@@ -70,6 +76,18 @@ fn main() {
                         .required(true)
                         .takes_value(true)
                         .help("Collection of annotations in ply or csv format"),
+                )
+                .arg(
+                    Arg::with_name("reduced_data_2d")
+                        .short("x")
+                        .takes_value(true)
+                        .help("Optional 2D reduction, only shown if annotations are provided.")
+                )
+                .arg(
+                    Arg::with_name("annotations_2d")
+                        .short("b")
+                        .takes_value(true)
+                        .help("Optional annotations for the 2D data")
                 ),
         )
         .subcommand(
@@ -221,7 +239,7 @@ fn view_command(matches: &ArgMatches) {
     let reduced_data = Path::new(reduced_data_path);
     let (reduced_points, r) = read(reduced_data);
     println!(
-        "Reduced data loaded. Consists of {} points with {} dimensions",
+        "Reduced 3D data loaded. Consists of {} points with {} dimensions",
         reduced_points.len(),
         r
     );
@@ -240,17 +258,18 @@ fn view_command(matches: &ArgMatches) {
         })
         .collect::<Vec<Point3>>();
 
+
     // Retrieve the points from the reduced dataset
     let annotations_path = matches.value_of("annotations").unwrap();
     let annotations_data = Path::new(annotations_path);
     let (annotations, d) = read(annotations_data);
     println!(
-        "Annotations loaded. Consists of {} points with {} dimensions",
+        "Annotations for 3D loaded. Consists of {} points with {} dimensions",
         annotations.len(),
         d
     );
 
-    let da_silva_explanations = annotations
+    let explanations_3d = annotations
         .iter()
         .map(|v| exp::da_silva::DaSilvaExplanation {
             attribute_index: v[0] as usize,
@@ -258,10 +277,57 @@ fn view_command(matches: &ArgMatches) {
         })
         .collect::<Vec<exp::da_silva::DaSilvaExplanation>>();
 
+    // Parse the 2D points if the reduced data is provided
+    let reduced_points_2d: Option<Vec<Point2<f32>>> = {
+        if let Some(path) = matches.value_of("reduced_data_2d") {
+            let (reduced_data, d) = read(Path::new(path));
+            println!(
+                "Reduced 2D data loaded. Consists of {} points with {} dimensions",
+                reduced_data.len(),
+                d
+            );
+            let reduced_points = reduced_data
+                .iter()
+                .map(|vec| match vec[..] {
+                    [x, y] => Point2::new(x, y),
+                    _ => {
+                        eprint!("Points with {} dimensions is not supported yet", vec.len());
+                        exit(15)
+                    }
+                }).collect::<Vec<Point2<f32>>>();
+            Some(reduced_points)
+        } else {
+            None
+        }
+    };
+
+    let explanations_2d: Option<Vec<exp::da_silva::DaSilvaExplanation>> = {
+        if let Some(path) = matches.value_of("annotations_2d") {
+            let (annotations, d) = read(Path::new(path));
+            println!(
+                "Annotations for 2D loaded. Consists of {} points with {} dimensions",
+                annotations.len(),
+                d
+            );
+            let explanations = annotations
+                .iter()
+                .map(|v| exp::da_silva::DaSilvaExplanation {
+                    attribute_index: v[0] as usize,
+                    confidence: v[1],
+                })
+                .collect::<Vec<exp::da_silva::DaSilvaExplanation>>();
+            Some(explanations)
+        } else {
+            None
+        }
+    };
+
+
     display(
         original_points,
         clean_reduced_points,
-        da_silva_explanations,
-        None,
+        explanations_3d,
+        reduced_points_2d,
+        explanations_2d
     );
 }

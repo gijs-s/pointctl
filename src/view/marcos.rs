@@ -4,7 +4,6 @@ extern crate kiss3d;
 #[allow(unused_imports)]
 use kiss3d::context::Context;
 
-
 #[allow(unused_macros)]
 macro_rules! verify(
     ($e: expr) => {
