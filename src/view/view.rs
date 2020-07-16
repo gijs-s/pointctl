@@ -1,240 +1,364 @@
 extern crate kiss3d;
 extern crate nalgebra as na;
 
+// Third party
+use crate::util::types::PointN;
 use kiss3d::camera::ArcBall;
 use kiss3d::camera::Camera;
-use kiss3d::context::Context;
-use kiss3d::planar_camera::PlanarCamera;
+use kiss3d::event::{Action, WindowEvent};
+use kiss3d::light::Light;
+use kiss3d::planar_camera::{PlanarCamera, Sidescroll};
 use kiss3d::post_processing::PostProcessingEffect;
+use kiss3d::renderer::PlanarRenderer;
 use kiss3d::renderer::Renderer;
-use kiss3d::resource::{
-    AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform,
-};
 use kiss3d::text::Font;
-use kiss3d::window::{State, Window};
+use kiss3d::window::{CustomWindow, ExtendedState};
 
-use na::{Matrix4, Point2, Point3};
+// Conrod
+use kiss3d::conrod::color::{Color, Colorable};
+use kiss3d::conrod::{widget, widget_ids, Widget};
+use na::{Point2, Point3};
+use rstar::RTree;
 
+// First party
+use super::color_map::ColorMap;
+use super::point_renderer_2d::PointRenderer2D;
+use super::point_renderer_3d::PointRenderer3D;
+use crate::exp::common::{IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D};
 use crate::exp::da_silva::DaSilvaExplanation;
-use std::cmp::Ordering;
-// TODO: This looks like hot garbage, Fix is based on the example from the rstar repo
 
-pub fn display(
-    title: &str,
-    points: Vec<Point3<f32>>,
-    explanations: Vec<DaSilvaExplanation>,
-    dimension_ranking: Vec<usize>,
-) {
-    // Create the window
-    let mut window = Window::new(title);
-    window.set_background_color(1.0, 1.0, 1.0);
-
-    let app = init_create_state(points, explanations, dimension_ranking);
-    window.render_loop(app)
+// Easy access to buttons
+mod buttons {
+    use kiss3d::event::Key;
+    pub const GAMMA_UP_KEY: Key = Key::PageUp;
+    pub const GAMMA_DOWN_KEY: Key = Key::PageDown;
+    pub const SWITCH_RENDER_MODE: Key = Key::F;
+    pub const RESET_VIEW: Key = Key::R;
+    pub const QUIT: Key = Key::Q;
+    pub const ESC: Key = Key::Escape;
 }
 
-pub fn init_create_state(
-    points: Vec<Point3<f32>>,
-    explanations: Vec<DaSilvaExplanation>,
-    dimension_ranking: Vec<usize>,
-) -> AppState {
-    let mut point_cloud_renderer = PointCloudRenderer::new(6.0);
-
-    // Normalize the confidence
-    let max_confidence = explanations
-        .iter()
-        .map(|v| v.confidence)
-        .max_by(|a, b| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
-        .unwrap();
-    let min_confidence = explanations
-        .iter()
-        .map(|v| v.confidence)
-        .min_by(|a, b| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
-        .unwrap();
-
-    for (&p, e) in points.iter().zip(explanations) {
-        let normalized_conf = (e.confidence - min_confidence) / (max_confidence - min_confidence);
-        let color = find_colour(e.attribute_index, normalized_conf, 5, &dimension_ranking);
-        point_cloud_renderer.push(p, color);
-    }
-
-    print_colours(5, &dimension_ranking);
-
-    // Create arcball camera with custom FOV.
-    let eye = Point3::new(0.0f32, 0.0, -1.5);
-    let at = Point3::new(0.0f32, 0.0f32, 0.0f32);
-    let arc_ball = ArcBall::new_with_frustrum(std::f32::consts::PI / 3.0, 0.01, 1024.0, eye, at);
-
-    AppState {
-        camera: arc_ball,
-        point_cloud_renderer,
-    }
+// Rendering mode used by the program, you can only switch
+// if two d data is provided.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum RenderMode {
+    ThreeD,
+    TwoD,
 }
 
-pub fn find_colour(
-    attribute_index: usize,
-    confidence: f32,
-    pallet_size: usize,
-    dimension_ranking: &Vec<usize>,
-) -> Point3<f32> {
-    // The attribute gets a color if it is one of the top n=`pallet_size` in dimension_ranking
-    match dimension_ranking
-        .iter()
-        .take(pallet_size)
-        .find(|&&index| index == attribute_index)
-    {
-        Some(&rank) => {
-            Point3::<f32>::new((1.0 / pallet_size as f32) * rank as f32, 1.0f32, confidence)
+pub struct VisualizationState3D {
+    // Camera used by this view. : Create custom camera .
+    pub camera: ArcBall,
+    // Useful when searching points that have been selected or clicked on.
+    pub tree: RTree<IndexedPoint3D, RTreeParameters3D>,
+    // Used for rendering points.
+    pub renderer: PointRenderer3D,
+    // Colour map used by the 3D visualizer
+    pub color_map: ColorMap,
+}
+
+impl VisualizationState3D {
+    fn new(
+        points: Vec<Point3<f32>>,
+        explanations: Vec<DaSilvaExplanation>,
+        color_map: ColorMap,
+    ) -> VisualizationState3D {
+        // Create the tree
+        let indexed_points: Vec<IndexedPoint3D> = points
+            .iter()
+            .enumerate()
+            .map(|(index, point)| IndexedPoint3D {
+                index,
+                x: point.x,
+                y: point.y,
+                z: point.z,
+            })
+            .collect();
+        let rtree =
+            RTree::<IndexedPoint3D, RTreeParameters3D>::bulk_load_with_params(indexed_points);
+
+        // Create the renderer and add all the points:
+        let mut point_renderer = PointRenderer3D::new();
+        for (&p, e) in points.iter().zip(explanations) {
+            let color = color_map.get_colour(e.attribute_index, e.confidence);
+            point_renderer.push(p, color);
         }
-        // Greyscale color, prevent if from being white by bounding confidence.
-        None => Point3::<f32>::new(0.0f32, 0.0f32, confidence * 0.9),
+
+        VisualizationState3D {
+            camera: VisualizationState3D::get_default_camera(),
+            tree: rtree,
+            renderer: point_renderer,
+            color_map: color_map,
+        }
+    }
+
+    fn get_default_camera() -> ArcBall {
+        // Create arcball camera with custom FOV.
+        let eye = Point3::new(0.0f32, 0.0, -1.5);
+        let at = Point3::new(0.0f32, 0.0f32, 0.0f32);
+        ArcBall::new_with_frustrum(std::f32::consts::PI / 3.0, 0.01, 1024.0, eye, at)
     }
 }
 
-pub fn print_colours(pallet_size: usize, dimension_ranking: &Vec<usize>) {
-    for (rank, dim) in dimension_ranking.iter().take(pallet_size).enumerate() {
-        println!(
-            "Rank {} - Dimension {}: H: {}, S: 100, V: 100 (value depends on confidence)",
-            rank,
-            dim,
-            ((1.0 / pallet_size as f32) * (rank * 360) as f32) as i32
-        )
+#[allow(dead_code)]
+pub struct VisualizationState2D {
+    // Camera used by this view.
+    pub camera: Sidescroll,
+    // Useful when searching points that have been selected or clicked on.
+    pub tree: RTree<IndexedPoint2D, RTreeParameters2D>,
+    // Used for rendering points. TODO BUILD THIS
+    pub renderer: PointRenderer2D,
+    // Colour map used by the 3D visualizer
+    pub color_map: ColorMap,
+    // Used to denote if the 2d data is present. if not than this state will be empty
+    pub initialized: bool,
+}
+
+impl VisualizationState2D {
+    pub fn new_empty() -> VisualizationState2D {
+        VisualizationState2D {
+            camera: VisualizationState2D::get_default_camera(),
+            tree: RTree::<IndexedPoint2D, RTreeParameters2D>::new_with_params(),
+            renderer: PointRenderer2D::new(),
+            color_map: ColorMap::new_dummy(),
+            initialized: false,
+        }
+    }
+
+    pub fn new(
+        points: Vec<Point2<f32>>,
+        explanations: Vec<DaSilvaExplanation>,
+        color_map: ColorMap,
+    ) -> VisualizationState2D {
+        let mut state = VisualizationState2D::new_empty();
+        state.initialize(points, explanations, color_map);
+        state
+    }
+
+    pub fn initialize(
+        &mut self,
+        points: Vec<Point2<f32>>,
+        explanations: Vec<DaSilvaExplanation>,
+        color_map: ColorMap,
+    ) {
+        let indexed_points: Vec<IndexedPoint2D> = points
+            .iter()
+            .enumerate()
+            .map(|(index, point)| IndexedPoint2D {
+                index,
+                x: point.x,
+                y: point.y,
+            })
+            .collect();
+        self.tree =
+            RTree::<IndexedPoint2D, RTreeParameters2D>::bulk_load_with_params(indexed_points);
+        // Ensure the renderer is empty.
+        self.renderer.clear();
+        // Then add all the points.
+        for (&p, e) in points.iter().zip(explanations) {
+            let color = color_map.get_colour(e.attribute_index, e.confidence);
+            self.renderer.push(p, color);
+        }
+        self.initialized = true;
+    }
+
+    fn get_default_camera() -> Sidescroll {
+        return Sidescroll::new();
     }
 }
 
-pub struct AppState {
-    camera: ArcBall,
-    point_cloud_renderer: PointCloudRenderer,
+pub struct Scene {
+    // Render mode in which the visualization can be used
+    pub render_mode: RenderMode,
+    // Original ND data
+    pub original_points: Vec<Vec<f32>>,
+    // 3D state
+    pub state_3d: VisualizationState3D,
+    // 2D state
+    pub state_2d: VisualizationState2D,
+    // Used by conrod to assign widget ids
+    pub conrod_ids: Ids,
 }
 
-impl State for AppState {
-    // Return the custom renderer that will be called at each
+impl Scene {
+    // Create a new 3D visualization without a initializing the 2D view
+    pub fn new(
+        points_3d: Vec<Point3<f32>>,
+        explanations: Vec<DaSilvaExplanation>,
+        original_points: Vec<PointN>,
+        conrod_ids: Ids,
+    ) -> Scene {
+        let dimension_count = original_points.first().unwrap().len();
+        let color_map = ColorMap::from_explanations(&explanations, dimension_count);
+
+        Scene {
+            render_mode: RenderMode::ThreeD,
+            state_3d: VisualizationState3D::new(points_3d, explanations, color_map),
+            state_2d: VisualizationState2D::new_empty(),
+            original_points: original_points,
+            conrod_ids,
+        }
+    }
+
+    // Creata a new 3D visualization with a 2D view.
+    pub fn new_both(
+        points_3d: Vec<Point3<f32>>,
+        explanations_3d: Vec<DaSilvaExplanation>,
+        points_2d: Vec<Point2<f32>>,
+        explanations_2d: Vec<DaSilvaExplanation>,
+        original_points: Vec<PointN>,
+        conrod_ids: Ids,
+    ) -> Scene {
+        let dimension_count = original_points.first().unwrap().len();
+        let color_map_2d = ColorMap::from_explanations(&explanations_2d, dimension_count);
+        let color_map_3d = ColorMap::from_explanations(&explanations_3d, dimension_count);
+
+        Scene {
+            render_mode: RenderMode::ThreeD,
+            state_3d: VisualizationState3D::new(points_3d, explanations_3d, color_map_3d),
+            state_2d: VisualizationState2D::new(points_2d, explanations_2d, color_map_2d),
+            original_points: original_points,
+            conrod_ids,
+        }
+    }
+
+    // Switch the render mode of the visualization if possible
+    // You can not switch if the 2D view is not present.
+    // Returns a boolean representing if the mode changed
+    pub fn switch_render_mode(&mut self) -> bool {
+        match self.render_mode {
+            // You can always switch to 3D because 3D state is always present
+            RenderMode::TwoD => {self.render_mode = RenderMode::ThreeD; true},
+            // Only switch to 2D if the 2d state is available
+            RenderMode::ThreeD => match self.state_2d.initialized {
+                false => {
+                    println!("Cannot switch to 2D since there is no 2D data loaded");
+                    self.render_mode = RenderMode::ThreeD;
+                    false
+                }
+                true => {self.render_mode = RenderMode::TwoD; true},
+            },
+        }
+    }
+
+    // TODO: handle is dirty case?
+    fn handle_input(&mut self, window: &mut CustomWindow) {
+        for event in window.events().iter() {
+            match event.value {
+                WindowEvent::Key(buttons::GAMMA_UP_KEY, Action::Press, _) => {
+                    println!("Gamma up pressed")
+                }
+                WindowEvent::Key(buttons::GAMMA_DOWN_KEY, Action::Press, _) => {
+                    println!("Gamma down pressed")
+                }
+                WindowEvent::Key(buttons::SWITCH_RENDER_MODE, Action::Press, _) => {
+                    if self.switch_render_mode() {
+                        window.switch_rendering_mode();
+                    }
+                }
+                WindowEvent::Key(buttons::RESET_VIEW, Action::Press, _) => {
+                    println!("Reset render mode");
+                    match self.render_mode {
+                        RenderMode::ThreeD => {
+                            self.state_3d.camera = VisualizationState3D::get_default_camera()
+                        }
+                        RenderMode::TwoD => {
+                            self.state_2d.camera = VisualizationState2D::get_default_camera()
+                        }
+                    }
+                }
+                WindowEvent::Key(buttons::ESC, Action::Release, _)
+                | WindowEvent::Key(buttons::QUIT, Action::Release, _)
+                | WindowEvent::Close => {
+                    window.close();
+                }
+                _ => (),
+            }
+        }
+    }
+
+    fn draw_overlay(&mut self, window: &mut CustomWindow) {
+        let num_points_text = format!("Number of points: {}", self.original_points.len());
+
+        // use conrod::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
+        let mut conrod_ui = window.conrod_ui_mut().set_widgets();
+        widget::Text::new(&num_points_text).color(Color::Rgba(1.0,0.0,0.0,0.0)).set(self.conrod_ids.text, &mut conrod_ui);
+
+        // window.draw_text(
+        //     &num_points_text,
+        //     &Point2::new(0.0, 20.0),
+        //     60.0,
+        //     &Font::default(),
+        //     &Point3::new(0.0, 0.0, 0.0),
+        // );
+    }
+}
+
+// State will not work for 2D scenes.
+impl ExtendedState for Scene {
+    // Return the required custom renderer that will be called at each
     // render loop.
-    fn cameras_and_effect_and_renderer(
+    fn cameras_and_effect_and_renderers(
         &mut self,
     ) -> (
         Option<&mut dyn Camera>,
         Option<&mut dyn PlanarCamera>,
         Option<&mut dyn Renderer>,
+        Option<&mut dyn PlanarRenderer>,
         Option<&mut dyn PostProcessingEffect>,
     ) {
         (
-            Some(&mut self.camera),
-            None,
-            Some(&mut self.point_cloud_renderer),
+            Some(&mut self.state_3d.camera),
+            Some(&mut self.state_2d.camera),
+            Some(&mut self.state_3d.renderer),
+            Some(&mut self.state_2d.renderer),
             None,
         )
     }
 
-    fn step(&mut self, window: &mut Window) {
-        let num_points_text = format!(
-            "Number of points: {}",
-            self.point_cloud_renderer.num_points()
-        );
-        window.draw_text(
-            &num_points_text,
-            &Point2::new(0.0, 20.0),
-            60.0,
-            &Font::default(),
-            &Point3::new(1.0, 1.0, 1.0),
-        );
+    fn step(&mut self, mut window: &mut CustomWindow) {
+        self.handle_input(&mut window);
+        self.draw_overlay(&mut window);
     }
 }
 
-/// Structure which manages the display of long-living points.
-struct PointCloudRenderer {
-    shader: Effect,
-    pos: ShaderAttribute<Point3<f32>>,
-    color: ShaderAttribute<Point3<f32>>,
-    proj: ShaderUniform<Matrix4<f32>>,
-    view: ShaderUniform<Matrix4<f32>>,
-    colored_points: GPUVec<Point3<f32>>,
-    point_size: f32,
+// Main display function
+pub fn display(
+    original_points: Vec<Vec<f32>>,
+    points_3d: Vec<Point3<f32>>,
+    explanations_3d: Vec<DaSilvaExplanation>,
+    points_2d: Option<Vec<Point2<f32>>>,
+    explanations_2d: Option<Vec<DaSilvaExplanation>>,
+) {
+    const WINDOW_WIDTH: u32 = 1024;
+    const WINDOW_HEIGHT: u32 = 768;
+    let mut window =
+        CustomWindow::new_with_size("Pointctl visualizer", WINDOW_WIDTH, WINDOW_HEIGHT);
+    window.set_background_color(1.0, 1.0, 1.0);
+    window.set_light(Light::StickToCamera);
+
+    let conrod_ids = Ids::new(window.conrod_ui_mut().widget_id_generator());
+
+    // only init the scene with 2d points if both the points and explanations are provided
+    let scene = match (points_2d, explanations_2d) {
+        (Some(points), Some(explanations)) => Scene::new_both(
+            points_3d,
+            explanations_3d,
+            points,
+            explanations,
+            original_points,
+            conrod_ids,
+        ),
+        _ => Scene::new(points_3d, explanations_3d, original_points, conrod_ids),
+    };
+
+    // Start the render loop.
+    window.render_loop(scene)
 }
 
-impl PointCloudRenderer {
-    /// Creates a new points renderer.
-    fn new(point_size: f32) -> PointCloudRenderer {
-        let mut shader = Effect::new_from_str(VERTEX_SHADER_SRC, FRAGMENT_SHADER_SRC);
-
-        shader.use_program();
-
-        PointCloudRenderer {
-            colored_points: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
-            pos: shader.get_attrib::<Point3<f32>>("position").unwrap(),
-            color: shader.get_attrib::<Point3<f32>>("color").unwrap(),
-            proj: shader.get_uniform::<Matrix4<f32>>("proj").unwrap(),
-            view: shader.get_uniform::<Matrix4<f32>>("view").unwrap(),
-            shader,
-            point_size,
-        }
-    }
-
-    fn push(&mut self, point: Point3<f32>, color: Point3<f32>) {
-        if let Some(colored_points) = self.colored_points.data_mut() {
-            colored_points.push(point);
-            colored_points.push(color);
-        }
-    }
-
-    fn num_points(&self) -> usize {
-        self.colored_points.len() / 2
+// Generate a unique `WidgetId` for each widget.
+widget_ids! {
+    pub struct Ids {
+        text
     }
 }
-
-impl Renderer for PointCloudRenderer {
-    /// Actually draws the points.
-    fn render(&mut self, pass: usize, camera: &mut dyn Camera) {
-        if self.colored_points.len() == 0 {
-            return;
-        }
-
-        self.shader.use_program();
-        self.pos.enable();
-        self.color.enable();
-
-        camera.upload(pass, &mut self.proj, &mut self.view);
-
-        self.color.bind_sub_buffer(&mut self.colored_points, 1, 1);
-        self.pos.bind_sub_buffer(&mut self.colored_points, 1, 0);
-
-        let ctxt = Context::get();
-        ctxt.point_size(self.point_size);
-        ctxt.draw_arrays(Context::POINTS, 0, (self.colored_points.len() / 2) as i32);
-
-        self.pos.disable();
-        self.color.disable();
-    }
-}
-
-const VERTEX_SHADER_SRC: &'static str = "#version 100
-    attribute vec3 position;
-    attribute vec3 color;
-    varying   vec3 Color;
-    uniform   mat4 proj;
-    uniform   mat4 view;
-
-    // All components are in the range [0…1], including hue.
-    vec3 hsv2rgb(vec3 c)
-    {
-        vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-        vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-        return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-    }
-
-    void main() {
-        gl_Position = proj * view * vec4(position, 1.0);
-        Color = hsv2rgb(color);
-    }";
-
-const FRAGMENT_SHADER_SRC: &'static str = "#version 100
-#ifdef GL_FRAGMENT_PRECISION_HIGH
-   precision highp float;
-#else
-   precision mediump float;
-#endif
-
-    varying vec3 Color;
-    void main() {
-        gl_FragColor = vec4(Color, 1.0);
-    }";

@@ -11,6 +11,7 @@ pandas = "*"
 numpy = "*"
 seaborn = "*"
 click = "*"
+nbstripout = "*"
 
 [dev-packages]
 

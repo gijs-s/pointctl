@@ -13,7 +13,7 @@ use pc::exp;
 use pc::fs::prelude::{read, write};
 use pc::generate::generate_cube;
 use pc::util::{types::Point3, validator};
-use pc::view::view2::display;
+use pc::view::view::display;
 
 fn main() {
     // TODO: Move this entire mess to a yaml file. See https://docs.rs/clap/2.33.1/clap/
