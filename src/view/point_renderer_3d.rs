@@ -11,7 +11,7 @@ use kiss3d::renderer::Renderer;
 use kiss3d::resource::{
     AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform,
 };
-use na::{Matrix3, Matrix4, Point3};
+use na::{Matrix3, Matrix4, Point3, Point2};
 
 /// 3D
 pub struct PointRenderer3D {
@@ -28,7 +28,6 @@ pub struct PointRenderer3D {
 impl PointRenderer3D {
     pub fn new() -> PointRenderer3D {
         let mut shader = Effect::new_from_str(VERTEX_SHADER_SRC_3D, FRAGMENT_SHADER_SRC_3D);
-
         shader.use_program();
 
         PointRenderer3D {
@@ -135,6 +134,14 @@ impl Renderer for PointRenderer3D {
         self.color.disable();
     }
 }
+
+/// Turn into blobs using: https://community.khronos.org/t/geometry-shader-point-sprite-to-sphere/63015
+/// Easily turned into a discreet point again with a radius of 0 and a intensity drop of of 0.
+///
+/// The vertex shader still need the following parameters:
+///  - uniform float circle_radius
+///  - uniform float cirlce_dropoff
+///  - uniform float gamma
 
 /// Vertex shader used by the point renderer
 const VERTEX_SHADER_SRC_3D: &'static str = "#version 100
