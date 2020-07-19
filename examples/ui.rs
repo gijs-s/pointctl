@@ -2,24 +2,18 @@ extern crate kiss3d;
 extern crate nalgebra as na;
 
 // Third party
-use kiss3d::camera::ArcBall;
-use kiss3d::camera::Camera;
-use kiss3d::event::{Action, WindowEvent};
 use kiss3d::light::Light;
-use kiss3d::planar_camera::{PlanarCamera, Sidescroll};
-use kiss3d::post_processing::PostProcessingEffect;
-use kiss3d::renderer::Renderer;
-use kiss3d::text::Font;
 use kiss3d::window::{State, Window};
+
 // Conrod
-use kiss3d::conrod::{widget, widget_ids, Widget};
+use kiss3d::conrod::{widget, widget_ids, Positionable, Sizeable, Widget, Color, Colorable};
 use na::{Point2, Point3};
-use rstar::RTree;
 
 // Generate a unique `WidgetId` for each widget.
 widget_ids! {
     pub struct Ids {
-        text
+        text,
+        canvas
     }
 }
 
@@ -33,9 +27,18 @@ pub fn main() {
     window.set_point_size(4.);
 
     let ids = Ids::new(window.conrod_ui_mut().widget_id_generator());
-    let mut ui = window.conrod_ui_mut().set_widgets();
-    widget::Text::new("test").set(ids.text, &mut ui);
 
     // Start the render loop, this will _not_ work with 2D scenes yet.
-    while window.render() {}
+    while window.render() {
+        let mut ui = window.conrod_ui_mut().set_widgets();
+        // widget::Canvas::new()
+        //     // .align_bottom()
+        //     .h(100.0)
+        //     .set(ids.canvas, &mut ui);
+
+        widget::Text::new("test")
+            // .mid_top_of(ids.canvas)
+            .color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+            .set(ids.text, &mut ui);
+    }
 }

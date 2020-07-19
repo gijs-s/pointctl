@@ -2,7 +2,6 @@ extern crate kiss3d;
 extern crate nalgebra as na;
 
 // Third party
-use crate::util::types::PointN;
 use kiss3d::camera::ArcBall;
 use kiss3d::camera::Camera;
 use kiss3d::event::{Action, WindowEvent};
@@ -13,14 +12,13 @@ use kiss3d::renderer::PlanarRenderer;
 use kiss3d::renderer::Renderer;
 use kiss3d::text::Font;
 use kiss3d::window::{CustomWindow, ExtendedState};
-
 // Conrod
-use kiss3d::conrod::color::{Color, Colorable};
-use kiss3d::conrod::{widget, widget_ids, Widget};
+use kiss3d::conrod::{widget, widget_ids, Positionable, Sizeable, Widget, Color, Colorable};
 use na::{Point2, Point3};
 use rstar::RTree;
 
 // First party
+use crate::util::types::PointN;
 use super::color_map::ColorMap;
 use super::point_renderer_2d::PointRenderer2D;
 use super::point_renderer_3d::PointRenderer3D;
@@ -373,6 +371,7 @@ pub fn display(
 // Generate a unique `WidgetId` for each widget.
 widget_ids! {
     pub struct Ids {
-        text
+        text,
+        canvas
     }
 }

@@ -11,7 +11,7 @@ use kiss3d::renderer::Renderer;
 use kiss3d::resource::{
     AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform,
 };
-use na::{Matrix3, Matrix4, Point3, Point2};
+use na::{Matrix3, Matrix4, Point3};
 
 /// 3D
 pub struct PointRenderer3D {
@@ -20,6 +20,9 @@ pub struct PointRenderer3D {
     color: ShaderAttribute<Point3<f32>>,
     view: ShaderUniform<Matrix4<f32>>,
     proj: ShaderUniform<Matrix4<f32>>,
+    billboard_size: ShaderUniform<f32>,
+    billboard_dropoff: ShaderUniform<f32>,
+    gamma: ShaderUniform<f32>,
     points: GPUVec<Point3<f32>>,
     point_size: f32,
     visible: bool,
@@ -40,6 +43,15 @@ impl PointRenderer3D {
             color: shader
                 .get_attrib::<Point3<f32>>("color")
                 .expect("Failed to get `color` shader attribute."),
+            billboard_size: shader
+                .get_uniform::<f32>("billboard_size")
+                .expect("Could not get `billboard_size` shader attribute"),
+            billboard_dropoff: shader
+                .get_uniform::<f32>("billboard_dropoff")
+                .expect("Could not get `billboard_dropoff` shader attribute"),
+            gamma: shader
+                .get_uniform::<f32>("gamma")
+                .expect("Could not get `gamma` shader attribute"),
             proj: shader
                 .get_uniform::<Matrix4<f32>>("proj")
                 .expect("Failed to get `proj` shader attribute."),
@@ -50,6 +62,7 @@ impl PointRenderer3D {
             shader,
             // GL variables
             point_size: 4.0,
+            // Variable to set when skipping all rendering while keeping data loaded.
             visible: true,
         }
     }
@@ -144,10 +157,13 @@ impl Renderer for PointRenderer3D {
 ///  - uniform float gamma
 
 /// Vertex shader used by the point renderer
-const VERTEX_SHADER_SRC_3D: &'static str = "#version 100
+const VERTEX_SHADER_SRC_3D: &'static str = "#version 130
     attribute vec3 position;
     attribute vec3 color;
     varying   vec3 Color;
+    uniform   float billboard_size;
+    uniform   float billboard_dropoff;
+    uniform   float gamma;
     uniform   mat4 proj;
     uniform   mat4 view;
 
@@ -165,7 +181,7 @@ const VERTEX_SHADER_SRC_3D: &'static str = "#version 100
     }";
 
 /// Fragment shader used by the point renderer
-const FRAGMENT_SHADER_SRC_3D: &'static str = "#version 100
+const FRAGMENT_SHADER_SRC_3D: &'static str = "#version 130
 #ifdef GL_FRAGMENT_PRECISION_HIGH
    precision highp float;
 #else
