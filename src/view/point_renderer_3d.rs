@@ -12,6 +12,7 @@ use kiss3d::resource::{
     AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform,
 };
 use na::{Matrix3, Matrix4, Point3};
+use gl;
 
 /// 3D
 pub struct PointRenderer3D {
@@ -20,11 +21,10 @@ pub struct PointRenderer3D {
     color: ShaderAttribute<Point3<f32>>,
     view: ShaderUniform<Matrix4<f32>>,
     proj: ShaderUniform<Matrix4<f32>>,
-    billboard_size: ShaderUniform<f32>,
-    billboard_dropoff: ShaderUniform<f32>,
-    gamma: ShaderUniform<f32>,
+    gamma_uniform: ShaderUniform<f32>,
     points: GPUVec<Point3<f32>>,
     point_size: f32,
+    gamma: f32,
     visible: bool,
 }
 
@@ -43,13 +43,7 @@ impl PointRenderer3D {
             color: shader
                 .get_attrib::<Point3<f32>>("color")
                 .expect("Failed to get `color` shader attribute."),
-            billboard_size: shader
-                .get_uniform::<f32>("billboard_size")
-                .expect("Could not get `billboard_size` shader attribute"),
-            billboard_dropoff: shader
-                .get_uniform::<f32>("billboard_dropoff")
-                .expect("Could not get `billboard_dropoff` shader attribute"),
-            gamma: shader
+            gamma_uniform: shader
                 .get_uniform::<f32>("gamma")
                 .expect("Could not get `gamma` shader attribute"),
             proj: shader
@@ -62,6 +56,8 @@ impl PointRenderer3D {
             shader,
             // GL variables
             point_size: 4.0,
+            // Gamma variable
+            gamma: 1.0,
             // Variable to set when skipping all rendering while keeping data loaded.
             visible: true,
         }
@@ -97,7 +93,7 @@ impl PointRenderer3D {
         self.points.len() != 0 && self.visible
     }
 
-    // Turn of the rendering for this renderer and clear the screen.
+    // Turn off the rendering for this renderer and clear the screen.
     pub fn hide(&mut self) {
         self.visible = false;
 
@@ -114,6 +110,11 @@ impl PointRenderer3D {
     // Set the point size
     pub fn set_point_size(&mut self, point_size: f32) {
         self.point_size = point_size;
+    }
+
+    /// Set the gamma which will be used to next render loop
+    pub fn set_gamma(&mut self, gamma: f32){
+        self.gamma = gamma;
     }
 
     // Retrieve the number of points
@@ -134,15 +135,20 @@ impl Renderer for PointRenderer3D {
         self.pos.enable();
         self.color.enable();
 
+        self.gamma_uniform.upload(&self.gamma);
         camera.upload(pass, &mut self.proj, &mut self.view);
 
         self.color.bind_sub_buffer(&mut self.points, 1, 1);
         self.pos.bind_sub_buffer(&mut self.points, 1, 0);
 
         let ctxt = Context::get();
+        // Enable gl blending
+        verify!(ctxt.enable(gl::BLEND));
+        verify!(ctxt.blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA));
         ctxt.point_size(self.point_size);
         ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32);
 
+        verify!(ctxt.disable(gl::BLEND));
         self.pos.disable();
         self.color.disable();
     }
@@ -152,12 +158,10 @@ impl Renderer for PointRenderer3D {
 /// Easily turned into a discreet point again with a radius of 0 and a intensity drop of of 0.
 ///
 /// The vertex shader still need the following parameters:
-///  - uniform float circle_radius
-///  - uniform float cirlce_dropoff
 ///  - uniform float gamma
 
 /// Vertex shader used by the point renderer
-const VERTEX_SHADER_SRC_3D: &'static str = "#version 130
+const VERTEX_SHADER_SRC_3D: &'static str = "#version 100
     attribute vec3 position;
     attribute vec3 color;
     varying   vec3 Color;
@@ -168,7 +172,7 @@ const VERTEX_SHADER_SRC_3D: &'static str = "#version 130
     uniform   mat4 view;
 
     // All components are in the range [0…1], including hue.
-    vec3 hsv2rgb(vec3 c)
+    vec3 hsv2rgb(vec3 c, float g)
     {
         vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
         vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
@@ -176,12 +180,12 @@ const VERTEX_SHADER_SRC_3D: &'static str = "#version 130
     }
 
     void main() {
-        gl_Position = proj * view * vec4(position, 1.0);
-        Color = hsv2rgb(color);
+        gl_Position = proj * view * vec4(position, gamma);
+        Color = hsv2rgb(color, gamma);
     }";
 
 /// Fragment shader used by the point renderer
-const FRAGMENT_SHADER_SRC_3D: &'static str = "#version 130
+const FRAGMENT_SHADER_SRC_3D: &'static str = "#version 100
 #ifdef GL_FRAGMENT_PRECISION_HIGH
    precision highp float;
 #else
