@@ -132,12 +132,16 @@ impl PlanarRenderer for PointRenderer2D {
     }
 }
 
-const VERTEX_SHADER_SRC_2D: &'static str = "#version 100
-    attribute vec2 position;
-    attribute vec3 color;
-    varying   vec3 vColor;
+const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
+    // Input to this shader
+    in vec2 position;
+    in vec3 color;
+
     uniform   mat3 proj;
     uniform   mat3 view;
+
+    // Output
+    out vec3 vColor;
 
     // All components are in the range [0…1], including hue.
     vec3 hsv2rgb(vec3 c)
@@ -155,14 +159,21 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 100
         vColor = hsv2rgb(color);
     }";
 
-const FRAGMENT_SHADER_SRC_2D: &'static str = "#version 100
+/// Fragment shader used by the point renderer
+const FRAGMENT_SHADER_SRC_2D: &'static str = "#version 460
 #ifdef GL_FRAGMENT_PRECISION_HIGH
    precision highp float;
 #else
    precision mediump float;
 #endif
 
-    varying vec3 vColor;
+    // Input given by the vertex shader
+    in vec3 vColor;
+
+    // output color
+    layout( location = 0 ) out vec4 FragColor;
+
     void main() {
-        gl_FragColor = vec4(vColor, 1.0);
+        vec2 sampleLocation = gl_SamplePosition;
+        FragColor = vec4(vColor, 1.0);
     }";

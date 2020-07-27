@@ -142,13 +142,21 @@ impl Renderer for PointRenderer3D {
         self.pos.bind_sub_buffer(&mut self.points, 1, 0);
 
         let ctxt = Context::get();
+        // Draw the polygons in the correct way
+        let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));
+
         // Enable gl blending
-        verify!(ctxt.enable(gl::BLEND));
-        verify!(ctxt.blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA));
+        verify!(ctxt.enable(Context::BLEND));
+        verify!(ctxt.blend_func(Context::SRC_ALPHA, Context::ONE_MINUS_SRC_ALPHA));
         ctxt.point_size(self.point_size);
+
+        // TODO: Instead of drawing a series of points each point should a billboard center.
+        // http://www.opengl-tutorial.org/intermediate-tutorials/billboards-particles/billboards/
+        // https://solarianprogrammer.com/2013/05/17/opengl-101-textures/
         ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32);
 
-        verify!(ctxt.disable(gl::BLEND));
+        verify!(ctxt.disable(Context::BLEND));
+
         self.pos.disable();
         self.color.disable();
     }
@@ -161,15 +169,18 @@ impl Renderer for PointRenderer3D {
 ///  - uniform float gamma
 
 /// Vertex shader used by the point renderer
-const VERTEX_SHADER_SRC_3D: &'static str = "#version 100
-    attribute vec3 position;
-    attribute vec3 color;
-    varying   vec3 Color;
-    uniform   float billboard_size;
-    uniform   float billboard_dropoff;
-    uniform   float gamma;
-    uniform   mat4 proj;
-    uniform   mat4 view;
+const VERTEX_SHADER_SRC_3D: &'static str = "#version 460
+    // Input to this shader
+    in vec3 position;
+    in vec3 color;
+
+    // Uniform variables for all vertices.
+    uniform float gamma;
+    uniform mat4 proj;
+    uniform mat4 view;
+
+    // Passed on to the rest of the shader pipeline
+    out vec3 Color;
 
     // All components are in the range [0…1], including hue.
     vec3 hsv2rgb(vec3 c, float g)
@@ -185,14 +196,20 @@ const VERTEX_SHADER_SRC_3D: &'static str = "#version 100
     }";
 
 /// Fragment shader used by the point renderer
-const FRAGMENT_SHADER_SRC_3D: &'static str = "#version 100
+const FRAGMENT_SHADER_SRC_3D: &'static str = "#version 460
 #ifdef GL_FRAGMENT_PRECISION_HIGH
    precision highp float;
 #else
    precision mediump float;
 #endif
 
-    varying vec3 Color;
+    // input color
+    in vec3 Color;
+
+    // output color
+    layout( location = 0 ) out vec4 FragColor;
+
     void main() {
-        gl_FragColor = vec4(Color, 1.0);
+        vec2 sampleLocation = gl_SamplePosition;
+        FragColor = vec4(Color, 1.0);
     }";
