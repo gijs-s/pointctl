@@ -18,6 +18,8 @@ pub struct PointRenderer2D {
     shader: Effect,
     pos: ShaderAttribute<Point2<f32>>,
     color: ShaderAttribute<Point3<f32>>,
+    // position on the texture (0..1)
+    // tex_pos_attributes: ShaderAttribute<Point2<f32>>,
     view: ShaderUniform<Matrix3<f32>>,
     proj: ShaderUniform<Matrix3<f32>>,
     points: GPUVec<Point2<f32>>,
@@ -40,6 +42,9 @@ impl PointRenderer2D {
             pos: shader
                 .get_attrib::<Point2<f32>>("position")
                 .expect("Failed to get shader attribute."),
+            // tex_pos_attributes: shader
+            //     .get_attrib::<Point2<f32>>("textureCoordinate")
+            //     .expect("Failed to get `textureCoordinate` shader attribute."),
             color: shader
                 .get_attrib::<Point3<f32>>("color")
                 .expect("Failed to get shader attribute."),
@@ -135,15 +140,19 @@ impl PlanarRenderer for PointRenderer2D {
 const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
     // Input to this shader
     in vec2 position;
+    in vec2 textureCoordinate;
     in vec3 color;
+
 
     uniform   mat3 proj;
     uniform   mat3 view;
 
-    // Output
-    out vec3 vColor;
+    // Passed on to the rest of the shader pipeline
+    out vec3 PointColor;
+    out vec2 TextureCoordinate;
 
-    // All components are in the range [0…1], including hue.
+    // Transfrom a HSV color to an RGB color
+    // Here all components are in the range [0…1], including hue.
     vec3 hsv2rgb(vec3 c)
     {
         vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
@@ -152,11 +161,16 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
     }
 
     void main() {
+        // Transform the world coordinate to a screen coordinate
         vec3 projected_pos = proj * view * vec3(position, 1.0);
+        // We set the z to 0 to draw all points along a plane.
         projected_pos.z = 0.0;
 
         gl_Position = vec4(projected_pos, 1.0);
-        vColor = hsv2rgb(color);
+
+        // Make the color and tex coordinate available to the fragment shader.
+        PointColor = hsv2rgb(color);
+        TextureCoordinate = textureCoordinate;
     }";
 
 /// Fragment shader used by the point renderer
@@ -167,13 +181,20 @@ const FRAGMENT_SHADER_SRC_2D: &'static str = "#version 460
    precision mediump float;
 #endif
 
-    // Input given by the vertex shader
-    in vec3 vColor;
+    // input color
+    in vec3 PointColor;
+    in vec2 TextureCoordinate;
+
+    // Uniform containing the alpha texture, we use this to
+    // draw the point in the middle of one edge of the triangle
+    // and then have the alpha drop off towards all sides.
+    // Changing the dropoff rate requires changing the texture, the
+    // size should be determined by the size of the triangles
+    uniform sampler2D alphaTexture;
 
     // output color
     layout( location = 0 ) out vec4 FragColor;
 
     void main() {
-        vec2 sampleLocation = gl_SamplePosition;
-        FragColor = vec4(vColor, 1.0);
+        FragColor = vec4(PointColor, 1.0);
     }";
