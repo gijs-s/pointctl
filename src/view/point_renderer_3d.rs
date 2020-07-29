@@ -47,16 +47,16 @@ impl PointRenderer3D {
             // Shader variables
             pos_attribute: shader
                 .get_attrib::<Point3<f32>>("position")
-                .expect("Failed to get `position` shader attribute."),
+                .expect("Failed to get 'position' shader attribute."),
             color_attribute: shader
                 .get_attrib::<Point3<f32>>("color")
-                .expect("Failed to get `color` shader attribute."),
+                .expect("Failed to get 'color' shader attribute."),
             view_uniform: shader
                 .get_uniform::<Matrix4<f32>>("view")
-                .expect("Failed to get `view` shader attribute."),
+                .expect("Failed to get 'view' shader attribute."),
             proj_uniform: shader
                 .get_uniform::<Matrix4<f32>>("proj")
-                .expect("Failed to get `proj` shader attribute."),
+                .expect("Failed to get 'proj' shader attribute."),
             // Shader itself
             shader,
             // GL variables
@@ -169,7 +169,7 @@ impl Renderer for PointRenderer3D {
         // TODO: Instead of drawing a series of points each point should a billboard center.
         // http://www.opengl-tutorial.org/intermediate-tutorials/billboards-particles/billboards/
         // https://solarianprogrammer.com/2013/05/17/opengl-101-textures/
-        ctxt.draw_arrays(Context::POINTS, 0, (self.num_points() / 3) as i32);
+        ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32);
 
         self.pos_attribute.disable();
         self.color_attribute.disable();

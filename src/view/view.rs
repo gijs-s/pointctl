@@ -31,6 +31,7 @@ mod buttons {
     pub const GAMMA_UP_KEY: Key = Key::PageUp;
     pub const GAMMA_DOWN_KEY: Key = Key::PageDown;
     pub const SWITCH_RENDER_MODE: Key = Key::F;
+    pub const SWITCH_DISCREET: Key = Key::M;
     pub const RESET_VIEW: Key = Key::R;
     pub const QUIT: Key = Key::Q;
     pub const ESC: Key = Key::Escape;
@@ -274,6 +275,17 @@ impl Scene {
                         }
                         RenderMode::TwoD => {
                             self.state_2d.camera = VisualizationState2D::get_default_camera()
+                        }
+                    }
+                }
+                WindowEvent::Key(buttons::SWITCH_DISCREET, Action::Press, _) => {
+                    match self.render_mode {
+                        RenderMode::ThreeD => {
+                            print!("Only discreet rendering available in 3D");
+                        }
+                        RenderMode::TwoD => {
+                            println!("Switching between discreet / continuos");
+                            self.state_2d.renderer.switch_rendering_mode()
                         }
                     }
                 }

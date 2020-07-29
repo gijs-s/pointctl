@@ -48,12 +48,12 @@ impl AppState {
     pub fn new() -> Self {
         let mut renderer = PointRenderer3D::new();
         renderer.batch_insert(vec![
-            (Point3::new(-1.0, 0.0, 0.0), Point3::new(0.0, 1.0, 1.0)),
+            (Point3::new(1.0, 0.0, 0.0), Point3::new(0.0, 1.0, 1.0)),
             (Point3::new(0.0, 1.0, 0.0), Point3::new(0.0, 1.0, 1.0)),
-            (Point3::new(1.0, 0.0, 0.0), Point3::new(0.0, 1.0, 1.0)),
-            (Point3::new(1.0, 0.0, 0.0), Point3::new(0.0, 1.0, 1.0)),
-            (Point3::new(0.0, -1.0, 0.0), Point3::new(0.0, 1.0, 1.0)),
             (Point3::new(-1.0, 0.0, 0.0), Point3::new(0.0, 1.0, 1.0)),
+            (Point3::new(-1.0, 0.0, 0.0), Point3::new(0.0, 1.0, 1.0)),
+            (Point3::new(0.0, -1.0, 0.0), Point3::new(0.0, 1.0, 1.0)),
+            (Point3::new(1.0, 0.0, 0.0), Point3::new(0.0, 1.0, 1.0)),
             (Point3::new(-1.0, 0.0, 2.0), Point3::new(0.5, 1.0, 1.0)),
             (Point3::new(0.0, 1.0, 2.0), Point3::new(0.5, 1.0, 1.0)),
             (Point3::new(1.0, 0.0, 2.0), Point3::new(0.5, 1.0, 1.0)),
