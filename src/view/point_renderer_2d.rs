@@ -37,6 +37,7 @@ pub struct PointRenderer2D {
     // Normal variables
     alpha_texture: Texture,
     point_size: f32,
+    blob_size: f32,
     visible: bool,
     render_mode: RenderMode,
 }
@@ -76,6 +77,7 @@ impl PointRenderer2D {
             shader,
             // GL variables
             point_size: 4.0,
+            blob_size: 1.0,
             visible: true,
             alpha_texture: PointRenderer2D::load_texture(),
             render_mode: RenderMode::Discreet,
@@ -128,6 +130,10 @@ impl PointRenderer2D {
     // Set the point size
     pub fn set_point_size(&mut self, point_size: f32) {
         self.point_size = point_size;
+    }
+
+    pub fn set_blob_size(&mut self, blob_size: f32) {
+        self.blob_size = blob_size
     }
 
     // Retrieve the number of points
@@ -215,7 +221,7 @@ impl PlanarRenderer for PointRenderer2D {
         self.alpha_texture_uniform.upload(&1);
 
         // Set the blob size
-        self.blob_size_uniform.upload(&1.0);
+        self.blob_size_uniform.upload(&self.blob_size);
 
         // Dive into gl calls!
         let ctxt = Context::get();
