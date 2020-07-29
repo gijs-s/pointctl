@@ -15,7 +15,7 @@ use kiss3d::window::{CustomWindow, ExtendedState};
 // Conrod
 use kiss3d::conrod::{widget, widget_ids, Color, Colorable, Positionable, Sizeable, Widget};
 use na::{Point2, Point3};
-use rstar::RTree;
+use rstar::{PointDistance, RTree};
 
 // First party
 use super::color_map::ColorMap;
@@ -160,7 +160,24 @@ impl VisualizationState2D {
             let color = color_map.get_colour(e.attribute_index, e.confidence);
             self.renderer.push(p, color);
         }
+
+        // TODO: Is this even correct?
+        self.renderer.set_blob_size(self.find_average_nearest_neightbor_distance());
+
         self.initialized = true;
+    }
+
+    /// Find the average first nearest neighbor distance over all the points.
+    fn find_average_nearest_neightbor_distance(&self) -> f32 {
+        let mut res = Vec::<f32>::new();
+        for query_point in self.tree.iter() {
+            let nn = self.tree
+                .nearest_neighbor(&[query_point.x, query_point.y])
+                .expect("Could not retrieve nearest neighbor when checking the averages");
+            let dist = query_point.distance_2(&[nn.x, nn.y]).sqrt();
+            res.push(dist);
+        }
+        res.iter().sum::<f32>() / res.len() as f32
     }
 
     // TODO: Get a good camera that just views all the points
