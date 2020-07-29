@@ -1116,6 +1116,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "gl",
+ "image",
  "kiss3d",
  "nalgebra",
  "rand 0.7.3",

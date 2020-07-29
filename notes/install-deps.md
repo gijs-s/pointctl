@@ -10,7 +10,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 If you do not feel comfortable piping a website into shell I completely understand, read up about how to do manual installs here: https://www.rust-lang.org/tools/install
 
-The kiss3d library also uses `libxcb-xinput-dev` and `libxcb-dev`.
+The kiss3d library also uses `libxcb-xinput-dev` and `libxcb1-dev`.
 
 ## Cuda
 

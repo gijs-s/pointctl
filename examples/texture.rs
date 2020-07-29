@@ -5,8 +5,8 @@ extern crate nalgebra as na;
 extern crate pointctl;
 
 // Third party
-use std::path::Path;
 use gl;
+use image::{self, DynamicImage};
 use kiss3d::camera::ArcBall;
 use kiss3d::camera::Camera;
 use kiss3d::context::Context;
@@ -22,7 +22,7 @@ use kiss3d::{
     window::{State, Window},
 };
 use na::{Matrix3, Matrix4, Point2, Point3};
-use image::{self, DynamicImage};
+use std::path::Path;
 
 // TODO: Add render mode for continuous or discreet!
 
@@ -274,16 +274,12 @@ impl PointRenderer3D {
         // Generate the alpha maps source data
         // let texture_data = PointRenderer3D::generate_alpha_texture();
         // let texture_data:[u8; 16] = [255,0,0,255,0,255,0,255,0,0,255,255,255,0,255,255];
-        let img: DynamicImage = image::open(&Path::new("resources/blob.png")).expect("Failed to load texture");
+        let img: DynamicImage =
+            image::open(&Path::new("resources/blob.png")).expect("Failed to load texture");
         match img {
             DynamicImage::ImageRgba8(image) => {
                 let width = image.width();
                 let height = image.height();
-
-                // let data = image.into_raw();
-                // print_type_of(&data[0]);
-                // println!("{:?}", data.len());
-                // println!("{:?}", (width,height));
                 verify!(ctxt.tex_image2d(
                     Context::TEXTURE_2D,
                     0,
@@ -294,7 +290,7 @@ impl PointRenderer3D {
                     Context::RGBA,
                     Some(&image.into_raw()[..])
                 ));
-            },
+            }
             _ => {}
         };
 
@@ -354,7 +350,7 @@ impl Renderer for PointRenderer3D {
 
         let ctxt = Context::get();
         // Draw the polygons in the correct way
-        // let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));
+        let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));
 
         // Enable gl blending
         verify!(ctxt.enable(Context::BLEND));

@@ -13,17 +13,17 @@ use kiss3d::renderer::Renderer;
 use kiss3d::text::Font;
 use kiss3d::window::{CustomWindow, ExtendedState};
 // Conrod
-use kiss3d::conrod::{widget, widget_ids, Positionable, Sizeable, Widget, Color, Colorable};
+use kiss3d::conrod::{widget, widget_ids, Color, Colorable, Positionable, Sizeable, Widget};
 use na::{Point2, Point3};
 use rstar::RTree;
 
 // First party
-use crate::util::types::PointN;
 use super::color_map::ColorMap;
 use super::point_renderer_2d::PointRenderer2D;
 use super::point_renderer_3d::PointRenderer3D;
 use crate::exp::common::{IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D};
 use crate::exp::da_silva::DaSilvaExplanation;
+use crate::util::types::PointN;
 
 // Easy access to buttons
 mod buttons {

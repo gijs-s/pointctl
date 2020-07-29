@@ -2,28 +2,35 @@ extern crate nalgebra as na;
 
 // Third party
 use super::marcos;
+use gl;
+use image::{self, DynamicImage};
 use kiss3d::camera::Camera;
 use kiss3d::context::Context;
 use kiss3d::planar_camera::PlanarCamera;
 use kiss3d::renderer::PlanarRenderer;
 use kiss3d::renderer::Renderer;
 use kiss3d::resource::{
-    AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform,
+    AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform, Texture,
 };
 use na::{Matrix3, Point2, Point3};
+use std::path::Path;
 
 /// 2D
-#[allow(dead_code)]
 pub struct PointRenderer2D {
     shader: Effect,
-    pos: ShaderAttribute<Point2<f32>>,
-    color: ShaderAttribute<Point3<f32>>,
+    pos_attribute: ShaderAttribute<Point2<f32>>,
+    color_attribute: ShaderAttribute<Point3<f32>>,
     // position on the texture (0..1)
-    // tex_pos_attributes: ShaderAttribute<Point2<f32>>,
-    view: ShaderUniform<Matrix3<f32>>,
-    proj: ShaderUniform<Matrix3<f32>>,
-    points: GPUVec<Point2<f32>>,
-    colors: GPUVec<Point3<f32>>,
+    texture_pos_attribute: ShaderAttribute<Point2<f32>>,
+    proj_uniform: ShaderUniform<Matrix3<f32>>,
+    view_uniform: ShaderUniform<Matrix3<f32>>,
+    alpha_texture_uniform: ShaderUniform<i32>,
+    // GPU vecs
+    points_vec: GPUVec<Point2<f32>>,
+    colors_vec: GPUVec<Point3<f32>>,
+    texture_points_vec: GPUVec<Point2<f32>>,
+    // Normal variables
+    alpha_texture: Texture,
     point_size: f32,
     visible: bool,
 }
@@ -36,55 +43,64 @@ impl PointRenderer2D {
         shader.use_program();
 
         PointRenderer2D {
-            points: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
-            colors: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
+            points_vec: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
+            colors_vec: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
+            texture_points_vec: GPUVec::new(
+                Vec::new(),
+                BufferType::Array,
+                AllocationType::StreamDraw,
+            ),
             // Shader variables
-            pos: shader
+            pos_attribute: shader
                 .get_attrib::<Point2<f32>>("position")
                 .expect("Failed to get shader attribute."),
-            // tex_pos_attributes: shader
-            //     .get_attrib::<Point2<f32>>("textureCoordinate")
-            //     .expect("Failed to get `textureCoordinate` shader attribute."),
-            color: shader
+            color_attribute: shader
                 .get_attrib::<Point3<f32>>("color")
                 .expect("Failed to get shader attribute."),
-            proj: shader
+            texture_pos_attribute: shader
+                .get_attrib::<Point2<f32>>("textureCoordinate")
+                .expect("Failed to get `textureCoordinate` shader attribute."),
+            proj_uniform: shader
                 .get_uniform::<Matrix3<f32>>("proj")
                 .expect("Failed to get shader attribute."),
-            view: shader
+            view_uniform: shader
                 .get_uniform::<Matrix3<f32>>("view")
                 .expect("Failed to get shader attribute."),
+            alpha_texture_uniform: shader
+                .get_uniform("alphaTexture")
+                .expect("Failed to get 'alphaTexture' unifrom shader attribute"),
             // Shader itself
             shader,
             // GL variables
             point_size: 4.0,
             visible: true,
+            alpha_texture: PointRenderer2D::load_texture(),
         }
     }
 
     /// Insert a single point with a color
     pub fn push(&mut self, point: Point2<f32>, color: Point3<f32>) {
-        for points in self.points.data_mut().iter_mut() {
+        for points in self.points_vec.data_mut().iter_mut() {
             points.push(point);
         }
-        for colors in self.colors.data_mut().iter_mut() {
+        for colors in self.colors_vec.data_mut().iter_mut() {
             colors.push(color)
         }
     }
 
     /// Clear all the points
     pub fn clear(&mut self) {
-        for points in self.points.data_mut().iter_mut() {
+        for points in self.points_vec.data_mut().iter_mut() {
             points.clear()
         }
-        for color in self.colors.data_mut().iter_mut() {
+        for color in self.colors_vec.data_mut().iter_mut() {
             color.clear()
         }
     }
 
     /// Indicates whether some points have to be drawn.
     pub fn needs_rendering(&self) -> bool {
-        self.points.len() != 0 && self.visible
+        self.num_points() != 0 && self.visible
     }
 
     // Turn of the rendering for this renderer and clear the screen.
@@ -108,7 +124,60 @@ impl PointRenderer2D {
 
     // Retrieve the number of points
     pub fn num_points(&self) -> usize {
-        self.points.len()
+        self.points_vec.len()
+    }
+
+    pub fn load_texture() -> Texture {
+        let ctxt = Context::get();
+
+        // Is this correct?
+        verify!(ctxt.active_texture(Context::TEXTURE1));
+        verify!(ctxt.pixel_storei(Context::UNPACK_ALIGNMENT, 1));
+
+        // Assign a index for the texture
+        let texture = verify!(ctxt
+            .create_texture()
+            .expect("Alpha texture creation failed."));
+
+        // All following actions need to be preformed on the texture we just created.
+        verify!(ctxt.bind_texture(Context::TEXTURE_2D, Some(&texture)));
+
+        // Load in a image containing a static blob alpha map
+        // TODO: Generate this image programmatically. Easier se than done though because
+        // of the variable lifetimes.
+        let dyn_img: DynamicImage =
+            image::open(&Path::new("resources/blob.png")).expect("Failed to load texture");
+        match dyn_img {
+            DynamicImage::ImageRgba8(img) => {
+                verify!(ctxt.tex_image2d(
+                    Context::TEXTURE_2D,
+                    0,
+                    Context::RGBA as i32,
+                    img.width() as i32,
+                    img.height() as i32,
+                    0,
+                    Context::RGBA,
+                    Some(&img.into_raw()[..])
+                ));
+            }
+            _ => {
+                panic!("'resources/blob.png' is not an RGBA image.");
+            }
+        }
+
+        // Set the correct texture parameters.
+        let settings = vec![
+            (Context::TEXTURE_WRAP_S, Context::CLAMP_TO_EDGE as i32),
+            (Context::TEXTURE_WRAP_T, Context::CLAMP_TO_EDGE as i32),
+            (Context::TEXTURE_MIN_FILTER, Context::LINEAR as i32),
+            (Context::TEXTURE_MAG_FILTER, Context::LINEAR as i32),
+        ];
+        for (pname, param) in settings {
+            verify!(ctxt.tex_parameteri(Context::TEXTURE_2D, pname, param));
+        }
+
+        // Return the created texture
+        texture
     }
 }
 
@@ -120,20 +189,50 @@ impl PlanarRenderer for PointRenderer2D {
         }
 
         self.shader.use_program();
-        self.pos.enable();
-        self.color.enable();
 
-        camera.upload(&mut self.proj, &mut self.view);
+        // Enable the attributes
+        self.pos_attribute.enable();
+        self.color_attribute.enable();
+        self.texture_pos_attribute.enable();
 
-        self.color.bind_sub_buffer(&mut self.colors, 0, 0);
-        self.pos.bind_sub_buffer(&mut self.points, 0, 0);
+        // Camera settings
+        camera.upload(&mut self.proj_uniform, &mut self.view_uniform);
 
+        // Set the texture
+        self.alpha_texture_uniform.upload(&1);
+
+        // Bind the buffers with daa to all the shader attributes
+        self.pos_attribute
+            .bind_sub_buffer(&mut self.points_vec, 0, 0);
+        self.color_attribute
+            .bind_sub_buffer(&mut self.colors_vec, 0, 0);
+        self.texture_pos_attribute
+            .bind_sub_buffer(&mut self.texture_points_vec, 0, 0);
+
+        // Dive into gl calls!
         let ctxt = Context::get();
-        ctxt.draw_arrays(Context::POINTS, 0, self.points.len() as i32);
-        assert_eq!(ctxt.get_error(), 0);
 
-        self.pos.disable();
-        self.color.disable();
+        // Set the correct drawing method of the polygons
+        let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));
+
+        // Enable blending with alpha
+        verify!(ctxt.enable(Context::BLEND));
+        verify!(ctxt.blend_func(Context::SRC_ALPHA, Context::ONE_MINUS_SRC_ALPHA));
+
+        // Ensure we use the correct texture
+        verify!(ctxt.bind_texture(Context::TEXTURE_2D, Some(&self.alpha_texture)));
+
+        // Actually draw the textured polygons. Each point is split represented by
+        // 2 textured triangles.
+        verify!(ctxt.draw_arrays(Context::TRIANGLES, 0, self.num_points() as i32));
+
+        // Disable the blending again.
+        verify!(ctxt.disable(Context::BLEND));
+
+        // Disable the attributes again.
+        self.pos_attribute.disable();
+        self.color_attribute.disable();
+        self.texture_pos_attribute.disable();
     }
 }
 
@@ -142,7 +241,6 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
     in vec2 position;
     in vec2 textureCoordinate;
     in vec3 color;
-
 
     uniform   mat3 proj;
     uniform   mat3 view;
@@ -196,5 +294,11 @@ const FRAGMENT_SHADER_SRC_2D: &'static str = "#version 460
     layout( location = 0 ) out vec4 FragColor;
 
     void main() {
-        FragColor = vec4(PointColor, 1.0);
+        float alpha = texture(alphaTexture, TextureCoordinate);
+
+        // Don't even draw the point if the alpha is 0
+        if(alpha == 0.0)
+            discard;
+
+        FragColor = vec4(PointColor, alpha);
     }";
