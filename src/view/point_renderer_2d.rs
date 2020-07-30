@@ -64,15 +64,15 @@ impl PointRenderer2D {
             view_uniform: shader
                 .get_uniform::<Matrix3<f32>>("view")
                 .expect("Failed to get 'view' uniform shader attribute"),
+            blob_size_uniform: shader
+                .get_uniform("blobSize")
+                .expect("Failed to get 'blobSize' uniform shader attribute"),
             alpha_texture_uniform: shader
                 .get_uniform("alphaTexture")
                 .expect("Failed to get 'alphaTexture' uniform shader attribute"),
-            blob_size_uniform: shader
-                .get_uniform("blobSize")
-                .expect("Count not get the 'blobSize' uniform shader attribute"),
             render_mode_uniform: shader
                 .get_uniform("renderMode")
-                .expect("Could not get 'renderMode' uniform shader attribute"),
+                .expect("Failed to get 'renderMode' uniform shader attribute"),
             // Shader itself
             shader,
             // GL variables
@@ -291,38 +291,41 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
 
     // Get the texture coordinate
     vec2 getTextureCoordinate() {
-        int index = mod(gl_VertexID, 3);
-        if (index == 0) {
+        float index = mod(gl_VertexID, 3);
+        if (index == 0.0) {
             return vec2(1.0, 0.0);
         }
-        if (index == 1) {
+        if (index == 1.0) {
             return vec2(0.0, 0.0);
         }
-        if (index == 2) {
+        if (index == 2.0) {
             return vec2(0.0, 1.0);
         }
     }
 
     // Get the offset vector.
     vec2 getOffset() {
-        int index = mod(gl_VertexID, 6);
-        if (index == 0) {
-            return vec2(-1.0 * blobSize, 0.0);
+        float scale = blobSize;
+        float negScale = -1.0 * blobSize;
+
+        float index = mod(gl_VertexID, 6);
+        if (index == 0.0) {
+            return vec2(negScale, 0.0);
         }
-        if (index == 1) {
-            return vec2(0.0, blobSize);
+        if (index == 1.0) {
+            return vec2(0.0, scale);
         }
-        if (index == 2) {
-            return vec2(blobSize, 0.0);
+        if (index == 2.0) {
+            return vec2(scale, 0.0);
         }
-        if (index == 3) {
-            return vec2(-1.0 * blobSize, 0.0);
+        if (index == 3.0) {
+            return vec2(negScale, 0.0);
         }
-        if (index == 4) {
-            return vec2(0.0, blobSize);
+        if (index == 4.0) {
+            return vec2(0.0, scale);
         }
-        if (index == 5) {
-            return vec2(blob_size, 0.0);
+        if (index == 5.0) {
+            return vec2(scale, 0.0);
         }
     }
 
@@ -336,7 +339,7 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
         gl_Position = vec4(projected_pos, 1.0);
 
         // Make the color and tex coordinate available to the fragment shader.
-        PointColor = hsv2rgb(color);
+        PointColor = color;
         TextureCoordinate = getTextureCoordinate();
     }
 
@@ -352,16 +355,24 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
         gl_Position = vec4(projected_pos, 1.0);
 
         // Make the color and tex coordinate available to the fragment shader.
-        PointColor = hsv2rgb(color);
+        PointColor = color;
         TextureCoordinate = getTextureCoordinate();
     }
 
     void main() {
+        if (blobSize > 1000000.0) {
+            return;
+        }
         if (renderMode == 0) {
             render_discreet();
-        } else {
-            render_continuos();
+            return;
         }
+        if (renderMode == 1) {
+            render_continuos();
+            return;
+        }
+
+
     }";
 
 /// Fragment shader used by the point renderer
@@ -393,7 +404,8 @@ const FRAGMENT_SHADER_SRC_2D: &'static str = "#version 460
 
     // Discreet render mode, just draw the point.
     void render_discreet() {
-        FragColor = vec3(hsv2rgb(PointColor), 1.0);
+        vec3 rgb_color = hsv2rgb(PointColor);
+        FragColor = vec4(rgb_color, 1.0);
     }
 
     // Continous render mode, here we need to use the texture for the alpha
@@ -404,7 +416,8 @@ const FRAGMENT_SHADER_SRC_2D: &'static str = "#version 460
         if(alpha == 0.0)
             discard;
 
-        FragColor = vec4(hsv2rgb(PointColor), alpha);
+        vec3 rgb_color = hsv2rgb(PointColor);
+        FragColor = vec4(rgb_color, alpha);
     }
 
     void main() {

@@ -162,7 +162,9 @@ impl VisualizationState2D {
         }
 
         // TODO: Is this even correct?
-        self.renderer.set_blob_size(self.find_average_nearest_neightbor_distance());
+        let nn_distance = self.find_average_nearest_neightbor_distance();
+        // println!("Average nn distance {:}", nn_distance);
+        self.renderer.set_blob_size(nn_distance);
 
         self.initialized = true;
     }
@@ -171,13 +173,20 @@ impl VisualizationState2D {
     fn find_average_nearest_neightbor_distance(&self) -> f32 {
         let mut res = Vec::<f32>::new();
         for query_point in self.tree.iter() {
-            let nn = self.tree
-                .nearest_neighbor(&[query_point.x, query_point.y])
-                .expect("Could not retrieve nearest neighbor when checking the averages");
+            // Get the second nearest neighbor from the query point, the first will be itself.
+            let &nn = self
+                .tree
+                .nearest_neighbor_iter(&[query_point.x, query_point.y])
+                .take(2)
+                .skip(1)
+                .collect::<Vec<&IndexedPoint2D>>()
+                .first()
+                .expect("Could not get nearest neighbor");
+
             let dist = query_point.distance_2(&[nn.x, nn.y]).sqrt();
             res.push(dist);
         }
-        res.iter().sum::<f32>() / res.len() as f32
+        res.iter().sum::<f32>() / (res.len() as f32)
     }
 
     // TODO: Get a good camera that just views all the points
