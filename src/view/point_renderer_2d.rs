@@ -166,7 +166,7 @@ impl PointRenderer2D {
         // Load in a image containing a static blob alpha map
         // TODO: Generate this image programmatically. Easier se than done though because
         // of the variable lifetimes.
-        match image::open(&Path::new("resources/blob.png")).expect("Failed to load texture") {
+        match image::open(&Path::new("resources/blob2.png")).expect("Failed to load texture") {
             DynamicImage::ImageRgba8(img) => {
                 verify!(ctxt.tex_image2d(
                     Context::TEXTURE_2D,
@@ -180,7 +180,7 @@ impl PointRenderer2D {
                 ));
             }
             _ => {
-                panic!("'resources/blob.png' is not an RGBA image.");
+                panic!("'resources/blob2.png' is not an RGBA image.");
             }
         }
 
@@ -235,11 +235,11 @@ impl PlanarRenderer for PointRenderer2D {
                 // set the correct render mode in the shader.
                 self.render_mode_uniform.upload(&0);
 
-                // Draw the first point of all the triangle sets, hence the stride of 6
+                // Draw the first point of all the triangle sets, hence the stride of 5
                 self.pos_attribute
-                    .bind_sub_buffer(&mut self.points_vec, 6, 0);
+                    .bind_sub_buffer(&mut self.points_vec, 5, 0);
                 self.color_attribute
-                    .bind_sub_buffer(&mut self.colors_vec, 6, 0);
+                    .bind_sub_buffer(&mut self.colors_vec, 5, 0);
 
                 verify!(ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32));
             }
@@ -322,7 +322,7 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
             return vec2(negScale, 0.0);
         }
         if (index == 4.0) {
-            return vec2(0.0, scale);
+            return vec2(0.0, negScale);
         }
         if (index == 5.0) {
             return vec2(scale, 0.0);
@@ -347,7 +347,7 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
         // Get the offset to one of the triangle corners
         vec2 offset_position = position + getOffset();
         // Get the projected triangle corner position
-        vec3 projected_pos = proj * view * vec3(position, 1.0);
+        vec3 projected_pos = proj * view * vec3(offset_position, 1.0);
         // We set the z to 0 to draw all points along a plane.
         projected_pos.z = 0.0;
 
@@ -360,19 +360,13 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
     }
 
     void main() {
-        if (blobSize > 1000000.0) {
-            return;
-        }
         if (renderMode == 0) {
             render_discreet();
             return;
-        }
-        if (renderMode == 1) {
+        } else {
             render_continuos();
             return;
         }
-
-
     }";
 
 /// Fragment shader used by the point renderer

@@ -30,7 +30,9 @@ mod buttons {
     use kiss3d::event::Key;
     pub const GAMMA_UP_KEY: Key = Key::PageUp;
     pub const GAMMA_DOWN_KEY: Key = Key::PageDown;
-    pub const SWITCH_RENDER_MODE: Key = Key::F;
+    // Switch between 2D and 3D
+    pub const SWITCH_RENDER_MODE: Key = Key::N;
+    // Switch between Discreet and continous
     pub const SWITCH_DISCREET: Key = Key::M;
     pub const RESET_VIEW: Key = Key::R;
     pub const QUIT: Key = Key::Q;
@@ -164,7 +166,7 @@ impl VisualizationState2D {
         // TODO: Is this even correct?
         let nn_distance = self.find_average_nearest_neightbor_distance();
         // println!("Average nn distance {:}", nn_distance);
-        self.renderer.set_blob_size(nn_distance);
+        self.renderer.set_blob_size(nn_distance.sqrt());
 
         self.initialized = true;
     }
@@ -183,10 +185,11 @@ impl VisualizationState2D {
                 .first()
                 .expect("Could not get nearest neighbor");
 
-            let dist = query_point.distance_2(&[nn.x, nn.y]).sqrt();
+            let dist = query_point.distance_2(&[nn.x, nn.y]);
             res.push(dist);
         }
-        res.iter().sum::<f32>() / (res.len() as f32)
+        let average = res.iter().sum::<f32>() / (res.len() as f32);
+        (average.powi(2) * 2.0).sqrt()
     }
 
     // TODO: Get a good camera that just views all the points
@@ -307,7 +310,7 @@ impl Scene {
                 WindowEvent::Key(buttons::SWITCH_DISCREET, Action::Press, _) => {
                     match self.render_mode {
                         RenderMode::ThreeD => {
-                            print!("Only discreet rendering available in 3D");
+                            println!("Only discreet rendering available in 3D");
                         }
                         RenderMode::TwoD => {
                             println!("Switching between discreet / continuos");
