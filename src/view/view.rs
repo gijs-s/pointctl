@@ -13,24 +13,27 @@ use kiss3d::renderer::Renderer;
 use kiss3d::text::Font;
 use kiss3d::window::{CustomWindow, ExtendedState};
 // Conrod
-use kiss3d::conrod::{widget, widget_ids, Positionable, Sizeable, Widget, Color, Colorable};
+use kiss3d::conrod::{widget, widget_ids, Color, Colorable, Positionable, Sizeable, Widget};
 use na::{Point2, Point3};
-use rstar::RTree;
+use rstar::{PointDistance, RTree};
 
 // First party
-use crate::util::types::PointN;
 use super::color_map::ColorMap;
 use super::point_renderer_2d::PointRenderer2D;
 use super::point_renderer_3d::PointRenderer3D;
 use crate::exp::common::{IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D};
 use crate::exp::da_silva::DaSilvaExplanation;
+use crate::util::types::PointN;
 
 // Easy access to buttons
 mod buttons {
     use kiss3d::event::Key;
     pub const GAMMA_UP_KEY: Key = Key::PageUp;
     pub const GAMMA_DOWN_KEY: Key = Key::PageDown;
-    pub const SWITCH_RENDER_MODE: Key = Key::F;
+    // Switch between 2D and 3D
+    pub const SWITCH_RENDER_MODE: Key = Key::N;
+    // Switch between Discreet and continous
+    pub const SWITCH_DISCREET: Key = Key::M;
     pub const RESET_VIEW: Key = Key::R;
     pub const QUIT: Key = Key::Q;
     pub const ESC: Key = Key::Escape;
@@ -159,7 +162,34 @@ impl VisualizationState2D {
             let color = color_map.get_colour(e.attribute_index, e.confidence);
             self.renderer.push(p, color);
         }
+
+        // TODO: Is this even correct?
+        let nn_distance = self.find_average_nearest_neightbor_distance();
+        // println!("Average nn distance {:}", nn_distance);
+        self.renderer.set_blob_size(nn_distance.sqrt());
+
         self.initialized = true;
+    }
+
+    /// Find the average first nearest neighbor distance over all the points.
+    fn find_average_nearest_neightbor_distance(&self) -> f32 {
+        let mut res = Vec::<f32>::new();
+        for query_point in self.tree.iter() {
+            // Get the second nearest neighbor from the query point, the first will be itself.
+            let &nn = self
+                .tree
+                .nearest_neighbor_iter(&[query_point.x, query_point.y])
+                .take(2)
+                .skip(1)
+                .collect::<Vec<&IndexedPoint2D>>()
+                .first()
+                .expect("Could not get nearest neighbor");
+
+            let dist = query_point.distance_2(&[nn.x, nn.y]);
+            res.push(dist);
+        }
+        let average = res.iter().sum::<f32>() / (res.len() as f32);
+        (average.powi(2) * 2.0).sqrt()
     }
 
     // TODO: Get a good camera that just views all the points
@@ -274,6 +304,17 @@ impl Scene {
                         }
                         RenderMode::TwoD => {
                             self.state_2d.camera = VisualizationState2D::get_default_camera()
+                        }
+                    }
+                }
+                WindowEvent::Key(buttons::SWITCH_DISCREET, Action::Press, _) => {
+                    match self.render_mode {
+                        RenderMode::ThreeD => {
+                            println!("Only discreet rendering available in 3D");
+                        }
+                        RenderMode::TwoD => {
+                            println!("Switching between discreet / continuos");
+                            self.state_2d.renderer.switch_rendering_mode()
                         }
                     }
                 }

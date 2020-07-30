@@ -6,7 +6,7 @@ use kiss3d::light::Light;
 use kiss3d::window::{State, Window};
 
 // Conrod
-use kiss3d::conrod::{widget, widget_ids, Positionable, Sizeable, Widget, Color, Colorable};
+use kiss3d::conrod::{widget, widget_ids, Color, Colorable, Positionable, Sizeable, Widget};
 use na::{Point2, Point3};
 
 // Generate a unique `WidgetId` for each widget.
