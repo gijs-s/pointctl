@@ -50,11 +50,11 @@ fn main() {
         )
         .subcommand(
             SubCommand::with_name("view")
-                .about("View a set of possibly annotated points")
-                .help(
-                    "Allows you to view 3D data points given the original data, reduced points and the annotations.\
-                    This command assumes that the reduced points, original data and annotations have matching indexes.\n\n
-                    There is also support for showing a 2D reduction, simple provide the 2d reduction and its annotations\
+                .about(
+                    "Allows you to view 3D data points given the original data, reduced points and \
+                    the annotations. This command assumes that the reduced points, original data and \
+                    annotations have matching indexes. There is also support for showing a 2D \
+                    reduction, simple provide the 2d reduction and its annotations \
                     via the command line.")
                 .arg(
                     Arg::with_name("original_data")
