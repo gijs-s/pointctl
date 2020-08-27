@@ -155,6 +155,9 @@ impl VisualizationState2D {
             .collect();
         self.tree =
             RTree::<IndexedPoint2D, RTreeParameters2D>::bulk_load_with_params(indexed_points);
+        // Initilaize the colour map
+        self.color_map = ColorMap::from_explanations(&explanations, 30);
+
         // Ensure the renderer is empty.
         self.renderer.clear();
         // Then add all the points.

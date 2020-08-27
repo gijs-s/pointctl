@@ -62,13 +62,13 @@ impl ColorMap {
         // TODO: Put in an actual colour map
 
         let base_color = match self.map.get(&dimension) {
-            Some(0) => Point3::new(0.99835, 0.88597, 0.89412), //e41a1c Dark red
-            Some(1) => Point3::new(0.57493, 0.70108, 0.72157), //377eb8 Blue
-            Some(2) => Point3::new(0.16667, 0.80000, 1.00000), // ffff33 Yellow
-            Some(3) => Point3::new(0.91243, 0.47774, 0.96863), // f781bf Pink
-            Some(4) => Point3::new(0.81177, 0.52147, 0.63922), // 984ea3 Purple
+            Some(0) => Point3::new(0.91243, 0.47774, 0.96863), // f781bf Pink
+            Some(1) => Point3::new(0.16667, 0.80000, 1.00000), // ffff33 Yellow
+            Some(2) => Point3::new(0.99835, 0.88597, 0.89412), // e41a1c Dark red
+            Some(3) => Point3::new(0.32838, 0.57715, 0.68627), // 4daf4a Green
+            Some(4) => Point3::new(0.57493, 0.70108, 0.72157), // 377eb8 Blue
             Some(5) => Point3::new(0.08301, 1.00000, 1.00000), // ff7f00 Orange
-            Some(6) => Point3::new(0.32838, 0.57715, 0.68627), // 4daf4a Green
+            Some(6) => Point3::new(0.81177, 0.52147, 0.63922), // 984ea3 Purple
             Some(7) => Point3::new(0.06085, 0.75904, 0.65098), // a65628 Crimson brown
             _ => Point3::new(0.00000, 0.00000, 0.60000),       // 999999 Grey
         };
