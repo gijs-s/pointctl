@@ -41,22 +41,24 @@ pub fn main() {
         // Create left pane on the main canvas
         widget::Canvas::new()
             .align_left_of(ids.canvas)
+            .color(Color::Rgba(0.0, 0.0, 0.0, 0.5))
             .w(PANE_WIDTH)
             .set(ids.pane_left, &mut ui);
 
         // Create right pane on the main canvas
         widget::Canvas::new()
             .align_right_of(ids.canvas)
+            .color(Color::Rgba(0.0, 0.0, 0.0, 0.5))
             .w_of(ids.pane_left)
             .set(ids.pane_right, &mut ui);
 
         widget::Text::new("Left test")
-            .mid_top_of(ids.pane_left)
+            .middle_of(ids.pane_left)
             .color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
             .set(ids.text_left, &mut ui);
 
         widget::Text::new("Right test")
-            .mid_top_of(ids.pane_right)
+            .middle_of(ids.pane_right)
             .color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
             .set(ids.text_right, &mut ui);
     }

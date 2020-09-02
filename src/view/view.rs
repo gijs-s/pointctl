@@ -2,28 +2,32 @@ extern crate kiss3d;
 extern crate nalgebra as na;
 
 // Third party
-use kiss3d::camera::ArcBall;
-use kiss3d::camera::Camera;
-use kiss3d::event::{Action, WindowEvent};
-use kiss3d::light::Light;
-use kiss3d::planar_camera::{PlanarCamera, Sidescroll};
-use kiss3d::post_processing::PostProcessingEffect;
-use kiss3d::renderer::PlanarRenderer;
-use kiss3d::renderer::Renderer;
-use kiss3d::text::Font;
-use kiss3d::window::{CustomWindow, ExtendedState};
-// Conrod
-use kiss3d::conrod::{widget, widget_ids, Color, Colorable, Positionable, Sizeable, Widget};
+use kiss3d::{
+    camera::{ArcBall, Camera},
+    event::{Action, WindowEvent},
+    light::Light,
+    planar_camera::{PlanarCamera, Sidescroll},
+    post_processing::PostProcessingEffect,
+    renderer::{PlanarRenderer, Renderer},
+    window::{CustomWindow, ExtendedState},
+};
 use na::{Point2, Point3};
 use rstar::{PointDistance, RTree};
 
 // First party
-use super::color_map::ColorMap;
-use super::point_renderer_2d::PointRenderer2D;
-use super::point_renderer_3d::PointRenderer3D;
-use crate::exp::common::{IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D};
-use crate::exp::da_silva::DaSilvaExplanation;
-use crate::util::types::PointN;
+use crate::{
+    exp::{
+        common::{IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D},
+        da_silva::DaSilvaExplanation,
+    },
+    util::types::PointN,
+    view::{
+        color_map::ColorMap,
+        point_renderer_2d::PointRenderer2D,
+        point_renderer_3d::PointRenderer3D,
+        ui::{draw_overlay, WidgetId},
+    },
+};
 
 // Easy access to buttons
 mod buttons {
@@ -93,6 +97,10 @@ impl VisualizationState3D {
         }
     }
 
+    fn find_average_nearest_neightbor_distance(&self) -> f32 {
+        unimplemented!()
+    }
+
     fn get_default_camera() -> ArcBall {
         // Create arcball camera with custom FOV.
         let eye = Point3::new(0.0f32, 0.0, -1.5);
@@ -103,7 +111,6 @@ impl VisualizationState3D {
     }
 }
 
-#[allow(dead_code)]
 pub struct VisualizationState2D {
     // Camera used by this view.
     pub camera: Sidescroll,
@@ -214,7 +221,7 @@ pub struct Scene {
     // 2D state
     pub state_2d: VisualizationState2D,
     // Used by conrod to assign widget ids
-    pub conrod_ids: Ids,
+    pub conrod_ids: WidgetId,
 }
 
 impl Scene {
@@ -223,7 +230,7 @@ impl Scene {
         points_3d: Vec<Point3<f32>>,
         explanations: Vec<DaSilvaExplanation>,
         original_points: Vec<PointN>,
-        conrod_ids: Ids,
+        conrod_ids: WidgetId,
     ) -> Scene {
         let dimension_count = original_points.first().unwrap().len();
         let color_map = ColorMap::from_explanations(&explanations, dimension_count);
@@ -244,7 +251,7 @@ impl Scene {
         points_2d: Vec<Point2<f32>>,
         explanations_2d: Vec<DaSilvaExplanation>,
         original_points: Vec<PointN>,
-        conrod_ids: Ids,
+        conrod_ids: WidgetId,
     ) -> Scene {
         let dimension_count = original_points.first().unwrap().len();
         let color_map_2d = ColorMap::from_explanations(&explanations_2d, dimension_count);
@@ -331,22 +338,11 @@ impl Scene {
         }
     }
 
+    /// Draw the ui overlay given a scene state
     fn draw_overlay(&mut self, window: &mut CustomWindow) {
-        let num_points_text = format!("Number of points: {}", self.original_points.len());
-
-        // use conrod::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
-        // let mut conrod_ui = window.conrod_ui_mut().set_widgets();
-        // widget::Text::new(&num_points_text)
-        //     .color(Color::Rgba(1.0, 0.0, 0.0, 0.0))
-        //     .set(self.conrod_ids.text, &mut conrod_ui);
-
-        window.draw_text(
-            &num_points_text,
-            &Point2::new(0.0, 20.0),
-            60.0,
-            &Font::default(),
-            &Point3::new(0.0, 0.0, 0.0),
-        );
+        // Split out the logic into a separate file to prevent this file
+        // from becoming even more bloated
+        draw_overlay(self, window);
     }
 }
 
@@ -393,7 +389,7 @@ pub fn display(
     window.set_background_color(1.0, 1.0, 1.0);
     window.set_light(Light::StickToCamera);
 
-    let conrod_ids = Ids::new(window.conrod_ui_mut().widget_id_generator());
+    let conrod_ids = WidgetId::new(window.conrod_ui_mut().widget_id_generator());
 
     // only init the scene with 2d points if both the points and explanations are provided
     let scene = match (points_2d, explanations_2d) {
@@ -410,12 +406,4 @@ pub fn display(
 
     // Start the render loop.
     window.render_loop(scene)
-}
-
-// Generate a unique `WidgetId` for each widget.
-widget_ids! {
-    pub struct Ids {
-        text,
-        canvas
-    }
 }
