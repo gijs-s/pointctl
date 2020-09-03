@@ -54,24 +54,37 @@ impl ColorMap {
         }
     }
 
-    // Get a RGB colour based on the current pallet
+    /// Convert a dimension rank to a colour. The ordering is as follows:
+    /// Pink, Yellow, Dark red, Green, Blue, Orange, Purple and Crimson brown.clap
+    /// Grey is used for all ranks that are not in the top 8.
+    pub fn rank_to_color(&self, rank: &usize) -> Point3<f32> {
+        match rank {
+            0 => Point3::new(0.91243, 0.47774, 0.96863), // f781bf Pink
+            1 => Point3::new(0.16667, 0.80000, 1.00000), // ffff33 Yellow
+            2 => Point3::new(0.99835, 0.88597, 0.89412), // e41a1c Dark red
+            3 => Point3::new(0.32838, 0.57715, 0.68627), // 4daf4a Green
+            4 => Point3::new(0.57493, 0.70108, 0.72157), // 377eb8 Blue
+            5 => Point3::new(0.08301, 1.00000, 1.00000), // ff7f00 Orange
+            6 => Point3::new(0.81177, 0.52147, 0.63922), // 984ea3 Purple
+            7 => Point3::new(0.06085, 0.75904, 0.65098), // a65628 Crimson brown
+            _ => Point3::new(0.00000, 0.00000, 0.60000), // 999999 Grey
+        }
+    }
+
+    /// Get a RGB colour based on the current pallet
     pub fn get_colour(&self, dimension: usize, confidence: f32) -> Point3<f32> {
+        // normalize the confidence
         let normalized_conf = confidence
             - self.normalization_bounds.0
                 / (self.normalization_bounds.1 - self.normalization_bounds.0);
-        // TODO: Put in an actual colour map
 
+        // Retrieve the color that used for that dimension
+        // First we get the rank of that dimennsion, than we convert that rank to a colour.
         let base_color = match self.map.get(&dimension) {
-            Some(0) => Point3::new(0.91243, 0.47774, 0.96863), // f781bf Pink
-            Some(1) => Point3::new(0.16667, 0.80000, 1.00000), // ffff33 Yellow
-            Some(2) => Point3::new(0.99835, 0.88597, 0.89412), // e41a1c Dark red
-            Some(3) => Point3::new(0.32838, 0.57715, 0.68627), // 4daf4a Green
-            Some(4) => Point3::new(0.57493, 0.70108, 0.72157), // 377eb8 Blue
-            Some(5) => Point3::new(0.08301, 1.00000, 1.00000), // ff7f00 Orange
-            Some(6) => Point3::new(0.81177, 0.52147, 0.63922), // 984ea3 Purple
-            Some(7) => Point3::new(0.06085, 0.75904, 0.65098), // a65628 Crimson brown
-            _ => Point3::new(0.00000, 0.00000, 0.60000),       // 999999 Grey
+            Some(rank) => self.rank_to_color(rank),
+            _ => Point3::new(0.00000, 0.00000, 0.60000), // 999999 Grey
         };
+
         ColorMap::scale_color(normalized_conf, base_color)
     }
 

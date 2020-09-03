@@ -275,6 +275,18 @@ impl Scene {
         }
     }
 
+    /// Reset the camera view of the current rendering mode
+    pub fn reset_camera(&mut self) {
+        match self.render_mode {
+            RenderMode::ThreeD => {
+                self.state_3d.camera = VisualizationState3D::get_default_camera()
+            }
+            RenderMode::TwoD => {
+                self.state_2d.camera = VisualizationState2D::get_default_camera()
+            }
+        }
+    }
+
     /// Switch the render mode of the visualization if possible
     /// You can not switch if the 2D view is not present.
     /// Returns a boolean representing if the mode changed
@@ -300,6 +312,19 @@ impl Scene {
         }
     }
 
+    /// Switch between rendering the continous and discreet point cloud representation
+    pub fn switch_continuous_discreet(&mut self) {
+        match self.render_mode {
+            RenderMode::ThreeD => {
+                println!("Only discreet rendering available in 2D");
+            }
+            RenderMode::TwoD => {
+                println!("Switching between discreet / continuos");
+                self.state_2d.renderer.switch_rendering_mode()
+            }
+        }
+    }
+
     // TODO: handle is dirty case?
     fn handle_input(&mut self, window: &mut CustomWindow) {
         for event in window.events().iter() {
@@ -317,25 +342,10 @@ impl Scene {
                 }
                 WindowEvent::Key(buttons::RESET_VIEW, Action::Press, _) => {
                     println!("Reset render mode");
-                    match self.render_mode {
-                        RenderMode::ThreeD => {
-                            self.state_3d.camera = VisualizationState3D::get_default_camera()
-                        }
-                        RenderMode::TwoD => {
-                            self.state_2d.camera = VisualizationState2D::get_default_camera()
-                        }
-                    }
+                    self.reset_camera();
                 }
                 WindowEvent::Key(buttons::SWITCH_DISCREET, Action::Press, _) => {
-                    match self.render_mode {
-                        RenderMode::ThreeD => {
-                            println!("Only discreet rendering available in 3D");
-                        }
-                        RenderMode::TwoD => {
-                            println!("Switching between discreet / continuos");
-                            self.state_2d.renderer.switch_rendering_mode()
-                        }
-                    }
+                    self.switch_continuous_discreet()
                 }
                 WindowEvent::Key(buttons::ESC, Action::Release, _)
                 | WindowEvent::Key(buttons::QUIT, Action::Release, _)
