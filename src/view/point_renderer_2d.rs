@@ -15,9 +15,19 @@ use kiss3d::resource::{
 use na::{Matrix3, Point2, Point3};
 use std::path::Path;
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum RenderMode {
     Discreet,
     Continuous,
+}
+
+impl RenderMode {
+    pub fn to_str(self) -> String {
+        match self {
+            RenderMode::Discreet => "Discreet".to_string(),
+            RenderMode::Continuous => "Continous".to_string()
+        }
+    }
 }
 
 /// 2D
@@ -39,7 +49,7 @@ pub struct PointRenderer2D {
     point_size: f32,
     blob_size: f32,
     visible: bool,
-    render_mode: RenderMode,
+    pub render_mode: RenderMode,
 }
 
 impl PointRenderer2D {

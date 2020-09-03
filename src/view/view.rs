@@ -51,6 +51,15 @@ pub enum RenderMode {
     TwoD,
 }
 
+impl RenderMode {
+    pub fn to_str(self) -> String {
+        match self {
+            RenderMode::TwoD => "2D".to_string(),
+            RenderMode::ThreeD => "3D".to_string()
+        }
+    }
+}
+
 pub struct VisualizationState3D {
     // Camera used by this view. : Create custom camera .
     pub camera: ArcBall,
@@ -266,9 +275,9 @@ impl Scene {
         }
     }
 
-    // Switch the render mode of the visualization if possible
-    // You can not switch if the 2D view is not present.
-    // Returns a boolean representing if the mode changed
+    /// Switch the render mode of the visualization if possible
+    /// You can not switch if the 2D view is not present.
+    /// Returns a boolean representing if the mode changed
     pub fn switch_render_mode(&mut self) -> bool {
         match self.render_mode {
             // You can always switch to 3D because 3D state is always present
