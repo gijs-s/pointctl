@@ -2,6 +2,7 @@ extern crate kiss3d;
 extern crate nalgebra as na;
 
 // Third party
+use crate::view::RenderMode;
 use kiss3d::{
     camera::{ArcBall, Camera},
     event::{Action, WindowEvent},
@@ -9,7 +10,7 @@ use kiss3d::{
     planar_camera::{PlanarCamera, Sidescroll},
     post_processing::PostProcessingEffect,
     renderer::{PlanarRenderer, Renderer},
-    window::{CustomWindow, ExtendedState},
+    window::{CustomWindow, ExtendedState, RenderMode as WindowRenderMode},
 };
 use na::{Point2, Point3};
 use rstar::{PointDistance, RTree};
@@ -34,10 +35,10 @@ mod buttons {
     use kiss3d::event::Key;
     pub const GAMMA_UP_KEY: Key = Key::PageUp;
     pub const GAMMA_DOWN_KEY: Key = Key::PageDown;
-    // Switch between 2D and 3D
+    // Switch between Discreet and Continous
     pub const SWITCH_RENDER_MODE: Key = Key::N;
-    // Switch between Discreet and continous
-    pub const SWITCH_DISCREET: Key = Key::M;
+    // Switch between 2D and 3D
+    pub const SWITCH_DIMENSIONALITY: Key = Key::M;
     pub const RESET_VIEW: Key = Key::R;
     pub const QUIT: Key = Key::Q;
     pub const ESC: Key = Key::Escape;
@@ -46,16 +47,25 @@ mod buttons {
 // Rendering mode used by the program, you can only switch
 // if two d data is provided.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum RenderMode {
+pub enum DimensionalityMode {
     ThreeD,
     TwoD,
 }
 
-impl RenderMode {
+impl DimensionalityMode {
+    // Convert the current value to a string
     pub fn to_str(self) -> String {
         match self {
-            RenderMode::TwoD => "2D".to_string(),
-            RenderMode::ThreeD => "3D".to_string()
+            DimensionalityMode::TwoD => "2D".to_string(),
+            DimensionalityMode::ThreeD => "3D".to_string(),
+        }
+    }
+
+    /// Get the inverse of the current value
+    pub fn inverse(self) -> Self {
+        match self {
+            DimensionalityMode::TwoD => DimensionalityMode::ThreeD,
+            DimensionalityMode::ThreeD => DimensionalityMode::TwoD,
         }
     }
 }
@@ -222,7 +232,7 @@ impl VisualizationState2D {
 
 pub struct Scene {
     // Render mode in which the visualization can be used
-    pub render_mode: RenderMode,
+    pub dimensionality_mode: DimensionalityMode,
     // Original ND data
     pub original_points: Vec<Vec<f32>>,
     // 3D state
@@ -231,6 +241,9 @@ pub struct Scene {
     pub state_2d: VisualizationState2D,
     // Used by conrod to assign widget ids
     pub conrod_ids: WidgetId,
+    // Used when rendering, set to dirty if the window needs to be synced
+    // with the scene
+    dirty: bool,
 }
 
 impl Scene {
@@ -245,11 +258,12 @@ impl Scene {
         let color_map = ColorMap::from_explanations(&explanations, dimension_count);
 
         Scene {
-            render_mode: RenderMode::ThreeD,
+            dimensionality_mode: DimensionalityMode::ThreeD,
             state_3d: VisualizationState3D::new(points_3d, explanations, color_map),
             state_2d: VisualizationState2D::new_empty(),
             original_points: original_points,
             conrod_ids,
+            dirty: false,
         }
     }
 
@@ -267,21 +281,22 @@ impl Scene {
         let color_map_3d = ColorMap::from_explanations(&explanations_3d, dimension_count);
 
         Scene {
-            render_mode: RenderMode::ThreeD,
+            dimensionality_mode: DimensionalityMode::ThreeD,
             state_3d: VisualizationState3D::new(points_3d, explanations_3d, color_map_3d),
             state_2d: VisualizationState2D::new(points_2d, explanations_2d, color_map_2d),
             original_points: original_points,
             conrod_ids,
+            dirty: false,
         }
     }
 
     /// Reset the camera view of the current rendering mode
     pub fn reset_camera(&mut self) {
-        match self.render_mode {
-            RenderMode::ThreeD => {
+        match self.dimensionality_mode {
+            DimensionalityMode::ThreeD => {
                 self.state_3d.camera = VisualizationState3D::get_default_camera()
             }
-            RenderMode::TwoD => {
+            DimensionalityMode::TwoD => {
                 self.state_2d.camera = VisualizationState2D::get_default_camera()
             }
         }
@@ -289,39 +304,48 @@ impl Scene {
 
     /// Switch the render mode of the visualization if possible
     /// You can not switch if the 2D view is not present.
-    /// Returns a boolean representing if the mode changed
-    pub fn switch_render_mode(&mut self) -> bool {
-        match self.render_mode {
+    pub fn switch_dimensionality(&mut self) {
+        match self.dimensionality_mode {
             // You can always switch to 3D because 3D state is always present
-            RenderMode::TwoD => {
-                self.render_mode = RenderMode::ThreeD;
-                true
+            DimensionalityMode::TwoD => {
+                self.dimensionality_mode = DimensionalityMode::ThreeD;
+                self.dirty = true;
             }
             // Only switch to 2D if the 2d state is available
-            RenderMode::ThreeD => match self.state_2d.initialized {
+            DimensionalityMode::ThreeD => match self.state_2d.initialized {
                 false => {
                     println!("Cannot switch to 2D since there is no 2D data loaded");
-                    self.render_mode = RenderMode::ThreeD;
-                    false
+                    self.dimensionality_mode = DimensionalityMode::ThreeD;
                 }
                 true => {
-                    self.render_mode = RenderMode::TwoD;
-                    true
+                    self.dimensionality_mode = DimensionalityMode::TwoD;
+                    self.dirty = true
                 }
             },
         }
     }
 
     /// Switch between rendering the continous and discreet point cloud representation
-    pub fn switch_continuous_discreet(&mut self) {
-        match self.render_mode {
-            RenderMode::ThreeD => {
-                println!("Only discreet rendering available in 2D");
-            }
-            RenderMode::TwoD => {
-                println!("Switching between discreet / continuos");
-                self.state_2d.renderer.switch_rendering_mode()
-            }
+    pub fn switch_render_mode(&mut self) {
+        match self.dimensionality_mode {
+            DimensionalityMode::ThreeD => self.state_3d.renderer.switch_rendering_mode(),
+            DimensionalityMode::TwoD => self.state_2d.renderer.switch_rendering_mode(),
+        }
+    }
+
+    /// Get the current rendering mode
+    pub fn get_current_render_mode(&self) -> &RenderMode {
+        match self.dimensionality_mode {
+            DimensionalityMode::ThreeD => &self.state_3d.renderer.render_mode,
+            DimensionalityMode::TwoD => &self.state_2d.renderer.render_mode,
+        }
+    }
+
+    /// Get the color map that is currently in use
+    pub fn get_current_color_map(&self) -> &ColorMap {
+        match self.dimensionality_mode {
+            DimensionalityMode::TwoD => &self.state_2d.color_map,
+            DimensionalityMode::ThreeD => &self.state_3d.color_map,
         }
     }
 
@@ -335,17 +359,15 @@ impl Scene {
                 WindowEvent::Key(buttons::GAMMA_DOWN_KEY, Action::Press, _) => {
                     println!("Gamma down pressed")
                 }
-                WindowEvent::Key(buttons::SWITCH_RENDER_MODE, Action::Press, _) => {
-                    if self.switch_render_mode() {
-                        window.switch_rendering_mode();
-                    }
+                WindowEvent::Key(buttons::SWITCH_DIMENSIONALITY, Action::Press, _) => {
+                    self.switch_dimensionality();
                 }
                 WindowEvent::Key(buttons::RESET_VIEW, Action::Press, _) => {
                     println!("Reset render mode");
                     self.reset_camera();
                 }
-                WindowEvent::Key(buttons::SWITCH_DISCREET, Action::Press, _) => {
-                    self.switch_continuous_discreet()
+                WindowEvent::Key(buttons::SWITCH_RENDER_MODE, Action::Press, _) => {
+                    self.switch_render_mode()
                 }
                 WindowEvent::Key(buttons::ESC, Action::Release, _)
                 | WindowEvent::Key(buttons::QUIT, Action::Release, _)
@@ -355,6 +377,20 @@ impl Scene {
                 _ => (),
             }
         }
+
+        // If the dirty flag is set than the dimensionality mode of the scene
+        // and the window do not match, this will fix it.
+        // XXX: This is hacky, I should patch this with a proper fix.
+        if self.dirty {
+            let window_dimensionality = match window.get_rendering_mode() {
+                WindowRenderMode::TwoD => DimensionalityMode::TwoD,
+                WindowRenderMode::ThreeD => DimensionalityMode::ThreeD,
+            };
+            if window_dimensionality != self.dimensionality_mode {
+                window.switch_rendering_mode()
+            };
+            self.dirty = false;
+        };
     }
 
     /// Draw the ui overlay given a scene state

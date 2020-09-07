@@ -2,19 +2,20 @@ extern crate kiss3d;
 extern crate nalgebra as na;
 
 // Third party
-use super::marcos;
-use crate::view::color_map::ColorMap;
 use gl;
-use kiss3d::camera::Camera;
-use kiss3d::context::Context;
-use kiss3d::planar_camera::PlanarCamera;
-use kiss3d::renderer::Renderer;
-use kiss3d::resource::{
-    AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform, Texture,
+use kiss3d::{
+    camera::Camera,
+    context::Context,
+    renderer::Renderer,
+    resource::{
+        AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform, Texture,
+    }
 };
 use na::{Matrix3, Matrix4, Point2, Point3};
 
-// TODO: Add render mode for continuous or discreet!
+// Internal
+use super::{RenderMode, marcos};
+use crate::view::color_map::ColorMap;
 
 /// 3D
 pub struct PointRenderer3D {
@@ -33,6 +34,7 @@ pub struct PointRenderer3D {
     gamma: f32,
     visible: bool,
     splat_size: f32,
+    pub render_mode: RenderMode,
 }
 
 impl PointRenderer3D {
@@ -67,6 +69,7 @@ impl PointRenderer3D {
             visible: true,
             // The size of all splats (normaly the average distance to the nearest neighbor)
             splat_size: 1.0,
+            render_mode: RenderMode::Discreet,
         }
     }
 
@@ -135,6 +138,14 @@ impl PointRenderer3D {
     // Retrieve the number of points
     pub fn num_points(&self) -> usize {
         self.points.len() / 2
+    }
+
+    pub fn switch_rendering_mode(&mut self) {
+        println!("Switching render mode in 3D is not yet supported");
+        // self.render_mode = match self.render_mode {
+        //     RenderMode::Discreet => RenderMode::Continuous,
+        //     RenderMode::Continuous => RenderMode::Discreet,
+        // }
     }
 }
 

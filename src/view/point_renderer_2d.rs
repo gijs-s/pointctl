@@ -1,34 +1,21 @@
 extern crate nalgebra as na;
 
 // Third party
-use super::marcos;
 use gl;
 use image::{self, DynamicImage};
-use kiss3d::camera::Camera;
-use kiss3d::context::Context;
-use kiss3d::planar_camera::PlanarCamera;
-use kiss3d::renderer::PlanarRenderer;
-use kiss3d::renderer::Renderer;
-use kiss3d::resource::{
-    AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform, Texture,
+use kiss3d::{
+    planar_camera::PlanarCamera,
+    context::Context,
+    renderer::PlanarRenderer,
+    resource::{
+        AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform, Texture,
+    }
 };
 use na::{Matrix3, Point2, Point3};
 use std::path::Path;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum RenderMode {
-    Discreet,
-    Continuous,
-}
-
-impl RenderMode {
-    pub fn to_str(self) -> String {
-        match self {
-            RenderMode::Discreet => "Discreet".to_string(),
-            RenderMode::Continuous => "Continous".to_string()
-        }
-    }
-}
+// Internal
+use super::{RenderMode,marcos};
 
 /// 2D
 pub struct PointRenderer2D {
