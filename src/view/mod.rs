@@ -17,7 +17,7 @@ impl RenderMode {
     pub fn to_str(self) -> String {
         match self {
             RenderMode::Discreet => "Discreet".to_string(),
-            RenderMode::Continuous => "Continous".to_string()
+            RenderMode::Continuous => "Continous".to_string(),
         }
     }
 
@@ -25,7 +25,7 @@ impl RenderMode {
     pub fn inverse(self) -> Self {
         match self {
             RenderMode::Discreet => RenderMode::Continuous,
-            RenderMode::Continuous => RenderMode::Discreet
+            RenderMode::Continuous => RenderMode::Discreet,
         }
     }
 }

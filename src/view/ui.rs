@@ -95,6 +95,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     // ###########################################
     // # Draw the color legend in the top right #
     // ###########################################
+
     // Retrieve the color map from the correct state
     let color_map = scene.get_current_color_map();
     // No need to render the color legend if the color map is empty
@@ -106,7 +107,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         return;
     }
 
-    let color = ColorMap::to_conrod_color(&color_map.rank_to_color(&0usize));
+    let color = color_map.get_conrod_color(&0usize);
     widget::Canvas::new()
         .top_right_with_margin(5.0f64)
         .w(COLOR_PREVIEW_SIZE)
@@ -145,7 +146,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     {
         let rank = &index + 1usize;
         // First draw the color preview with the correct color.
-        let color = ColorMap::to_conrod_color(&color_map.rank_to_color(&rank));
+        let color = color_map.get_conrod_color(&rank);
         widget::Canvas::new()
             .down_from(offset_id, 3.0)
             .w(COLOR_PREVIEW_SIZE)
@@ -153,10 +154,16 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             .color(color)
             .set(preview_id, &mut ui);
 
-        let text = format!(
-            "Dimension {}",
-            color_map.get_dimension_from_rank(&rank).unwrap()
-        );
+        let text = {
+            if index == 7usize {
+                "Other dimensions".to_string()
+            } else {
+                format!(
+                    "Dimension {}",
+                    color_map.get_dimension_from_rank(&rank).unwrap()
+                )
+            }
+        };
 
         widget::Text::new(&text)
             .font_size(FONT_SIZE)

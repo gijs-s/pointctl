@@ -2,9 +2,9 @@ extern crate nalgebra as na;
 
 // Buildin
 use crate::exp::da_silva::DaSilvaExplanation;
+use kiss3d::conrod::color::{rgb_bytes, Color};
 use na::Point3;
 use std::collections::HashMap;
-use kiss3d::conrod::color::Color;
 
 // Everything related to the colors in the visualization
 pub struct ColorMap {
@@ -62,7 +62,6 @@ impl ColorMap {
         }
     }
 
-
     /// Check if the color map has been initialized
     pub fn is_initialized(&self) -> bool {
         self.dimension_count() != 0usize
@@ -119,7 +118,17 @@ impl ColorMap {
     }
 
     /// Convert a color to one that can be used by the conrod ui
-    pub fn to_conrod_color(color: &Point3<f32>) -> Color {
-        Color::from(Color::Rgba(color.x, color.y, color.z, 1.0))
+    pub fn get_conrod_color(&self, rank: &usize) -> Color {
+        match rank {
+            0 => rgb_bytes(247, 129, 191), // f781bf Pink
+            1 => rgb_bytes(255, 255, 51),  // ffff33 Yellow
+            2 => rgb_bytes(228, 26, 28),   // e41a1c Dark red
+            3 => rgb_bytes(77, 175, 74),   // 4daf4a Green
+            4 => rgb_bytes(55, 126, 184),  // 377eb8 Blue
+            5 => rgb_bytes(255, 127, 0),   // ff7f00 Orange
+            6 => rgb_bytes(152, 78, 163),  // 984ea3 Purple
+            7 => rgb_bytes(166, 86, 40),   // a65628 Crimson brown
+            _ => rgb_bytes(153, 153, 153), // 999999 Grey
+        }
     }
 }

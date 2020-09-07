@@ -9,12 +9,12 @@ use kiss3d::{
     renderer::Renderer,
     resource::{
         AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform, Texture,
-    }
+    },
 };
 use na::{Matrix3, Matrix4, Point2, Point3};
 
 // Internal
-use super::{RenderMode, marcos};
+use super::{marcos, RenderMode};
 use crate::view::color_map::ColorMap;
 
 /// 3D

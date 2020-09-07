@@ -4,18 +4,18 @@ extern crate nalgebra as na;
 use gl;
 use image::{self, DynamicImage};
 use kiss3d::{
-    planar_camera::PlanarCamera,
     context::Context,
+    planar_camera::PlanarCamera,
     renderer::PlanarRenderer,
     resource::{
         AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform, Texture,
-    }
+    },
 };
 use na::{Matrix3, Point2, Point3};
 use std::path::Path;
 
 // Internal
-use super::{RenderMode,marcos};
+use super::{marcos, RenderMode};
 
 /// 2D
 pub struct PointRenderer2D {
