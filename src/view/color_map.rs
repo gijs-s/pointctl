@@ -6,11 +6,11 @@ use na::Point3;
 use std::collections::HashMap;
 use kiss3d::conrod::color::Color;
 
-// Everything related to the colours in the visualization
+// Everything related to the colors in the visualization
 pub struct ColorMap {
-    // Map of dimension to a colour index
+    // Map of dimension to a color index
     map: HashMap<usize, usize>,
-    // Dimension ranks (inverse map). This maps a colour index to the dimension
+    // Dimension ranks (inverse map). This maps a color index to the dimension
     // TODO: store dimension name instead
     inverse_map: HashMap<usize, usize>,
     // Min max values for the confidence, used for normalization
@@ -20,7 +20,7 @@ pub struct ColorMap {
 }
 
 impl ColorMap {
-    // TODO: Create the actual colour map
+    // TODO: Create the actual color map
     pub fn new(
         min_confidence: f32,
         max_confidence: f32,
@@ -63,7 +63,7 @@ impl ColorMap {
     }
 
 
-    /// Check if the colour map has been initialized
+    /// Check if the color map has been initialized
     pub fn is_initialized(&self) -> bool {
         self.dimension_count() != 0usize
     }
@@ -78,7 +78,7 @@ impl ColorMap {
         self.inverse_map.get(rank)
     }
 
-    /// Convert a dimension rank to a colour. The ordering is as follows:
+    /// Convert a dimension rank to a color. The ordering is as follows:
     /// Pink, Yellow, Dark red, Green, Blue, Orange, Purple and Crimson brown.clap
     /// Grey is used for all ranks that are not in the top 8.
     pub fn rank_to_color(&self, rank: &usize) -> Point3<f32> {
@@ -95,15 +95,15 @@ impl ColorMap {
         }
     }
 
-    /// Get a RGB colour based on the current pallet
-    pub fn get_colour(&self, dimension: usize, confidence: f32) -> Point3<f32> {
+    /// Get a RGB color based on the current pallet
+    pub fn get_color(&self, dimension: usize, confidence: f32) -> Point3<f32> {
         // normalize the confidence
         let normalized_conf = confidence
             - self.normalization_bounds.0
                 / (self.normalization_bounds.1 - self.normalization_bounds.0);
 
         // Retrieve the color that used for that dimension
-        // First we get the rank of that dimennsion, than we convert that rank to a colour.
+        // First we get the rank of that dimennsion, than we convert that rank to a color.
         let base_color = match self.map.get(&dimension) {
             Some(rank) => self.rank_to_color(rank),
             _ => Point3::new(0.00000, 0.00000, 0.60000), // 999999 Grey

@@ -67,7 +67,7 @@ pub struct VisualizationState3D {
     pub tree: RTree<IndexedPoint3D, RTreeParameters3D>,
     // Used for rendering points.
     pub renderer: PointRenderer3D,
-    // Colour map used by the 3D visualizer
+    // color map used by the 3D visualizer
     pub color_map: ColorMap,
 }
 
@@ -94,7 +94,7 @@ impl VisualizationState3D {
         // Create the renderer and add all the points:
         let mut point_renderer = PointRenderer3D::new();
         for (&p, e) in points.iter().zip(explanations) {
-            let color = color_map.get_colour(e.attribute_index, e.confidence);
+            let color = color_map.get_color(e.attribute_index, e.confidence);
             point_renderer.push(p, color);
         }
 
@@ -127,7 +127,7 @@ pub struct VisualizationState2D {
     pub tree: RTree<IndexedPoint2D, RTreeParameters2D>,
     // Used for rendering points. TODO BUILD THIS
     pub renderer: PointRenderer2D,
-    // Colour map used by the 3D visualizer
+    // color map used by the 3D visualizer
     pub color_map: ColorMap,
     // Used to denote if the 2d data is present. if not than this state will be empty
     pub initialized: bool,
@@ -171,14 +171,14 @@ impl VisualizationState2D {
             .collect();
         self.tree =
             RTree::<IndexedPoint2D, RTreeParameters2D>::bulk_load_with_params(indexed_points);
-        // Initilaize the colour map
+        // Initilaize the color map
         self.color_map = ColorMap::from_explanations(&explanations, 30);
 
         // Ensure the renderer is empty.
         self.renderer.clear();
         // Then add all the points.
         for (&p, e) in points.iter().zip(explanations) {
-            let color = color_map.get_colour(e.attribute_index, e.confidence);
+            let color = color_map.get_color(e.attribute_index, e.confidence);
             self.renderer.push(p, color);
         }
 

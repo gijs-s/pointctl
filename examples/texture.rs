@@ -135,7 +135,7 @@ impl PointRenderer3D {
         shader.use_program();
 
         PointRenderer3D {
-            // Points and their colour interleaved. note that each point in the cloud will have 6 points here as it defines
+            // Points and their color interleaved. note that each point in the cloud will have 6 points here as it defines
             // 2 triangles in the continous render mode
             points: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
             tex_positions: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
@@ -208,7 +208,7 @@ impl PointRenderer3D {
         }
     }
 
-    /// Clear all the points and their colours
+    /// Clear all the points and their colors
     pub fn clear(&mut self) {
         for points in self.points.data_mut().iter_mut() {
             points.clear()
