@@ -4,11 +4,15 @@ extern crate nalgebra as na;
 use crate::exp::da_silva::DaSilvaExplanation;
 use na::Point3;
 use std::collections::HashMap;
+use kiss3d::conrod::color::Color;
 
 // Everything related to the colours in the visualization
 pub struct ColorMap {
     // Map of dimension to a colour index
     map: HashMap<usize, usize>,
+    // Dimension ranks (inverse map). This maps a colour index to the dimension
+    // TODO: store dimension name instead
+    inverse_map: HashMap<usize, usize>,
     // Min max values for the confidence, used for normalization
     normalization_bounds: (f32, f32),
     // gamma correction value, static for now
@@ -23,12 +27,15 @@ impl ColorMap {
         dimension_ranking: Vec<usize>,
     ) -> ColorMap {
         let mut map = HashMap::<usize, usize>::new();
+        let mut inverse_map = HashMap::<usize, usize>::new();
         for (index, &dim) in dimension_ranking.iter().enumerate() {
             map.insert(dim, index);
+            inverse_map.insert(index, dim);
         }
 
         ColorMap {
             map,
+            inverse_map,
             normalization_bounds: (min_confidence, max_confidence),
             gamma: 2.2,
         }
@@ -49,9 +56,26 @@ impl ColorMap {
     pub fn new_dummy() -> ColorMap {
         ColorMap {
             map: HashMap::<usize, usize>::new(),
+            inverse_map: HashMap::<usize, usize>::new(),
             normalization_bounds: (0.0, 1.0),
             gamma: 2.2,
         }
+    }
+
+
+    /// Check if the colour map has been initialized
+    pub fn is_initialized(&self) -> bool {
+        self.dimension_count() != 0usize
+    }
+
+    /// Retrieve the amount of dimensions in the ranking map
+    pub fn dimension_count(&self) -> usize {
+        self.map.len()
+    }
+
+    /// Retrieve the dimension from the rank
+    pub fn get_dimension_from_rank(&self, rank: &usize) -> Option<&usize> {
+        self.inverse_map.get(rank)
     }
 
     /// Convert a dimension rank to a colour. The ordering is as follows:
@@ -88,9 +112,14 @@ impl ColorMap {
         ColorMap::scale_color(normalized_conf, base_color)
     }
 
-    // Scale a color in rgb / hsv.
+    /// Scale a color in hsv.
     fn scale_color(scale: f32, color: Point3<f32>) -> Point3<f32> {
         let brightness = color.z * scale.cbrt();
         return Point3::new(color.x, color.y, brightness);
+    }
+
+    /// Convert a color to one that can be used by the conrod ui
+    pub fn to_conrod_color(color: &Point3<f32>) -> Color {
+        Color::from(Color::Rgba(color.x, color.y, color.z, 1.0))
     }
 }
