@@ -18,7 +18,6 @@ clap = "^2.33.1"
 kiss3d = { path = '../kiss3d', features = ['conrod']}
 nalgebra = "*"
 gl = "0.14"
-image = "*"
 # Used for generarting random points
 rand = "^0.7"
 rand_distr = "*"
