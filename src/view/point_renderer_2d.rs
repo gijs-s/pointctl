@@ -124,13 +124,19 @@ impl PointRenderer2D {
         self.visible = true;
     }
 
-    // Set the point size
+    /// Set the point size
     pub fn set_point_size(&mut self, point_size: f32) {
         self.point_size = point_size;
     }
 
+    /// Set the blob size of for the continous rendering
     pub fn set_blob_size(&mut self, blob_size: f32) {
         self.blob_size = blob_size
+    }
+
+    /// Get the blob size used for the continous rendering
+    pub fn get_blob_size(&self) -> f32 {
+        self.blob_size
     }
 
     // Retrieve the number of points
@@ -144,6 +150,53 @@ impl PointRenderer2D {
             RenderMode::Continuous => RenderMode::Discreet,
         }
     }
+
+    /// Generate a 256 x 256 blob texture with only the alpha channel encoded.
+    fn generate_raw_texture() -> Vec<u8> {
+        // Variables used to draw the blob
+        let texture_size = 256;
+        let (center_x, center_y) = (texture_size / 2, texture_size / 2);
+        let point_size = 2f32;
+        let radius = 126f32;
+
+        let mut texture = vec![0u8; texture_size * texture_size * 4];
+        for y in 0..texture_size {
+            for x in 0..texture_size {
+                // Get the index of the color in the array
+                let index_color = x + (y * texture_size);
+                // Each color contains 4 bytes, r, g, b and a. Here we only need
+                // to set the alpha channel.
+                let index_byte = index_color * 4 + 3;
+
+                // Calculate the euclidean distance to the center
+                let distance_to_center = {
+                    let dx = (x as f32) - (center_x as f32);
+                    let dy = (y as f32) - (center_y as f32);
+                    (dx * dx + dy * dy).sqrt()
+                };
+
+                // Based on the distance calculate the alpha
+                let alpha = match distance_to_center {
+                    // If the distance it very small we just max the alpha
+                    distance if distance < point_size => 255u8,
+                    // If the distance falls out of the radius the alpha will be 0
+                    distance if distance > radius => 0u8,
+                    // Interasting case, calculate the alpha gradient based on the distance to the center.
+                    distance => {
+                        // The normalized distance to the edge (0..1)
+                        let normalized_distance = (radius - distance) / radius;
+                        (normalized_distance * normalized_distance * 256f32) as u8
+                    }
+                };
+
+                // Set the correct alpha value for that point
+                texture[index_byte] = alpha;
+            }
+        }
+        texture
+    }
+
+    /// Generate and load a texture for the blobs onto the GPU
 
     pub fn load_texture() -> Texture {
         let ctxt = Context::get();
@@ -161,25 +214,18 @@ impl PointRenderer2D {
         verify!(ctxt.bind_texture(Context::TEXTURE_2D, Some(&texture)));
 
         // Load in a image containing a static blob alpha map
-        // TODO: Generate this image programmatically. Easier se than done though because
-        // of the variable lifetimes.
-        match image::open(&Path::new("resources/blob2.png")).expect("Failed to load texture") {
-            DynamicImage::ImageRgba8(img) => {
-                verify!(ctxt.tex_image2d(
-                    Context::TEXTURE_2D,
-                    0,
-                    Context::RGBA as i32,
-                    img.width() as i32,
-                    img.height() as i32,
-                    0,
-                    Context::RGBA,
-                    Some(&img.into_raw()[..])
-                ));
-            }
-            _ => {
-                panic!("'resources/blob2.png' is not an RGBA image.");
-            }
-        }
+        let data = PointRenderer2D::generate_raw_texture();
+        let (width, height) = (256 as i32, 256 as i32);
+        verify!(ctxt.tex_image2d(
+            Context::TEXTURE_2D,
+            0,
+            Context::RGBA as i32,
+            width,
+            height,
+            0,
+            Context::RGBA,
+            Some(&data[..])
+        ));
 
         // Set the correct texture parameters.
         let settings = vec![
