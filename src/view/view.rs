@@ -108,16 +108,18 @@ impl VisualizationState3D {
             point_renderer.push(p, color);
         }
 
+
+        let nn_distance = IndexedPoint3D::find_average_nearest_neightbor_distance(&rtree);
+        // point_renderer.set_blob_size((nn_distance.powi(2) * 2.0).sqrt());
+        point_renderer.set_blob_size(nn_distance);
+
+
         VisualizationState3D {
             camera: VisualizationState3D::get_default_camera(),
             tree: rtree,
             renderer: point_renderer,
             color_map: color_map,
         }
-    }
-
-    fn find_average_nearest_neightbor_distance(&self) -> f32 {
-        unimplemented!()
     }
 
     fn get_default_camera() -> ArcBall {
@@ -179,13 +181,16 @@ impl VisualizationState2D {
                 y: point.y,
             })
             .collect();
+        // Initialize the search tree
         self.tree =
             RTree::<IndexedPoint2D, RTreeParameters2D>::bulk_load_with_params(indexed_points);
-        // Initilaize the color map
+
+        // Initialize the color map
         self.color_map = ColorMap::from_explanations(&explanations, 30);
 
         // Ensure the renderer is empty.
         self.renderer.clear();
+
         // Then add all the points.
         for (&p, e) in points.iter().zip(explanations) {
             let color = color_map.get_color(e.attribute_index, e.confidence);
@@ -193,32 +198,10 @@ impl VisualizationState2D {
         }
 
         // TODO: Is this even correct?
-        let nn_distance = self.find_average_nearest_neightbor_distance();
-        // println!("Average nn distance {:}", nn_distance);
-        self.renderer.set_blob_size(nn_distance.sqrt());
+        let nn_distance = IndexedPoint2D::find_average_nearest_neightbor_distance(&self.tree);
+        self.renderer.set_blob_size((nn_distance.powi(2) * 2.0).sqrt());
 
         self.initialized = true;
-    }
-
-    /// Find the average first nearest neighbor distance over all the points.
-    fn find_average_nearest_neightbor_distance(&self) -> f32 {
-        let mut res = Vec::<f32>::new();
-        for query_point in self.tree.iter() {
-            // Get the second nearest neighbor from the query point, the first will be itself.
-            let &nn = self
-                .tree
-                .nearest_neighbor_iter(&[query_point.x, query_point.y])
-                .take(2)
-                .skip(1)
-                .collect::<Vec<&IndexedPoint2D>>()
-                .first()
-                .expect("Could not get nearest neighbor");
-
-            let dist = query_point.distance_2(&[nn.x, nn.y]);
-            res.push(dist);
-        }
-        let average = res.iter().sum::<f32>() / (res.len() as f32);
-        (average.powi(2) * 2.0).sqrt()
     }
 
     // TODO: Get a good camera that just views all the points

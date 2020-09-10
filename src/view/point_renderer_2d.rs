@@ -14,7 +14,7 @@ use na::{Matrix3, Point2, Point3};
 use std::path::Path;
 
 // Internal
-use super::{marcos, RenderMode};
+use super::{marcos, texture_creation::load_texture, RenderMode};
 
 /// 2D
 pub struct PointRenderer2D {
@@ -32,6 +32,7 @@ pub struct PointRenderer2D {
     colors_vec: GPUVec<Point3<f32>>,
     // Normal variables
     alpha_texture: Texture,
+    gamma: f32,
     point_size: f32,
     blob_size: f32,
     visible: bool,
@@ -72,10 +73,12 @@ impl PointRenderer2D {
             // Shader itself
             shader,
             // GL variables
+            gamma: 2.0,
             point_size: 4.0,
             blob_size: 1.0,
+            // Variable to set when skipping all rendering while keeping data loaded.
             visible: true,
-            alpha_texture: PointRenderer2D::load_texture(),
+            alpha_texture: load_texture(),
             render_mode: RenderMode::Discreet,
         }
     }
@@ -129,8 +132,8 @@ impl PointRenderer2D {
     }
 
     /// Set the blob size of for the continous rendering
-    pub fn set_blob_size(&mut self, blob_size: f32) {
-        self.blob_size = blob_size
+    pub fn set_blob_size(&mut self, size: f32) {
+        self.blob_size = size
     }
 
     /// Get the blob size used for the continous rendering
@@ -147,98 +150,7 @@ impl PointRenderer2D {
         self.render_mode = match self.render_mode {
             RenderMode::Discreet => RenderMode::Continuous,
             RenderMode::Continuous => RenderMode::Discreet,
-        }
-    }
-
-    /// Generate a 256 x 256 blob texture with only the alpha channel encoded.
-    fn generate_raw_texture() -> Vec<u8> {
-        // Variables used to draw the blob
-        let texture_size = 256;
-        let (center_x, center_y) = (texture_size / 2, texture_size / 2);
-        let point_size = 2f32;
-        let radius = 126f32;
-
-        let mut texture = vec![0u8; texture_size * texture_size * 4];
-        for y in 0..texture_size {
-            for x in 0..texture_size {
-                // Get the index of the color in the array
-                let index_color = x + (y * texture_size);
-                // Each color contains 4 bytes, r, g, b and a. Here we only need
-                // to set the alpha channel.
-                let index_byte = index_color * 4 + 3;
-
-                // Calculate the euclidean distance to the center
-                let distance_to_center = {
-                    let dx = (x as f32) - (center_x as f32);
-                    let dy = (y as f32) - (center_y as f32);
-                    (dx * dx + dy * dy).sqrt()
-                };
-
-                // Based on the distance calculate the alpha
-                let alpha = match distance_to_center {
-                    // If the distance it very small we just max the alpha
-                    distance if distance < point_size => 255u8,
-                    // If the distance falls out of the radius the alpha will be 0
-                    distance if distance > radius => 0u8,
-                    // Interasting case, calculate the alpha gradient based on the distance to the center.
-                    distance => {
-                        // The normalized distance to the edge (0..1)
-                        let normalized_distance = (radius - distance) / radius;
-                        (normalized_distance * normalized_distance * 256f32) as u8
-                    }
-                };
-
-                // Set the correct alpha value for that point
-                texture[index_byte] = alpha;
-            }
-        }
-        texture
-    }
-
-    /// Generate and load a texture for the blobs onto the GPU
-
-    pub fn load_texture() -> Texture {
-        let ctxt = Context::get();
-
-        // Is this correct?
-        verify!(ctxt.active_texture(Context::TEXTURE1));
-        verify!(ctxt.pixel_storei(Context::UNPACK_ALIGNMENT, 1));
-
-        // Assign a index for the texture
-        let texture = verify!(ctxt
-            .create_texture()
-            .expect("Alpha texture creation failed."));
-
-        // All following actions need to be preformed on the texture we just created.
-        verify!(ctxt.bind_texture(Context::TEXTURE_2D, Some(&texture)));
-
-        // Load in a image containing a static blob alpha map
-        let data = PointRenderer2D::generate_raw_texture();
-        let (width, height) = (256 as i32, 256 as i32);
-        verify!(ctxt.tex_image2d(
-            Context::TEXTURE_2D,
-            0,
-            Context::RGBA as i32,
-            width,
-            height,
-            0,
-            Context::RGBA,
-            Some(&data[..])
-        ));
-
-        // Set the correct texture parameters.
-        let settings = vec![
-            (Context::TEXTURE_WRAP_S, Context::CLAMP_TO_EDGE as i32),
-            (Context::TEXTURE_WRAP_T, Context::CLAMP_TO_EDGE as i32),
-            (Context::TEXTURE_MIN_FILTER, Context::LINEAR as i32),
-            (Context::TEXTURE_MAG_FILTER, Context::LINEAR as i32),
-        ];
-        for (pname, param) in settings {
-            verify!(ctxt.tex_parameteri(Context::TEXTURE_2D, pname, param));
-        }
-
-        // Return the created texture
-        texture
+        };
     }
 }
 
@@ -256,7 +168,7 @@ impl PlanarRenderer for PointRenderer2D {
         self.pos_attribute.enable();
         self.color_attribute.enable();
 
-        // Camera settings
+        // Load the current camera position to the shader
         camera.upload(&mut self.proj_uniform, &mut self.view_uniform);
 
         // Set the texture
@@ -277,19 +189,25 @@ impl PlanarRenderer for PointRenderer2D {
                 // set the correct render mode in the shader.
                 self.render_mode_uniform.upload(&0);
 
+                // Set the point size
+                ctxt.point_size(self.point_size);
+
                 // Draw the first point of all the triangle sets, hence the stride of 5
                 self.pos_attribute
                     .bind_sub_buffer(&mut self.points_vec, 5, 0);
                 self.color_attribute
                     .bind_sub_buffer(&mut self.colors_vec, 5, 0);
 
-                verify!(ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32));
+                verify!(ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32 / 6));
             }
             RenderMode::Continuous => {
                 // set the correct render mode in the shader.
                 self.render_mode_uniform.upload(&1);
 
-                // Bind the buffers with daa to all the shader attributes
+                // Set the point size to 1
+                ctxt.point_size(1.0f32);
+
+                // Bind the buffers with data to all the shader attributes
                 self.pos_attribute
                     .bind_sub_buffer(&mut self.points_vec, 0, 0);
                 self.color_attribute
@@ -318,8 +236,8 @@ impl PlanarRenderer for PointRenderer2D {
 
 const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
     // Input to this shader
-    in vec2 position;
-    in vec3 color;
+    layout (location = 0) in vec2 position;
+    layout (location = 1) in vec3 color;
 
     // Uniform variables over all the inputs
     uniform mat3 proj;
@@ -388,8 +306,10 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
     void render_continuos() {
         // Get the offset to one of the triangle corners
         vec2 offset_position = position + getOffset();
+
         // Get the projected triangle corner position
         vec3 projected_pos = proj * view * vec3(offset_position, 1.0);
+
         // We set the z to 0 to draw all points along a plane.
         projected_pos.z = 0.0;
 
@@ -424,8 +344,8 @@ const FRAGMENT_SHADER_SRC_2D: &'static str = "#version 460
     in vec2 TextureCoordinate;
 
     // Uniform variables over all the inputs
-    uniform sampler2D alphaTexture;
     uniform int renderMode;
+    uniform sampler2D alphaTexture;
 
     // output color
     layout( location = 0 ) out vec4 FragColor;

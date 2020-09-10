@@ -14,7 +14,7 @@ use kiss3d::{
 use na::{Matrix3, Matrix4, Point2, Point3};
 
 // Internal
-use super::{marcos, RenderMode};
+use super::{marcos, texture_creation::load_texture, RenderMode};
 use crate::view::color_map::ColorMap;
 
 /// 3D
@@ -25,15 +25,19 @@ pub struct PointRenderer3D {
     pos_attribute: ShaderAttribute<Point3<f32>>,
     color_attribute: ShaderAttribute<Point3<f32>>,
     // Shader uniform
-    view_uniform: ShaderUniform<Matrix4<f32>>,
     proj_uniform: ShaderUniform<Matrix4<f32>>,
+    view_uniform: ShaderUniform<Matrix4<f32>>,
+    alpha_texture_uniform: ShaderUniform<i32>,
+    render_mode_uniform: ShaderUniform<i32>,
+    blob_size_uniform: ShaderUniform<f32>,
     // Data allocation
     points: GPUVec<Point3<f32>>,
     // Normal variables
-    point_size: f32,
+    alpha_texture: Texture,
     gamma: f32,
+    point_size: f32,
+    blob_size: f32,
     visible: bool,
-    splat_size: f32,
     pub render_mode: RenderMode,
 }
 
@@ -53,22 +57,30 @@ impl PointRenderer3D {
             color_attribute: shader
                 .get_attrib::<Point3<f32>>("color")
                 .expect("Failed to get 'color' shader attribute."),
-            view_uniform: shader
-                .get_uniform::<Matrix4<f32>>("view")
-                .expect("Failed to get 'view' shader attribute."),
             proj_uniform: shader
                 .get_uniform::<Matrix4<f32>>("proj")
                 .expect("Failed to get 'proj' shader attribute."),
+            view_uniform: shader
+                .get_uniform::<Matrix4<f32>>("view")
+                .expect("Failed to get 'view' shader attribute."),
+            blob_size_uniform: shader
+                .get_uniform("blobSize")
+                .expect("Failed to get 'blobSize' uniform shader attribute"),
+            alpha_texture_uniform: shader
+                .get_uniform("alphaTexture")
+                .expect("Failed to get 'alphaTexture' uniform shader attribute"),
+            render_mode_uniform: shader
+                .get_uniform("renderMode")
+                .expect("Failed to get 'renderMode' uniform shader attribute"),
             // Shader itself
             shader,
-            // GL variables
+            // GL variables with default values
+            gamma: 2.0,
             point_size: 4.0,
-            // Gamma variable
-            gamma: 1.0,
+            blob_size: 1.0,
             // Variable to set when skipping all rendering while keeping data loaded.
             visible: true,
-            // The size of all splats (normaly the average distance to the nearest neighbor)
-            splat_size: 1.0,
+            alpha_texture: load_texture(),
             render_mode: RenderMode::Discreet,
         }
     }
@@ -76,8 +88,10 @@ impl PointRenderer3D {
     /// Insert a single point with a color
     pub fn push(&mut self, point: Point3<f32>, color: Point3<f32>) {
         for points_buffer in self.points.data_mut().iter_mut() {
-            points_buffer.push(point);
-            points_buffer.push(color);
+            for _ in 0..6 {
+                points_buffer.push(point);
+                points_buffer.push(color);
+            }
         }
     }
 
@@ -85,9 +99,10 @@ impl PointRenderer3D {
     pub fn batch_insert(&mut self, points_x_colors: Vec<(Point3<f32>, Point3<f32>)>) {
         for points_buffer in self.points.data_mut().iter_mut() {
             for &(point, color) in points_x_colors.iter() {
-                // TODO: Add three points per point, size based on continuous drop off.
-                points_buffer.push(point);
-                points_buffer.push(color);
+                for _ in 0..6 {
+                    points_buffer.push(point);
+                    points_buffer.push(color);
+                }
             }
         }
     }
@@ -128,24 +143,32 @@ impl PointRenderer3D {
         self.gamma = gamma;
     }
 
+    /// Get the gamma which will be used to next render loop
+    pub fn get_gamma(&self) -> f32 {
+        self.gamma
+    }
+
     /// Set the splat size
-    // TODO: Redraw all the points with new splat size
-    pub fn set_splat_size(&mut self, size: f32) {
-        // TODO: Redraw all the points
-        self.splat_size = size;
+    pub fn set_blob_size(&mut self, size: f32) {
+        self.blob_size = size;
+    }
+
+    /// Get the blob size used for the continous rendering
+    pub fn get_blob_size(&self) -> f32 {
+        self.blob_size
     }
 
     // Retrieve the number of points
     pub fn num_points(&self) -> usize {
+        // Points and colours are interleaved so we divide by 2
         self.points.len() / 2
     }
 
     pub fn switch_rendering_mode(&mut self) {
-        println!("Switching render mode in 3D is not yet supported");
-        // self.render_mode = match self.render_mode {
-        //     RenderMode::Discreet => RenderMode::Continuous,
-        //     RenderMode::Continuous => RenderMode::Discreet,
-        // }
+        self.render_mode = match self.render_mode {
+            RenderMode::Discreet => RenderMode::Continuous,
+            RenderMode::Continuous => RenderMode::Discreet,
+        };
     }
 }
 
@@ -163,10 +186,14 @@ impl Renderer for PointRenderer3D {
         self.pos_attribute.enable();
         self.color_attribute.enable();
 
+        // Load the current camera position to the shader
         camera.upload(pass, &mut self.proj_uniform, &mut self.view_uniform);
 
-        self.color_attribute.bind_sub_buffer(&mut self.points, 1, 1);
-        self.pos_attribute.bind_sub_buffer(&mut self.points, 1, 0);
+        // Set the texture
+        self.alpha_texture_uniform.upload(&1);
+
+        // Set the blob size and point size
+        self.blob_size_uniform.upload(&self.blob_size);
 
         let ctxt = Context::get();
 
@@ -174,24 +201,56 @@ impl Renderer for PointRenderer3D {
         verify!(ctxt.enable(Context::BLEND));
         verify!(ctxt.blend_func(Context::SRC_ALPHA, Context::ONE_MINUS_SRC_ALPHA));
 
-        // Set the point size
-        ctxt.point_size(self.point_size);
+        match self.render_mode {
+            RenderMode::Discreet => {
+                // set the correct render mode in the shader.
+                self.render_mode_uniform.upload(&0);
 
-        // TODO: Instead of drawing a series of points each point should a billboard center.
-        // http://www.opengl-tutorial.org/intermediate-tutorials/billboards-particles/billboards/
-        // https://solarianprogrammer.com/2013/05/17/opengl-101-textures/
-        ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32);
+                // Set the point size
+                ctxt.point_size(self.point_size);
+
+                // The points and colours are interleaved in the same buffer
+                self.pos_attribute.bind_sub_buffer(&mut self.points, 11, 0);
+                self.color_attribute
+                    .bind_sub_buffer(&mut self.points, 11, 1);
+
+                ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32 / 6);
+            }
+            RenderMode::Continuous => {
+                // set the correct render mode in the shader.
+                self.render_mode_uniform.upload(&1);
+
+                // Set the point size to 1
+                ctxt.point_size(1.0f32);
+
+                // The points and colours are interleaved in the same buffer
+                self.pos_attribute.bind_sub_buffer(&mut self.points, 1, 0);
+                self.color_attribute.bind_sub_buffer(&mut self.points, 1, 1);
+
+                // Set the correct drawing method of the polygons
+                let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));
+
+                // Upload the alpha texture to the shader
+                verify!(ctxt.bind_texture(Context::TEXTURE_2D, Some(&self.alpha_texture)));
+
+                // Actually draw the textured polygons. Each point is split represented by
+                // 2 textured triangles.
+                verify!(ctxt.draw_arrays(Context::TRIANGLES, 0, self.num_points() as i32));
+            }
+        }
+
+        // Disable the blending again.
+        verify!(ctxt.disable(Context::BLEND));
 
         self.pos_attribute.disable();
         self.color_attribute.disable();
     }
 }
 
-/// Turn into blobs using: https://community.khronos.org/t/geometry-shader-point-sprite-to-sphere/63015
-/// Easily turned into a discreet point again with a radius of 0 and a intensity drop of of 0.
-///
-/// The vertex shader still need the following parameters:
-///  - uniform float gamma
+/// The continous rendering needs work, if found the following resources that might be interesting:
+/// - https://community.khronos.org/t/geometry-shader-point-sprite-to-sphere/63015
+/// - http://www.opengl-tutorial.org/intermediate-tutorials/billboards-particles/billboards/
+/// - https://solarianprogrammer.com/2013/05/17/opengl-101-textures/
 
 /// Vertex shader used by the point renderer
 const VERTEX_SHADER_SRC_3D: &'static str = "#version 460
@@ -202,27 +261,84 @@ const VERTEX_SHADER_SRC_3D: &'static str = "#version 460
     // Uniform variables for all vertices.
     uniform mat4 proj;
     uniform mat4 view;
+    uniform float blobSize;
+    uniform int renderMode;
 
     // Passed on to the rest of the shader pipeline
+    out vec2 TextureCoordinate;
     out vec3 PointColor;
 
-    // Transfrom a HSV color to an RGB color
-    // Here all components are in the range [0…1], including hue.
-    vec3 hsv2rgb(vec3 c)
-    {
-        vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-        vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-        return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+    // Get the texture coordinate
+    vec2 getTextureCoordinate() {
+        float index = mod(gl_VertexID, 3);
+        if (index == 0.0) {
+            return vec2(1.0, 0.0);
+        }
+        if (index == 1.0) {
+            return vec2(0.0, 0.0);
+        }
+        if (index == 2.0) {
+            return vec2(0.0, 1.0);
+        }
     }
 
-    void main() {
-        // Transform the world coordinate to a screen coordinate
-        // change gamma with one, this is just a place holder so it does not
-        // get optimized out.
+    // Get the offset vector.
+    vec2 getOffset() {
+        float scale = blobSize;
+        float negScale = -1.0 * blobSize;
+
+        float index = mod(gl_VertexID, 6);
+        if (index == 0.0) {
+            return vec2(negScale, 0.0);
+        }
+        if (index == 1.0) {
+            return vec2(0.0, scale);
+        }
+        if (index == 2.0) {
+            return vec2(scale, 0.0);
+        }
+        if (index == 3.0) {
+            return vec2(negScale, 0.0);
+        }
+        if (index == 4.0) {
+            return vec2(0.0, negScale);
+        }
+        if (index == 5.0) {
+            return vec2(scale, 0.0);
+        }
+    }
+
+    // Render method used when using the discreet representation
+    void render_discreet() {
+        // Transform the world coordinate to a screen coordinate.
         gl_Position = proj * view * vec4(position, 1.0);
 
         // Make the color and tex coordinate available to the fragment shader.
-        PointColor = hsv2rgb(color);
+        PointColor = color;
+    }
+
+    // Render method used when using the continous representation
+    void render_continuos() {
+        // Get the offset position to one of the triangle cornors
+        // TODO: This now offset is on a 2D plane
+        vec3 offset_position = position + vec3(getOffset(), 0.0);
+
+        // Transform the world coordinate to a screen coordinate.
+        gl_Position = proj * view * vec4(offset_position, 1.0);
+
+        // Make the color and tex coordinate available to the fragment shader.
+        PointColor = color;
+        TextureCoordinate = getTextureCoordinate();
+    }
+
+    void main() {
+        if (renderMode == 0) {
+            render_discreet();
+            return;
+        } else {
+            render_continuos();
+            return;
+        }
     }";
 
 /// Fragment shader used by the point renderer
@@ -235,10 +351,46 @@ const FRAGMENT_SHADER_SRC_3D: &'static str = "#version 460
 
     // input color
     in vec3 PointColor;
+    in vec2 TextureCoordinate;
+
+    // Uniform variables over all the inputs
+    uniform int renderMode;
+    uniform sampler2D alphaTexture;
 
     // output color
     layout( location = 0 ) out vec4 FragColor;
 
+    // Transfrom a HSV color to an RGB color (0..1)
+    vec3 hsv2rgb(vec3 c)
+    {
+        vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+        vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+        return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+    }
+
+    // Discreet render mode, just draw the point.
+    void render_discreet() {
+        vec3 rgb_color = hsv2rgb(PointColor);
+        FragColor = vec4(rgb_color, 1.0);
+    }
+
+    // Continous render mode, here we need to use the texture for the alpha
+    void render_continuos() {
+        // Get alpha from the texture
+        float alpha = texture(alphaTexture, TextureCoordinate).a;
+
+        // Don't even draw the point if the alpha is 0
+        if(alpha == 0.0)
+            discard;
+
+        vec3 rgb_color = hsv2rgb(PointColor);
+        FragColor = vec4(rgb_color, alpha);
+    }
+
     void main() {
-        FragColor = vec4(PointColor, 1.0);
+        if (renderMode == 0){
+            render_discreet();
+        } else {
+            render_continuos();
+        }
     }";
