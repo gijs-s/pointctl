@@ -104,7 +104,6 @@ impl IndexedPoint3D {
             res.push(dist);
         }
         let average = res.iter().sum::<f32>() / (res.len() as f32);
-        println!("Average distance {}", average);
         average
     }
 }

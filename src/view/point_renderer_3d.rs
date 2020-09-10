@@ -319,12 +319,13 @@ const VERTEX_SHADER_SRC_3D: &'static str = "#version 460
 
     // Render method used when using the continous representation
     void render_continuos() {
-        // Get the offset position to one of the triangle cornors
-        // TODO: This now offset is on a 2D plane
-        vec3 offset_position = position + vec3(getOffset(), 0.0);
+        // Get the offset position to one of the triangle corners
+        vec4 offset = vec4(getOffset(), 0.0, 1.0);
+        vec4 position = view * vec4(position, 1.0);
+        vec4 offset_position = position + offset;
 
         // Transform the world coordinate to a screen coordinate.
-        gl_Position = proj * view * vec4(offset_position, 1.0);
+        gl_Position = proj * offset_position;
 
         // Make the color and tex coordinate available to the fragment shader.
         PointColor = color;
