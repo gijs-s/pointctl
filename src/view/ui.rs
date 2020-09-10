@@ -8,8 +8,7 @@ use kiss3d::{
 };
 
 // Internal imports
-use super::view::DimensionalityMode;
-use crate::view::{color_map::ColorMap, view::Scene};
+use crate::view::{color_map::ColorMap, view::Scene, DimensionalityMode};
 
 // Generate a unique `WidgetId` for each widget.
 widget_ids! {
@@ -42,6 +41,7 @@ widget_ids! {
         color_block_7,
         text_dim_other,
         color_block_other,
+        // Settings panel for the current viewer.
     }
 }
 

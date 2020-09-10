@@ -133,10 +133,29 @@ impl PointRenderer3D {
         self.visible = true;
     }
 
-    // Set the point size
+    // Retrieve the number of points
+    pub fn num_points(&self) -> usize {
+        // Points and colours are interleaved so we divide by 2
+        self.points.len() / 2
+    }
+
+    pub fn switch_rendering_mode(&mut self) {
+        self.render_mode = match self.render_mode {
+            RenderMode::Discreet => RenderMode::Continuous,
+            RenderMode::Continuous => RenderMode::Discreet,
+        };
+    }
+
+    /// Set the point size
     pub fn set_point_size(&mut self, point_size: f32) {
         self.point_size = point_size;
     }
+
+    /// Set the point size
+    pub fn get_point_size(&self) -> f32 {
+        self.point_size
+    }
+
 
     /// Set the gamma which will be used to next render loop
     pub fn set_gamma(&mut self, gamma: f32) {
@@ -156,19 +175,6 @@ impl PointRenderer3D {
     /// Get the blob size used for the continous rendering
     pub fn get_blob_size(&self) -> f32 {
         self.blob_size
-    }
-
-    // Retrieve the number of points
-    pub fn num_points(&self) -> usize {
-        // Points and colours are interleaved so we divide by 2
-        self.points.len() / 2
-    }
-
-    pub fn switch_rendering_mode(&mut self) {
-        self.render_mode = match self.render_mode {
-            RenderMode::Discreet => RenderMode::Continuous,
-            RenderMode::Continuous => RenderMode::Discreet,
-        };
     }
 }
 
@@ -247,10 +253,7 @@ impl Renderer for PointRenderer3D {
     }
 }
 
-/// The continous rendering needs work, if found the following resources that might be interesting:
-/// - https://community.khronos.org/t/geometry-shader-point-sprite-to-sphere/63015
-/// - http://www.opengl-tutorial.org/intermediate-tutorials/billboards-particles/billboards/
-/// - https://solarianprogrammer.com/2013/05/17/opengl-101-textures/
+/// The continous rendering needs work. The points are being drawn in an arbirary order, this causes trouble when blending.
 
 /// Vertex shader used by the point renderer
 const VERTEX_SHADER_SRC_3D: &'static str = "#version 460
@@ -335,10 +338,8 @@ const VERTEX_SHADER_SRC_3D: &'static str = "#version 460
     void main() {
         if (renderMode == 0) {
             render_discreet();
-            return;
         } else {
             render_continuos();
-            return;
         }
     }";
 

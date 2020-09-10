@@ -126,21 +126,6 @@ impl PointRenderer2D {
         self.visible = true;
     }
 
-    /// Set the point size
-    pub fn set_point_size(&mut self, point_size: f32) {
-        self.point_size = point_size;
-    }
-
-    /// Set the blob size of for the continous rendering
-    pub fn set_blob_size(&mut self, size: f32) {
-        self.blob_size = size
-    }
-
-    /// Get the blob size used for the continous rendering
-    pub fn get_blob_size(&self) -> f32 {
-        self.blob_size
-    }
-
     // Retrieve the number of points
     pub fn num_points(&self) -> usize {
         self.points_vec.len()
@@ -151,6 +136,36 @@ impl PointRenderer2D {
             RenderMode::Discreet => RenderMode::Continuous,
             RenderMode::Continuous => RenderMode::Discreet,
         };
+    }
+
+    /// Set the point size
+    pub fn set_point_size(&mut self, point_size: f32) {
+        self.point_size = point_size;
+    }
+
+    /// Set the point size
+    pub fn get_point_size(&self) -> f32 {
+        self.point_size
+    }
+
+    /// Set the gamma which will be used to next render loop
+    pub fn set_gamma(&mut self, gamma: f32) {
+        self.gamma = gamma;
+    }
+
+    /// Get the gamma which will be used to next render loop
+    pub fn get_gamma(&self) -> f32 {
+        self.gamma
+    }
+
+    /// Set the blob size of for the continous rendering
+    pub fn set_blob_size(&mut self, size: f32) {
+        self.blob_size = size
+    }
+
+    /// Get the blob size used for the continous rendering
+    pub fn get_blob_size(&self) -> f32 {
+        self.blob_size
     }
 }
 
@@ -324,10 +339,8 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
     void main() {
         if (renderMode == 0) {
             render_discreet();
-            return;
         } else {
             render_continuos();
-            return;
         }
     }";
 
