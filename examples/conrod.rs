@@ -2,20 +2,14 @@
 extern crate kiss3d;
 extern crate nalgebra as na;
 
+#[allow(unused_imports)]
 use kiss3d::conrod::color::{Color, Colorable};
-use kiss3d::conrod::position::{Positionable, Sizeable};
-use kiss3d::conrod::widget::{button::Style, Button, Text, Widget};
-use kiss3d::conrod::Labelable;
 
 use kiss3d::conrod;
 use kiss3d::light::Light;
-use kiss3d::scene::SceneNode;
 use kiss3d::window::{State, Window};
-use na::{Point3, UnitQuaternion, Vector3};
 
 struct AppState {
-    c: SceneNode,
-    rot: UnitQuaternion<f32>,
     ids: Ids,
     app: DemoApp,
 }
@@ -40,14 +34,12 @@ fn main() {
 
     window.set_light(Light::StickToCamera);
 
-    let rot = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), 0.014);
-
     // Generate the widget identifiers.
     let ids = Ids::new(window.conrod_ui_mut().widget_id_generator());
     let app = DemoApp::new();
     window.conrod_ui_mut().theme = theme();
 
-    let state = AppState { c, rot, ids, app };
+    let state = AppState { ids, app };
 
     window.render_loop(state)
 }
@@ -283,7 +275,6 @@ pub fn gui(ui: &mut conrod::UiCell, ids: &Ids, app: &mut DemoApp) {
         .font_size(SUBTITLE_SIZE)
         .set(ids.image_title, ui);
 
-    const LOGO_SIDE: conrod::Scalar = 144.0;
     //    widget::Image::new(app.rust_logo)
     //        .w_h(LOGO_SIDE, LOGO_SIDE)
     //        .down(60.0)
