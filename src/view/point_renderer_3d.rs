@@ -14,10 +14,8 @@ use kiss3d::{
 use na::{Matrix3, Matrix4, Point2, Point3};
 
 // Internal
-use super::{marcos, texture_creation::load_texture, RenderMode};
+use super::{marcos, texture_creation::load_texture, RenderMode, PointRendererInteraction};
 use crate::view::color_map::ColorMap;
-
-/// 3D
 pub struct PointRenderer3D {
     // The shader itself
     shader: Effect,
@@ -35,14 +33,15 @@ pub struct PointRenderer3D {
     // Normal variables
     alpha_texture: Texture,
     gamma: f32,
-    point_size: f32,
-    blob_size: f32,
+    // Tuple that in the first element stores the current value and in the second the initial value.
+    point_size: (f32, f32),
+    blob_size: (f32, f32),
     visible: bool,
     pub render_mode: RenderMode,
 }
 
 impl PointRenderer3D {
-    pub fn new() -> PointRenderer3D {
+    pub fn new(default_point_size: f32, default_blob_size: f32) -> PointRenderer3D {
         let mut shader = Effect::new_from_str(VERTEX_SHADER_SRC_3D, FRAGMENT_SHADER_SRC_3D);
         shader.use_program();
 
@@ -76,8 +75,8 @@ impl PointRenderer3D {
             shader,
             // GL variables with default values
             gamma: 2.0,
-            point_size: 4.0,
-            blob_size: 1.0,
+            point_size: (default_point_size, default_point_size),
+            blob_size: (default_blob_size, default_blob_size),
             // Variable to set when skipping all rendering while keeping data loaded.
             visible: true,
             alpha_texture: load_texture(),
@@ -138,45 +137,70 @@ impl PointRenderer3D {
         // Points and colours are interleaved so we divide by 2
         self.points.len() / 2
     }
+}
 
-    pub fn switch_rendering_mode(&mut self) {
-        self.render_mode = match self.render_mode {
-            RenderMode::Discreet => RenderMode::Continuous,
-            RenderMode::Continuous => RenderMode::Discreet,
-        };
+impl PointRendererInteraction for PointRenderer3D {
+    /// Switch the rendering mode.
+    fn switch_render_mode(&mut self) {
+        self.render_mode = self.render_mode.inverse();
     }
 
-    /// Set the point size
-    pub fn set_point_size(&mut self, point_size: f32) {
-        self.point_size = point_size;
+    /// Retrieve the current render mode
+    fn get_current_render_mode(&self) -> RenderMode {
+        self.render_mode
     }
-
-    /// Set the point size
-    pub fn get_point_size(&self) -> f32 {
-        self.point_size
-    }
-
 
     /// Set the gamma which will be used to next render loop
-    pub fn set_gamma(&mut self, gamma: f32) {
+    fn set_gamma(&mut self, gamma: f32) {
         self.gamma = gamma;
     }
 
     /// Get the gamma which will be used to next render loop
-    pub fn get_gamma(&self) -> f32 {
+    fn get_gamma(&self) -> f32 {
         self.gamma
     }
 
-    /// Set the splat size
-    pub fn set_blob_size(&mut self, size: f32) {
-        self.blob_size = size;
+    /// Set the point size
+    fn set_point_size(&mut self, size: f32) {
+        self.point_size.0 = size;
+    }
+
+    /// Set the point size
+    fn get_point_size(&self) -> f32 {
+        self.point_size.0
+    }
+
+    /// Reset the point size to its initial value
+    fn reset_point_size(&mut self) {
+        self.point_size.0 = self.point_size.1;
+    }
+
+    /// Get the initial point size
+    fn get_default_point_size(&self) -> f32 {
+        self.point_size.1
+    }
+
+    /// Set the blob size used for continous rendering
+    fn set_blob_size(&mut self, size: f32) {
+        self.blob_size.0 = size;
     }
 
     /// Get the blob size used for the continous rendering
-    pub fn get_blob_size(&self) -> f32 {
-        self.blob_size
+    fn get_blob_size(&self) -> f32 {
+        self.blob_size.0
+    }
+
+    /// Reset the blob size used for continous rendering
+    fn reset_blob_size(&mut self) {
+        self.blob_size.0 = self.blob_size.1;
+    }
+
+    /// Get initial blob size used for continous rendering
+    fn get_default_blob_size(&self) -> f32 {
+        self.blob_size.1
     }
 }
+
 
 impl Renderer for PointRenderer3D {
     /// Actually draws the points.
@@ -199,7 +223,7 @@ impl Renderer for PointRenderer3D {
         self.alpha_texture_uniform.upload(&1);
 
         // Set the blob size and point size
-        self.blob_size_uniform.upload(&self.blob_size);
+        self.blob_size_uniform.upload(&self.get_blob_size());
 
         let ctxt = Context::get();
 
@@ -213,7 +237,7 @@ impl Renderer for PointRenderer3D {
                 self.render_mode_uniform.upload(&0);
 
                 // Set the point size
-                ctxt.point_size(self.point_size);
+                ctxt.point_size(self.get_point_size());
 
                 // The points and colours are interleaved in the same buffer
                 self.pos_attribute.bind_sub_buffer(&mut self.points, 11, 0);

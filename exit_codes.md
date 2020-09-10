@@ -15,3 +15,4 @@ In an ideal world the program never panics and always returns a exit code.
 | 15 | Dimensionality of the reduced data is not supported |
 | 2x | Error writing data |
 | 3x | Error processing data |
+| 41 | Program entered an invalid state |

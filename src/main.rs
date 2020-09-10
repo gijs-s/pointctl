@@ -324,9 +324,9 @@ fn view_command(matches: &ArgMatches) {
 
     display(
         original_points,
-        clean_reduced_points,
-        explanations_3d,
         reduced_points_2d,
         explanations_2d,
+        Some(clean_reduced_points),
+        Some(explanations_3d),
     );
 }

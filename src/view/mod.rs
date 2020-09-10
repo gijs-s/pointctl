@@ -56,3 +56,34 @@ impl DimensionalityMode {
         }
     }
 }
+
+pub trait PointRendererInteraction {
+    /// Switch between continous and discreet rendering
+    fn switch_render_mode(&mut self);
+    /// Retrieve current rendering mode
+    fn get_current_render_mode(&self) -> RenderMode;
+
+    /// Get the gamma which will be used to next render loop
+    fn get_gamma(&self) -> f32;
+    /// Set the gamma which will be used to next render loop
+    fn set_gamma(&mut self, gamma: f32);
+
+    /// Get/set the point size used in the discreet rendering
+    fn get_point_size(&self) -> f32;
+    /// Set the point size used in the discreet rendering
+    fn set_point_size(&mut self, size: f32);
+    /// Reset the point size back to its initial value
+    fn reset_point_size(&mut self);
+    /// Retrieve the point size's initial value
+    fn get_default_point_size(&self) -> f32;
+
+    /// Get the blob size used in the continous rendering
+    fn get_blob_size(&self) -> f32;
+    /// Set the blob size used in the continous rendering
+    fn set_blob_size(&mut self, size: f32);
+    /// Reset the blob size back to its initial value
+    fn reset_blob_size(&mut self);
+    /// Retrieve the blob size's initial value
+    fn get_default_blob_size(&self) -> f32;
+
+}

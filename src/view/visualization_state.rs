@@ -40,10 +40,11 @@ pub struct VisualizationState3D {
 }
 
 impl VisualizationState3D {
+    /// Create the visualizer with actual data.
     pub fn new(
         points: Vec<Point3<f32>>,
         explanations: Vec<DaSilvaExplanation>,
-        color_map: ColorMap,
+        original_points: &Vec<PointN>,
     ) -> VisualizationState3D {
         // Create the tree
         let indexed_points: Vec<IndexedPoint3D> = points
@@ -59,18 +60,20 @@ impl VisualizationState3D {
         let rtree =
             RTree::<IndexedPoint3D, RTreeParameters3D>::bulk_load_with_params(indexed_points);
 
+        let nn_distance = IndexedPoint3D::find_average_nearest_neightbor_distance(&rtree);
+        // We draw the blob within a square, to ensure the drawn blob has radius of nn_distance we need to correct it.
+        let corrected_distance = (nn_distance.powi(2) * 2.0).sqrt();
+
+        // Create the colour map
+        let dimension_count = original_points.first().unwrap().len();
+        let color_map = ColorMap::from_explanations(&explanations, dimension_count);
+
         // Create the renderer and add all the points:
-        let mut point_renderer = PointRenderer3D::new();
+        let mut point_renderer = PointRenderer3D::new(4.0, corrected_distance);
         for (&p, e) in points.iter().zip(explanations) {
             let color = color_map.get_color(e.attribute_index, e.confidence);
             point_renderer.push(p, color);
         }
-
-
-        let nn_distance = IndexedPoint3D::find_average_nearest_neightbor_distance(&rtree);
-        // point_renderer.set_blob_size((nn_distance.powi(2) * 2.0).sqrt());
-        point_renderer.set_blob_size(nn_distance);
-
 
         VisualizationState3D {
             camera: VisualizationState3D::get_default_camera(),
@@ -99,37 +102,14 @@ pub struct VisualizationState2D {
     pub renderer: PointRenderer2D,
     // color map used by the 3D visualizer
     pub color_map: ColorMap,
-    // Used to denote if the 2d data is present. if not than this state will be empty
-    pub initialized: bool,
 }
 
 impl VisualizationState2D {
-    pub fn new_empty() -> VisualizationState2D {
-        VisualizationState2D {
-            camera: VisualizationState2D::get_default_camera(),
-            tree: RTree::<IndexedPoint2D, RTreeParameters2D>::new_with_params(),
-            renderer: PointRenderer2D::new(),
-            color_map: ColorMap::new_dummy(),
-            initialized: false,
-        }
-    }
-
     pub fn new(
         points: Vec<Point2<f32>>,
         explanations: Vec<DaSilvaExplanation>,
-        color_map: ColorMap,
+        original_points: &Vec<PointN>,
     ) -> VisualizationState2D {
-        let mut state = VisualizationState2D::new_empty();
-        state.initialize(points, explanations, color_map);
-        state
-    }
-
-    pub fn initialize(
-        &mut self,
-        points: Vec<Point2<f32>>,
-        explanations: Vec<DaSilvaExplanation>,
-        color_map: ColorMap,
-    ) {
         let indexed_points: Vec<IndexedPoint2D> = points
             .iter()
             .enumerate()
@@ -139,27 +119,34 @@ impl VisualizationState2D {
                 y: point.y,
             })
             .collect();
+
         // Initialize the search tree
-        self.tree =
+        let rtree =
             RTree::<IndexedPoint2D, RTreeParameters2D>::bulk_load_with_params(indexed_points);
 
-        // Initialize the color map
-        self.color_map = ColorMap::from_explanations(&explanations, 30);
+        // Find the blob size based on the average first nearest neighbor distance
+        // We draw the blob within a square, to ensure the drawn blob has radius of nn_distance we need to correct it.
+        let nn_distance = IndexedPoint2D::find_average_nearest_neightbor_distance(&rtree);
+        let corrected_distance = (nn_distance.powi(2) * 2.0).sqrt();
 
-        // Ensure the renderer is empty.
-        self.renderer.clear();
+        // Create the colour map
+        let dimension_count = original_points.first().unwrap().len();
+        let color_map = ColorMap::from_explanations(&explanations, dimension_count);
 
-        // Then add all the points.
+        // Create the point renderer and insert the points
+        let mut point_renderer = PointRenderer2D::new(4.0, corrected_distance);
+
         for (&p, e) in points.iter().zip(explanations) {
             let color = color_map.get_color(e.attribute_index, e.confidence);
-            self.renderer.push(p, color);
+            point_renderer.push(p, color);
         }
 
-        // TODO: Is this even correct?
-        let nn_distance = IndexedPoint2D::find_average_nearest_neightbor_distance(&self.tree);
-        self.renderer.set_blob_size((nn_distance.powi(2) * 2.0).sqrt());
-
-        self.initialized = true;
+        VisualizationState2D {
+            camera: VisualizationState2D::get_default_camera(),
+            tree: rtree,
+            renderer: point_renderer,
+            color_map: color_map,
+        }
     }
 
     // TODO: Get a good camera that just views all the points

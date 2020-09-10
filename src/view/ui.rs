@@ -10,6 +10,8 @@ use kiss3d::{
 // Internal imports
 use crate::view::{color_map::ColorMap, view::Scene, DimensionalityMode};
 
+use super::RenderMode;
+
 // Generate a unique `WidgetId` for each widget.
 widget_ids! {
     pub struct WidgetId {
@@ -17,6 +19,7 @@ widget_ids! {
         text_point_count,
         text_dimensionality,
         text_render_mode,
+        text_error,
         // Buttons
         button_reset,
         button_dimension_switch,
@@ -42,6 +45,8 @@ widget_ids! {
         text_dim_other,
         color_block_other,
         // Settings panel for the current viewer.
+        slider_point_size,
+        slider_blob_size,
     }
 }
 
@@ -50,11 +55,13 @@ const BUTTON_WIDTH: f64 = 144.0f64;
 const BUTTON_HEIGHT: f64 = 22.0f64;
 const COLOR_PREVIEW_SIZE: f64 = 18.0f64;
 /// All the types of event that can happen in the UI.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 enum UIEvents {
     ResetButtonPress,
     DimensionalitySwitch,
     RenderModeSwitch,
+    SetPointSize(f32),
+    SetBlobSize(f32),
 }
 
 /// Draw an overlay in the window of the given scene
@@ -91,6 +98,16 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         .down_from(ids.text_dimensionality, 5.0f64)
         .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
         .set(ids.text_render_mode, &mut ui);
+
+    // Draw error if no data is present
+    if !scene.initialized() {
+        widget::Text::new("No reduction data was loaded, can not display anything\nplease consult 'pointctl --help'")
+            .font_size(FONT_SIZE * 3u32)
+            .middle()
+            .color(Color::Rgba(0.80, 0.33, 0.0, 1.0 ))
+            .set(ids.text_error, &mut ui);
+        return;
+    }
 
     // ###########################################
     // # Draw the color legend in the top right #
@@ -222,12 +239,41 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         queue.push(UIEvents::DimensionalitySwitch)
     }
 
+    match scene.get_current_render_mode() {
+        RenderMode::Discreet => {
+            for point_size in widget::Slider::new(scene.get_point_size(), 1.0, 10.0)
+                .label("Point size")
+                .label_font_size(FONT_SIZE)
+                .bottom_right_with_margin(5.0f64)
+                .set(ids.slider_point_size, &mut ui)
+            {
+                queue.push(UIEvents::SetPointSize(point_size))
+            }
+        }
+        RenderMode::Continuous => {
+            for blob_size in widget::Slider::new(
+                scene.get_blob_size(),
+                scene.get_default_blob_size() / 4f32,
+                scene.get_default_blob_size() * 2f32,
+            )
+            .label("Blob size")
+            .label_font_size(FONT_SIZE)
+            .bottom_right_with_margin(5.0f64)
+            .set(ids.slider_blob_size, &mut ui)
+            {
+                queue.push(UIEvents::SetBlobSize(blob_size))
+            }
+        }
+    };
+
     // Handle all the enqueued events in order.
     for event in queue {
         match event {
             UIEvents::ResetButtonPress => scene.reset_camera(),
             UIEvents::RenderModeSwitch => scene.switch_render_mode(),
             UIEvents::DimensionalitySwitch => scene.switch_dimensionality(),
+            UIEvents::SetPointSize(size) => scene.set_point_size(size),
+            UIEvents::SetBlobSize(size) => scene.set_blob_size(size),
         }
     }
 }
