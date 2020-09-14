@@ -1,10 +1,18 @@
 # What to do!
 
- - [ ] Text overlay using conrod
-    - [ ] Basic text
-    - [ ] Color mapping display
-    - [ ] Buttons
-    - [ ] Gamma slider
+ - [x] UI overlay using conrod
+    - [x] Basic text
+    - [x] Color mapping display
+    - [x] Buttons
+    - [x] Blob / point size slider
+    - [x] Gamma slider
+ - [x] 3D continous with billboarding in vertex shader
  - [ ] Van Driel explanation
- - [ ] 3D continous with billboarding in vertex shader
- - [ ] Point selection
+    - [x] Basic data definition
+    - [ ] Algorithm outline
+    - [ ] Algorithm implementation
+    - [ ] Algorithm tests
+ - [ ] CLI improvements
+    - [ ] Allow starting the program with sparser data -> Add calc button in UI
+ - [ ] Keep the annotations on a per point level, allow switching of color maps.
+ - [ ] Z buffer sorting to fix opacity blending in 3D
