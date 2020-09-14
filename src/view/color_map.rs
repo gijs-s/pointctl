@@ -2,7 +2,7 @@ extern crate nalgebra as na;
 
 // Buildin
 use crate::exp::da_silva::DaSilvaExplanation;
-use kiss3d::conrod::color::{rgb_bytes, Color};
+use kiss3d::conrod::color::{rgb_bytes, Color, Rgba, rgba};
 use na::Point3;
 use std::collections::HashMap;
 
@@ -15,8 +15,6 @@ pub struct ColorMap {
     inverse_map: HashMap<usize, usize>,
     // Min max values for the confidence, used for normalization
     normalization_bounds: (f32, f32),
-    // gamma correction value, static for now
-    gamma: f32,
 }
 
 impl ColorMap {
@@ -37,7 +35,6 @@ impl ColorMap {
             map,
             inverse_map,
             normalization_bounds: (min_confidence, max_confidence),
-            gamma: 2.2,
         }
     }
 
@@ -58,7 +55,6 @@ impl ColorMap {
             map: HashMap::<usize, usize>::new(),
             inverse_map: HashMap::<usize, usize>::new(),
             normalization_bounds: (0.0, 1.0),
-            gamma: 2.2,
         }
     }
 
@@ -130,5 +126,16 @@ impl ColorMap {
             7 => rgb_bytes(166, 86, 40),   // a65628 Crimson brown
             _ => rgb_bytes(153, 153, 153), // 999999 Grey
         }
+    }
+
+    pub fn get_conrod_color_with_gamma(&self, rank: &usize, gamma: f32) -> Color {
+        let color = self.get_conrod_color(&rank);
+        ColorMap::gamma_correct(&color, gamma)
+    }
+
+    pub fn gamma_correct(color: &Color, gamma: f32) -> Color {
+        let scale = 1.0f32 / gamma;
+        let Rgba(r, g, b, a) = color.to_rgb();
+        rgba(r.powf(scale), g.powf(scale), b.powf(scale), a)
     }
 }

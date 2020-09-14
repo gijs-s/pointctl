@@ -3,11 +3,11 @@ pub mod view;
 
 mod marcos;
 
-mod texture_creation;
-mod visualization_state;
 mod point_renderer_2d;
 mod point_renderer_3d;
+mod texture_creation;
 mod ui;
+mod visualization_state;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum RenderMode {
@@ -67,6 +67,12 @@ pub trait PointRendererInteraction {
     fn get_gamma(&self) -> f32;
     /// Set the gamma which will be used to next render loop
     fn set_gamma(&mut self, gamma: f32);
+    /// Reset the gamma
+    fn reset_gamma(&mut self);
+    /// Retrieve the default gamma value, alsmost always 2.2
+    fn get_default_gamma(&self) -> f32 {
+        2.2f32
+    }
 
     /// Get/set the point size used in the discreet rendering
     fn get_point_size(&self) -> f32;
@@ -85,5 +91,4 @@ pub trait PointRendererInteraction {
     fn reset_blob_size(&mut self);
     /// Retrieve the blob size's initial value
     fn get_default_blob_size(&self) -> f32;
-
 }

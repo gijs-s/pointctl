@@ -20,7 +20,7 @@ widget_ids! {
         text_dimensionality,
         text_render_mode,
         text_error,
-        // Buttons
+        // Buttons controlling the viewer
         button_reset,
         button_dimension_switch,
         buttom_render_mode,
@@ -44,11 +44,16 @@ widget_ids! {
         color_block_7,
         text_dim_other,
         color_block_other,
-        // Settings panel for the current viewer.
+        // Settings panel for the current renderer.
+        // - size of the blobs / points
         text_size_slider,
         button_size_reset,
         slider_point_size,
         slider_blob_size,
+        // - gamma slider
+        text_gamma_slider,
+        button_gamma_reset,
+        slider_gamma,
     }
 }
 
@@ -64,6 +69,7 @@ enum UIEvents {
     RenderModeSwitch,
     SetPointSize(f32),
     SetBlobSize(f32),
+    SetGamma(f32),
 }
 
 /// Draw an overlay in the window of the given scene
@@ -126,7 +132,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         return;
     }
 
-    let color = color_map.get_conrod_color(&0usize);
+    let color = color_map.get_conrod_color_with_gamma(&0usize, scene.get_gamma());
     widget::Canvas::new()
         .top_right_with_margin(5.0f64)
         .w(COLOR_PREVIEW_SIZE)
@@ -163,9 +169,11 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         .take(color_map.dimension_count())
         .enumerate()
     {
+        // Enumerate is 0 indexed, so we add 1 to get the correct offset.
         let rank = &index + 1usize;
         // First draw the color preview with the correct color.
-        let color = color_map.get_conrod_color(&rank);
+        let color = color_map.get_conrod_color_with_gamma(&rank, scene.get_gamma());
+
         widget::Canvas::new()
             .down_from(offset_id, 3.0)
             .w(COLOR_PREVIEW_SIZE)
@@ -241,6 +249,38 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         queue.push(UIEvents::DimensionalitySwitch)
     }
 
+    // Settings for the gamma
+    // The gamma slider
+    for gamma in widget::Slider::new(scene.get_gamma(), 1.2, 3.2)
+        .label(&scene.get_gamma().to_string())
+        .label_font_size(FONT_SIZE)
+        .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+        .bottom_right_with_margin(5.0f64)
+        .set(ids.slider_gamma, &mut ui)
+    {
+        queue.push(UIEvents::SetGamma(gamma))
+    }
+
+    // Gamma reset button
+    for _ in widget::Button::new()
+        .label("Reset gamma")
+        .label_font_size(FONT_SIZE - 2)
+        .up_from(ids.slider_gamma, 5.0f64)
+        .w_of(ids.slider_gamma)
+        .h(BUTTON_HEIGHT - 4f64)
+        .set(ids.button_gamma_reset, &mut ui)
+    {
+        queue.push(UIEvents::SetGamma(scene.get_default_gamma()))
+    }
+
+    // Gamma helper text
+    widget::Text::new("Set the gamma:")
+        .font_size(FONT_SIZE)
+        .up_from(ids.button_gamma_reset, 5.0f64)
+        .w_of(ids.button_gamma_reset)
+        .set(ids.text_gamma_slider, &mut ui);
+
+    // Settings for the point size
     match scene.get_current_render_mode() {
         RenderMode::Discreet => {
             for point_size in widget::Slider::new(
@@ -251,7 +291,8 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             .label(&scene.get_point_size().to_string())
             .label_font_size(FONT_SIZE)
             .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-            .bottom_right_with_margin(5.0f64)
+            .h_of(ids.slider_gamma)
+            .up_from(ids.text_gamma_slider, 8.0f64)
             .set(ids.slider_point_size, &mut ui)
             {
                 queue.push(UIEvents::SetPointSize(point_size))
@@ -283,7 +324,8 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             .label(&scene.get_blob_size().to_string())
             .label_font_size(FONT_SIZE)
             .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-            .bottom_right_with_margin(5.0f64)
+            .h_of(ids.slider_gamma)
+            .up_from(ids.text_gamma_slider, 8.0f64)
             .set(ids.slider_blob_size, &mut ui)
             {
                 queue.push(UIEvents::SetBlobSize(blob_size))
@@ -316,6 +358,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             UIEvents::DimensionalitySwitch => scene.switch_dimensionality(),
             UIEvents::SetPointSize(size) => scene.set_point_size(size),
             UIEvents::SetBlobSize(size) => scene.set_blob_size(size),
+            UIEvents::SetGamma(gamma) => scene.set_gamma(gamma),
         }
     }
 }

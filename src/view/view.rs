@@ -208,6 +208,21 @@ impl Scene {
         }
     }
 
+    /// Get the gamma which will be used to next render loop
+    pub fn get_gamma(&self) -> f32 {
+        self.current_render_mode().get_gamma()
+    }
+
+    /// Set the gamma which will be used to next render loop
+    pub fn set_gamma(&mut self, gamma: f32) {
+        self.current_render_mode_mut().set_gamma(gamma);
+    }
+
+    /// Get the default gamma value
+    pub fn get_default_gamma(&self) -> f32 {
+        self.current_render_mode().get_default_gamma()
+    }
+
     /// Get the current point size
     pub fn get_point_size(&self) -> f32 {
         self.current_render_mode().get_point_size()

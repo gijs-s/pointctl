@@ -14,7 +14,7 @@ use kiss3d::{
 use na::{Matrix3, Matrix4, Point2, Point3};
 
 // Internal
-use super::{marcos, texture_creation::load_texture, RenderMode, PointRendererInteraction};
+use super::{marcos, texture_creation::load_texture, PointRendererInteraction, RenderMode};
 use crate::view::color_map::ColorMap;
 pub struct PointRenderer3D {
     // The shader itself
@@ -28,6 +28,7 @@ pub struct PointRenderer3D {
     alpha_texture_uniform: ShaderUniform<i32>,
     render_mode_uniform: ShaderUniform<i32>,
     blob_size_uniform: ShaderUniform<f32>,
+    gamma_uniform: ShaderUniform<f32>,
     // Data allocation
     points: GPUVec<Point3<f32>>,
     // Normal variables
@@ -71,6 +72,9 @@ impl PointRenderer3D {
             render_mode_uniform: shader
                 .get_uniform("renderMode")
                 .expect("Failed to get 'renderMode' uniform shader attribute"),
+            gamma_uniform: shader
+                .get_uniform("gamma")
+                .expect("Failed to get 'gamma' uniform shader attribute"),
             // Shader itself
             shader,
             // GL variables with default values
@@ -160,6 +164,11 @@ impl PointRendererInteraction for PointRenderer3D {
         self.gamma
     }
 
+    /// Reset the gamma value
+    fn reset_gamma(&mut self) {
+        self.gamma = self.get_default_gamma();
+    }
+
     /// Set the point size
     fn set_point_size(&mut self, size: f32) {
         self.point_size.0 = size;
@@ -201,7 +210,6 @@ impl PointRendererInteraction for PointRenderer3D {
     }
 }
 
-
 impl Renderer for PointRenderer3D {
     /// Actually draws the points.
     fn render(&mut self, pass: usize, camera: &mut dyn Camera) {
@@ -224,6 +232,9 @@ impl Renderer for PointRenderer3D {
 
         // Set the blob size and point size
         self.blob_size_uniform.upload(&self.get_blob_size());
+
+        // Set the gamma
+        self.gamma_uniform.upload(&self.gamma);
 
         let ctxt = Context::get();
 
@@ -380,6 +391,7 @@ const FRAGMENT_SHADER_SRC_3D: &'static str = "#version 460
     in vec2 TextureCoordinate;
 
     // Uniform variables over all the inputs
+    uniform float gamma;
     uniform int renderMode;
     uniform sampler2D alphaTexture;
 
@@ -396,7 +408,13 @@ const FRAGMENT_SHADER_SRC_3D: &'static str = "#version 460
 
     // Discreet render mode, just draw the point.
     void render_discreet() {
+        // Convert color to rgb
         vec3 rgb_color = hsv2rgb(PointColor);
+
+        // Gamma normalization
+        rgb_color.rgb = pow(rgb_color.rgb, vec3(1.0/gamma));
+
+        // Set the color output
         FragColor = vec4(rgb_color, 1.0);
     }
 
@@ -409,7 +427,13 @@ const FRAGMENT_SHADER_SRC_3D: &'static str = "#version 460
         if(alpha == 0.0)
             discard;
 
+        // Convert color to rgb
         vec3 rgb_color = hsv2rgb(PointColor);
+
+        // Gamma normalization
+        rgb_color.rgb = pow(rgb_color.rgb, vec3(1.0/gamma));
+
+        // Set the color output
         FragColor = vec4(rgb_color, alpha);
     }
 
