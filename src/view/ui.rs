@@ -45,6 +45,8 @@ widget_ids! {
         text_dim_other,
         color_block_other,
         // Settings panel for the current viewer.
+        text_size_slider,
+        button_size_reset,
         slider_point_size,
         slider_blob_size,
     }
@@ -241,28 +243,68 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
 
     match scene.get_current_render_mode() {
         RenderMode::Discreet => {
-            for point_size in widget::Slider::new(scene.get_point_size(), 1.0, 10.0)
-                .label("Point size")
-                .label_font_size(FONT_SIZE)
-                .bottom_right_with_margin(5.0f64)
-                .set(ids.slider_point_size, &mut ui)
+            for point_size in widget::Slider::new(
+                scene.get_point_size(),
+                scene.get_default_point_size() / 4f32,
+                scene.get_default_point_size() * 4f32,
+            )
+            .label(&scene.get_point_size().to_string())
+            .label_font_size(FONT_SIZE)
+            .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+            .bottom_right_with_margin(5.0f64)
+            .set(ids.slider_point_size, &mut ui)
             {
                 queue.push(UIEvents::SetPointSize(point_size))
             }
+
+            for _ in widget::Button::new()
+                .label("Reset point size")
+                .label_font_size(FONT_SIZE - 2)
+                .up_from(ids.slider_point_size, 5.0f64)
+                .w_of(ids.slider_point_size)
+                .h(BUTTON_HEIGHT - 4f64)
+                .set(ids.button_size_reset, &mut ui)
+            {
+                queue.push(UIEvents::SetPointSize(scene.get_default_point_size()))
+            }
+
+            widget::Text::new("Set the point size:")
+                .font_size(FONT_SIZE)
+                .up_from(ids.button_size_reset, 5.0f64)
+                .w_of(ids.button_size_reset)
+                .set(ids.text_size_slider, &mut ui);
         }
         RenderMode::Continuous => {
             for blob_size in widget::Slider::new(
                 scene.get_blob_size(),
                 scene.get_default_blob_size() / 4f32,
-                scene.get_default_blob_size() * 2f32,
+                scene.get_default_blob_size() * 4f32,
             )
-            .label("Blob size")
+            .label(&scene.get_blob_size().to_string())
             .label_font_size(FONT_SIZE)
+            .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
             .bottom_right_with_margin(5.0f64)
             .set(ids.slider_blob_size, &mut ui)
             {
                 queue.push(UIEvents::SetBlobSize(blob_size))
             }
+
+            for _ in widget::Button::new()
+                .label("Reset size")
+                .label_font_size(FONT_SIZE - 2)
+                .up_from(ids.slider_point_size, 5.0f64)
+                .w_of(ids.slider_point_size)
+                .h(BUTTON_HEIGHT - 4f64)
+                .set(ids.button_size_reset, &mut ui)
+            {
+                queue.push(UIEvents::SetBlobSize(scene.get_default_blob_size()))
+            }
+
+            widget::Text::new("Set the blob size:")
+                .font_size(FONT_SIZE)
+                .up_from(ids.button_size_reset, 5.0f64)
+                .w_of(ids.button_size_reset)
+                .set(ids.text_size_slider, &mut ui);
         }
     };
 

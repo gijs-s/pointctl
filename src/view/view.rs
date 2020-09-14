@@ -218,6 +218,11 @@ impl Scene {
         self.current_render_mode_mut().set_point_size(size);
     }
 
+    /// Get the current point size
+    pub fn get_default_point_size(&self) -> f32 {
+        self.current_render_mode().get_default_point_size()
+    }
+
     /// Get the current blob size
     pub fn get_blob_size(&self) -> f32 {
         self.current_render_mode().get_blob_size()
