@@ -6,15 +6,6 @@
 // which dimensions contribute mostly to similarity relationships over the projection, thus explain the projection’s layout. For
 // this, we rank dimensions by increasing variance over each point-neighborhood, and propose a visual encoding to show the
 // least-varying dimensions over each neighborhood. We demonstrate our technique with both synthetic and real-world datasets.
-//
-// TODO list for this part of the explain module:
-// Must haves
-// - Implement a basic version of the mechanism
-// - Tests for the functions used by the mechanism
-// Nice to haves:
-// - Use a faster way to calculate nn (maybe approximate nearest neighbors?)
-// - Store the data in a more space efficient way
-// - Warning in case of tiny neighborhoods
 
 use rstar::RTree;
 
@@ -64,20 +55,19 @@ impl DaSilvaExplanation {
             .collect::<Vec<usize>>()
     }
 
-    pub fn max_confidence(explanations: &Vec<DaSilvaExplanation>) -> f32 {
-        explanations
-            .iter()
-            .map(|v| v.confidence)
-            .max_by(|a, b| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
-            .unwrap()
-    }
-
-    pub fn min_confidence(explanations: &Vec<DaSilvaExplanation>) -> f32 {
-        explanations
+    pub fn confidence_bounds(explanations: &Vec<DaSilvaExplanation>) -> (f32, f32) {
+        let min = explanations
             .iter()
             .map(|v| v.confidence)
             .min_by(|a, b| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
-            .unwrap()
+            .unwrap();
+        let max = explanations
+            .iter()
+            .map(|v| v.confidence)
+            .max_by(|a, b| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
+            .unwrap();
+
+        (min, max)
     }
 }
 

@@ -9,7 +9,7 @@ mod texture_creation;
 mod ui;
 mod visualization_state;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum RenderMode {
     Discreet,
     Continuous,
@@ -33,7 +33,7 @@ impl RenderMode {
 }
 
 // Dimensionality mode used by the program, determines which dimension the current viewer is in.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum DimensionalityMode {
     ThreeD,
     TwoD,
@@ -53,6 +53,24 @@ impl DimensionalityMode {
         match self {
             DimensionalityMode::TwoD => DimensionalityMode::ThreeD,
             DimensionalityMode::ThreeD => DimensionalityMode::TwoD,
+        }
+    }
+}
+
+// Explanation mode is used to denote which color map is currently being displayed
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum ExplanationMode {
+    None,
+    DaSilva,
+    // VanDriel,
+}
+
+impl ExplanationMode {
+    // Convert the current value to a string
+    pub fn to_str(self) -> String {
+        match self {
+            ExplanationMode::None => "None".to_string(),
+            ExplanationMode::DaSilva => "Da Silva".to_string(),
         }
     }
 }

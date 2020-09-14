@@ -1,6 +1,8 @@
 extern crate kiss3d;
 extern crate nalgebra as na;
 
+use std::collections::HashMap;
+
 // Third party
 use crate::view::RenderMode;
 use kiss3d::{
@@ -16,11 +18,12 @@ use rstar::{PointDistance, RTree};
 // First party
 use crate::{
     exp::{
-        common::{IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D},
+        common::{IndexedPoint2D, IndexedPoint3D, AnnotatedPoint, RTreeParameters2D, RTreeParameters3D},
         da_silva::DaSilvaExplanation,
     },
     util::types::PointN,
     view::{
+        ExplanationMode,
         color_map::ColorMap,
         point_renderer_2d::PointRenderer2D,
         point_renderer_3d::PointRenderer3D,
@@ -32,55 +35,88 @@ pub struct VisualizationState3D {
     // Camera used by this view. : Create custom camera .
     pub camera: ArcBall,
     // Useful when searching points that have been selected or clicked on.
-    pub tree: RTree<IndexedPoint3D, RTreeParameters3D>,
+    pub tree: RTree<AnnotatedPoint<IndexedPoint3D>, RTreeParameters3D>,
+    // Amount of dimensions in the original data
+    pub dimension_count: usize,
     // Used for rendering points.
     pub renderer: PointRenderer3D,
     // color map used by the 3D visualizer
-    pub color_map: ColorMap,
+    pub color_maps: HashMap<ExplanationMode, ColorMap>,
+    // Explanation being viewed at this moment
+    pub explanation: ExplanationMode
 }
 
 impl VisualizationState3D {
     /// Create the visualizer with actual data.
     pub fn new(
         points: Vec<Point3<f32>>,
-        explanations: Vec<DaSilvaExplanation>,
         original_points: &Vec<PointN>,
     ) -> VisualizationState3D {
         // Create the tree
-        let indexed_points: Vec<IndexedPoint3D> = points
+        let annotated_points: Vec<AnnotatedPoint<IndexedPoint3D>> = points
             .iter()
             .enumerate()
-            .map(|(index, point)| IndexedPoint3D {
-                index,
-                x: point.x,
-                y: point.y,
-                z: point.z,
-            })
+            .map(|(index, point)| {
+                let point = IndexedPoint3D {
+                    index,
+                    x: point.x,
+                    y: point.y,
+                    z: point.z,
+                };
+                AnnotatedPoint::<IndexedPoint3D> { point, da_silva: None, van_driel: None}
+            }
+            )
             .collect();
         let rtree =
-            RTree::<IndexedPoint3D, RTreeParameters3D>::bulk_load_with_params(indexed_points);
+            RTree::<AnnotatedPoint::<IndexedPoint3D>, RTreeParameters3D>::bulk_load_with_params(annotated_points);
 
-        let nn_distance = IndexedPoint3D::find_average_nearest_neightbor_distance(&rtree);
+        let nn_distance = IndexedPoint3D::find_average_nearest_neighbor_distance(&rtree);
         // We draw the blob within a square, to ensure the drawn blob has radius of nn_distance we need to correct it.
         let corrected_distance = (nn_distance.powi(2) * 2.0).sqrt();
 
         // Create the colour map
         let dimension_count = original_points.first().unwrap().len();
-        let color_map = ColorMap::from_explanations(&explanations, dimension_count);
+        let color_maps = HashMap::<ExplanationMode, ColorMap>::new();
+        color_maps.insert(ExplanationMode::None, ColorMap::new_dummy());
 
         // Create the renderer and add all the points:
         let mut point_renderer = PointRenderer3D::new(4.0, corrected_distance);
-        for (&p, e) in points.iter().zip(explanations) {
-            let color = color_map.get_color(e.attribute_index, e.confidence);
-            point_renderer.push(p, color);
+        for &p in points.iter() {
+            point_renderer.push(p, ColorMap::default_color());
         }
 
         VisualizationState3D {
             camera: VisualizationState3D::get_default_camera(),
             tree: rtree,
             renderer: point_renderer,
-            color_map: color_map,
+            dimension_count: dimension_count,
+            color_maps: color_maps,
+            explanation: ExplanationMode::None
         }
+    }
+
+    pub fn load_explanations(&mut self, explanations: Vec<DaSilvaExplanation>) {
+        // Create the colour map
+        let color_map = ColorMap::from_da_silva(&explanations, self.dimension_count);
+        self.color_maps.insert(ExplanationMode::DaSilva, color_map);
+
+        // TODO: This assert is just for testing, this should be caught earlier on and have a documented exit code
+        assert!(self.tree.size() == explanations.len());
+
+        // Add the annotations to all the points in the search tree
+        self.tree.iter_mut().map(|ap| {
+            ap.da_silva = explanations[ap.point.index];
+        });
+    }
+
+    // Set the explanation mode and reload the points in the renderer using the correct coloring mode.
+    fn set_explanation_mode(&self, mode: ExplanationMode) -> bool {
+
+    }
+
+    // Reload all the points in the renderer using the current rendering mode
+    fn reload_renderer(&mut self){
+
     }
 
     pub fn get_default_camera() -> ArcBall {

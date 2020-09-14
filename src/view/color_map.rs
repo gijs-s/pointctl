@@ -2,7 +2,7 @@ extern crate nalgebra as na;
 
 // Buildin
 use crate::exp::da_silva::DaSilvaExplanation;
-use kiss3d::conrod::color::{rgb_bytes, Color, Rgba, rgba};
+use kiss3d::conrod::color::{rgb_bytes, rgba, Color, Rgba};
 use na::Point3;
 use std::collections::HashMap;
 
@@ -38,13 +38,14 @@ impl ColorMap {
         }
     }
 
-    pub fn from_explanations(
+    pub fn from_da_silva(
         explanations: &Vec<DaSilvaExplanation>,
         dimension_count: usize,
     ) -> ColorMap {
+        let (min, max) = DaSilvaExplanation::confidence_bounds(&explanations);
         ColorMap::new(
-            DaSilvaExplanation::min_confidence(&explanations),
-            DaSilvaExplanation::max_confidence(&explanations),
+            min,
+            max,
             DaSilvaExplanation::calculate_dimension_rankings(dimension_count, &explanations),
         )
     }
@@ -133,9 +134,15 @@ impl ColorMap {
         ColorMap::gamma_correct(&color, gamma)
     }
 
+    // Preform the gamma correction calculation for a conrod color. This is used for the UI
     pub fn gamma_correct(color: &Color, gamma: f32) -> Color {
         let scale = 1.0f32 / gamma;
         let Rgba(r, g, b, a) = color.to_rgb();
         rgba(r.powf(scale), g.powf(scale), b.powf(scale), a)
+    }
+
+    // Return a gray point
+    pub fn default_color() -> Point3<f32> {
+        Point3::new(0.00000, 0.00000, 0.60000)
     }
 }

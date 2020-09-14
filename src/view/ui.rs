@@ -54,6 +54,8 @@ widget_ids! {
         text_gamma_slider,
         button_gamma_reset,
         slider_gamma,
+        // - Calculate da silva button
+        button_da_silva,
     }
 }
 
@@ -129,7 +131,8 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             .font_size(FONT_SIZE)
             .top_right()
             .set(ids.text_dim_0, &mut ui);
-        return;
+
+
     }
 
     let color = color_map.get_conrod_color_with_gamma(&0usize, scene.get_gamma());
@@ -349,6 +352,12 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
                 .set(ids.text_size_slider, &mut ui);
         }
     };
+
+    // If the color map is not initialized offer an option to run the calculation
+    // if !color_map.is_initialized() {
+    //     for _ in widget::Button::new()
+    //         .label("Run `DaSilva` colouring method")
+    // }
 
     // Handle all the enqueued events in order.
     for event in queue {

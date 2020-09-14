@@ -9,34 +9,93 @@
 // which is efficient to compute, scales well visually for large and dense MP scatterplots, and can handle any projection technique.
 // We demonstrate our approach using several datasets.
 
-use super::common::{Point, AnnotatedPoint, ExplanationMechanism};
+use rstar::RTree;
+
+use super::common::{Distance, IndexedPoint3D, RTreeParameters3D};
+
+use crate::util::types::{Point3, PointN};
+use std::cmp::Ordering;
+
 
 #[derive(Debug, PartialEq)]
-struct ExplanationDriel {
+pub struct VanDrielExplanation {
     dimension: i32,
     confidence: f32,
 }
 
-#[derive(Debug, PartialEq)]
-struct DrielState {
-    points_ref: Vec<Point>
-}
+impl VanDrielExplanation {
+    pub fn calculate_dimension_rankings(
+        dimensions: usize,
+        explanations: &Vec<VanDrielExplanation>,
+    ) -> Vec<usize> {
+        let mut ranking_counts = explanations
+            .iter()
+            .map(|exp| exp.attribute_index)
+            // Count the occurrences of each dimension
+            .fold(vec![0usize; dimensions], |mut acc, attribute_index| {
+                acc[attribute_index] += 1;
+                acc
+            })
+            .into_iter()
+            // Add an index to the count of each dimension
+            .enumerate()
+            .collect::<Vec<(usize, usize)>>();
 
-impl ExplanationMechanism<ExplanationDriel> for DrielState {
-    fn new(dataset: Vec<Point>) -> DrielState {
-        DrielState { points_ref: dataset}
+        // Sort desc
+        ranking_counts.sort_by(|(_, a), (_, b)| b.cmp(a));
+        ranking_counts
+            .iter()
+            .map(|&(index, _)| index)
+            .collect::<Vec<usize>>()
     }
 
+    pub fn confidence_bounds(explanations: &Vec<VanDrielExplanation>) -> (f32, f32) {
+        let min = explanations
+            .iter()
+            .map(|v| v.confidence)
+            .min_by(|a, b| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
+            .unwrap();
+        let max = explanations
+            .iter()
+            .map(|v| v.confidence)
+            .max_by(|a, b| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
+            .unwrap();
 
-    // Placeholder explanation for a point.
-    fn explain(point: Point) -> AnnotatedPoint<ExplanationDriel>{
-        AnnotatedPoint {
-            reduced: point.reduced,
-            original: point.original,
-            annotation: ExplanationDriel {
-                dimension: 1,
-                confidence: 0.5,
-            },
-        }
+        (min, max)
+    }
+}
+
+
+pub struct DrielState<'a> {
+    pub rtree: RTree<IndexedPoint3D, RTreeParameters3D>,
+    pub original_points: &'a Vec<PointN>,
+}
+
+impl<'a> DrielState<'a> {
+    pub fn new(
+        reduced_points: Vec<Point3>,
+        original_points: &'a Vec<PointN>,
+    ) -> DrielState<'a> {
+        let indexed_points: Vec<IndexedPoint3D> = reduced_points
+            .into_iter()
+            .enumerate()
+            .map(|(index, point)| IndexedPoint3D {
+                index,
+                x: point.x,
+                y: point.y,
+                z: point.z,
+            })
+            .collect();
+        let rtree =
+            RTree::<IndexedPoint3D, RTreeParameters3D>::bulk_load_with_params(indexed_points);
+        DrielState { rtree, original_points }
+    }
+
+    pub fn explain(
+        &self,
+        neighborhood_size: f32,
+        neighborhood_bound: usize,
+    ) -> Vec<VanDrielExplanation> {
+        unimplemented!("Explanation method for van driel is not ready yet")
     }
 }

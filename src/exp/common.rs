@@ -1,29 +1,48 @@
 // Internal module file used to define the common interface with all the explanation mechanisms and datatypes.
 
-use rstar::{RTree, PointDistance};
 use rstar;
+use rstar::{PointDistance, RTree};
 use rstar::{RStarInsertionStrategy, RTreeParams};
 
+use super::{da_silva::DaSilvaExplanation, driel::VanDrielExplanation};
 use crate::util::types::{Point3, PointN};
 
-#[derive(Clone, PartialEq, Debug)]
-pub struct PointTuple {
-    pub reduced: Point3,
-    pub original: PointN,
-}
-
 #[derive(Debug, PartialEq)]
-pub struct AnnotatedPoint<T> {
-    pub point: PointTuple,
-    pub annotation: T,
+pub struct AnnotatedPoint<P> {
+    pub point: P,
+    pub da_silva: Option<DaSilvaExplanation>,
+    pub van_driel: Option<VanDrielExplanation>,
 }
 
-impl<T> AnnotatedPoint<T> {
-    pub fn annotate(point: PointTuple, annotation: T) -> Self {
-        AnnotatedPoint {
-            point: point,
-            annotation: annotation,
-        }
+impl<T> rstar::RTreeObject for AnnotatedPoint<T>
+where
+    T: rstar::RTreeObject,
+{
+    type Envelope = T::Envelope;
+    fn envelope(&self) -> Self::Envelope {
+        self.point.envelope()
+    }
+}
+
+impl<T> rstart::PointDistance for AnnotatedPoint<T>
+where
+    T: rstar::PointDistance,
+{
+    fn distance_2(&self, point: Self::Envelope) {
+        self.point.distance_2(point)
+    }
+
+    fn contains_point(&self, point: Self::Envelope) -> bool {
+        self.point.contains_point(point)
+    }
+
+    fn distance_2_if_less_or_equal(
+        &self,
+        point: Self::Envelope,
+        max_distance_2: f32,
+    ) -> Option<f32> {
+        self.point
+            .distance_2_if_less_or_equal(point, max_distance_2)
     }
 }
 
@@ -46,17 +65,21 @@ impl rstar::RTreeObject for IndexedPoint2D {
 }
 
 impl rstar::PointDistance for IndexedPoint2D {
-    fn distance_2(&self, point: &[f32; 2]) -> f32 {
+    fn distance_2(&self, point: Self::Envelope) -> f32 {
         let x: f32 = point[0] - self.x;
         let y: f32 = point[1] - self.y;
         x.powi(2) + y.powi(2)
     }
 
-    fn contains_point(&self, point: &[f32; 2]) -> bool {
+    fn contains_point(&self, point: Self::Envelope) -> bool {
         self.x == point[0] && self.y == point[1]
     }
 
-    fn distance_2_if_less_or_equal(&self, point: &[f32; 2], max_distance_2: f32) -> Option<f32> {
+    fn distance_2_if_less_or_equal(
+        &self,
+        point: Self::Envelope,
+        max_distance_2: f32,
+    ) -> Option<f32> {
         let t = self.distance_2(point);
         if t <= max_distance_2 {
             Some(t.sqrt())
@@ -67,7 +90,7 @@ impl rstar::PointDistance for IndexedPoint2D {
 }
 
 impl IndexedPoint2D {
-    pub fn find_average_nearest_neightbor_distance(tree: &RTree::<Self, RTreeParameters2D>) -> f32 {
+    pub fn find_average_nearest_neighbor_distance(tree: &RTree<Self, RTreeParameters2D>) -> f32 {
         let mut res = Vec::<f32>::new();
         for query_point in tree.iter() {
             // Get the second nearest neighbor from the query point, the first will be itself.
@@ -88,7 +111,7 @@ impl IndexedPoint2D {
 }
 
 impl IndexedPoint3D {
-    pub fn find_average_nearest_neightbor_distance(tree: &RTree<Self, RTreeParameters3D>) -> f32 {
+    pub fn find_average_nearest_neighbor_distance(tree: &RTree<Self, RTreeParameters3D>) -> f32 {
         let mut res = Vec::<f32>::new();
         for query_point in tree.iter() {
             // Get the second nearest neighbor from the query point, the first will be itself.
@@ -204,8 +227,6 @@ impl RTreeParams for RTreeParameters3D {
     type DefaultInsertionStrategy = RStarInsertionStrategy;
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -214,11 +235,31 @@ mod tests {
     // Here we will calculate the average distance to the first nearest neighbor
     fn find_average_nearest_neightbor_distance_2d_one_line() {
         let indexed_points = vec![
-            IndexedPoint2D {index: 0, x: 0.0, y: 0.0 },
-            IndexedPoint2D {index: 1, x: 4.0, y: 0.0 },
-            IndexedPoint2D {index: 2, x: 7.0, y: 0.0 },
-            IndexedPoint2D {index: 3, x: 9.0, y: 0.0 },
-            IndexedPoint2D {index: 4, x: 10.0, y: 0.0 },
+            IndexedPoint2D {
+                index: 0,
+                x: 0.0,
+                y: 0.0,
+            },
+            IndexedPoint2D {
+                index: 1,
+                x: 4.0,
+                y: 0.0,
+            },
+            IndexedPoint2D {
+                index: 2,
+                x: 7.0,
+                y: 0.0,
+            },
+            IndexedPoint2D {
+                index: 3,
+                x: 9.0,
+                y: 0.0,
+            },
+            IndexedPoint2D {
+                index: 4,
+                x: 10.0,
+                y: 0.0,
+            },
         ];
 
         // The average nearest neighbor distance is based on 5 points
@@ -229,7 +270,8 @@ mod tests {
         // | 3     | 4                 | 1                    |
         // | 4     | 3                 | 1                    |
 
-        let tree = RTree::<IndexedPoint2D, RTreeParameters2D>::bulk_load_with_params(indexed_points);
+        let tree =
+            RTree::<IndexedPoint2D, RTreeParameters2D>::bulk_load_with_params(indexed_points);
         let expected = (4.0f32 + 3.0f32 + 2.0f32 + 1.0f32 + 1.0f32) / 5.0f32;
         let actual = IndexedPoint2D::find_average_nearest_neightbor_distance(&tree);
         assert_eq!(actual, expected);
@@ -239,11 +281,31 @@ mod tests {
     // Here we will calculate the average distance to the first nearest neighbor
     fn find_average_nearest_neightbor_distance_2d_xy() {
         let indexed_points = vec![
-            IndexedPoint2D {index: 0, x: 0.0, y: 0.0 },
-            IndexedPoint2D {index: 1, x: 4.0, y: 4.0 },
-            IndexedPoint2D {index: 2, x: 7.0, y: 1.0 },
-            IndexedPoint2D {index: 3, x: 9.0, y: 4.0 },
-            IndexedPoint2D {index: 4, x: 9.0, y: 5.0 },
+            IndexedPoint2D {
+                index: 0,
+                x: 0.0,
+                y: 0.0,
+            },
+            IndexedPoint2D {
+                index: 1,
+                x: 4.0,
+                y: 4.0,
+            },
+            IndexedPoint2D {
+                index: 2,
+                x: 7.0,
+                y: 1.0,
+            },
+            IndexedPoint2D {
+                index: 3,
+                x: 9.0,
+                y: 4.0,
+            },
+            IndexedPoint2D {
+                index: 4,
+                x: 9.0,
+                y: 5.0,
+            },
         ];
 
         // The average nearest neighbor distance is based on 5 points
@@ -254,8 +316,10 @@ mod tests {
         // | 3     | 4                 | sqrt 1               |
         // | 4     | 3                 | sqrt 1               |
 
-        let tree = RTree::<IndexedPoint2D, RTreeParameters2D>::bulk_load_with_params(indexed_points);
-        let expected = (32.0f32.sqrt() + 18.0f32.sqrt() + 13.0f32.sqrt() + 1.0f32 + 1.0f32) / 5.0f32;
+        let tree =
+            RTree::<IndexedPoint2D, RTreeParameters2D>::bulk_load_with_params(indexed_points);
+        let expected =
+            (32.0f32.sqrt() + 18.0f32.sqrt() + 13.0f32.sqrt() + 1.0f32 + 1.0f32) / 5.0f32;
         let actual = IndexedPoint2D::find_average_nearest_neightbor_distance(&tree);
         // Transform to int to work around floating point inaccuracies
         assert_eq!((actual * 1000000f32) as i64, (expected * 1000000f32) as i64);
