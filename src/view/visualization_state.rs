@@ -127,7 +127,7 @@ impl VisualizationState2D {
         // Find the blob size based on the average first nearest neighbor distance
         // We draw the blob within a square, to ensure the drawn blob has radius of nn_distance we need to correct it.
         let nn_distance = IndexedPoint2D::find_average_nearest_neightbor_distance(&rtree);
-        let corrected_distance = (nn_distance.powi(2) * 2.0).sqrt();
+        let corrected_distance = (nn_distance * nn_distance * 2.0).sqrt();
 
         // Create the colour map
         let dimension_count = original_points.first().unwrap().len();

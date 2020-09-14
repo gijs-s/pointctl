@@ -334,7 +334,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             for _ in widget::Button::new()
                 .label("Reset size")
                 .label_font_size(FONT_SIZE - 2)
-                .up_from(ids.slider_point_size, 5.0f64)
+                .up_from(ids.slider_blob_size, 5.0f64)
                 .w_of(ids.slider_point_size)
                 .h(BUTTON_HEIGHT - 4f64)
                 .set(ids.button_size_reset, &mut ui)
