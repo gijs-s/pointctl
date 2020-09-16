@@ -21,7 +21,7 @@ type LocalContributions = Vec<f32>;
 type GlobalContribution = Vec<f32>;
 type Ranking = (usize, f32);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct DaSilvaExplanation {
     // Attribute index is the index of which dimension in nD is most important for this point
     pub attribute_index: usize,
@@ -30,15 +30,20 @@ pub struct DaSilvaExplanation {
 }
 
 impl DaSilvaExplanation {
+    /// Rank the dimensions on how many times they occur
     pub fn calculate_dimension_rankings(
-        dimensions: usize,
         explanations: &Vec<DaSilvaExplanation>,
     ) -> Vec<usize> {
+        if explanations.is_empty() {
+            return Vec::<usize>::new();
+        }
+
+        let max_dimension_index = explanations.iter().map(|exp| exp.attribute_index).max().unwrap() + 1;
         let mut ranking_counts = explanations
             .iter()
             .map(|exp| exp.attribute_index)
             // Count the occurrences of each dimension
-            .fold(vec![0usize; dimensions], |mut acc, attribute_index| {
+            .fold(vec![0usize; max_dimension_index], |mut acc, attribute_index| {
                 acc[attribute_index] += 1;
                 acc
             })

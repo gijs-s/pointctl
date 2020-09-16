@@ -18,8 +18,9 @@ use rstar::{PointDistance, RTree};
 // First party
 use crate::{
     exp::{
-        common::{IndexedPoint2D, IndexedPoint3D, AnnotatedPoint, RTreeParameters2D, RTreeParameters3D},
+        common::{AnnotatedPoint, IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D},
         da_silva::DaSilvaExplanation,
+        driel::VanDrielExplanation
     },
     util::types::PointN,
     view::{
@@ -31,26 +32,28 @@ use crate::{
     },
 };
 
+pub trait Load<T> {
+    /// Load data into the visualization state
+    fn load(&mut self, _: T);
+}
+
 pub struct VisualizationState3D {
     // Camera used by this view. : Create custom camera .
     pub camera: ArcBall,
     // Useful when searching points that have been selected or clicked on.
     pub tree: RTree<AnnotatedPoint<IndexedPoint3D>, RTreeParameters3D>,
-    // Amount of dimensions in the original data
-    pub dimension_count: usize,
     // Used for rendering points.
     pub renderer: PointRenderer3D,
     // color map used by the 3D visualizer
     pub color_maps: HashMap<ExplanationMode, ColorMap>,
     // Explanation being viewed at this moment
-    pub explanation: ExplanationMode
+    explanation: ExplanationMode
 }
 
 impl VisualizationState3D {
     /// Create the visualizer with actual data.
     pub fn new(
         points: Vec<Point3<f32>>,
-        original_points: &Vec<PointN>,
     ) -> VisualizationState3D {
         // Create the tree
         let annotated_points: Vec<AnnotatedPoint<IndexedPoint3D>> = points
@@ -70,17 +73,14 @@ impl VisualizationState3D {
         let rtree =
             RTree::<AnnotatedPoint::<IndexedPoint3D>, RTreeParameters3D>::bulk_load_with_params(annotated_points);
 
-        let nn_distance = IndexedPoint3D::find_average_nearest_neighbor_distance(&rtree);
-        // We draw the blob within a square, to ensure the drawn blob has radius of nn_distance we need to correct it.
-        let corrected_distance = (nn_distance.powi(2) * 2.0).sqrt();
 
         // Create the colour map
-        let dimension_count = original_points.first().unwrap().len();
-        let color_maps = HashMap::<ExplanationMode, ColorMap>::new();
-        color_maps.insert(ExplanationMode::None, ColorMap::new_dummy());
+        let mut color_maps = HashMap::<ExplanationMode, ColorMap>::new();
+        color_maps.insert(ExplanationMode::None, ColorMap::default());
 
         // Create the renderer and add all the points:
-        let mut point_renderer = PointRenderer3D::new(4.0, corrected_distance);
+        let nn_distance = VisualizationState3D::find_average_nearest_neighbor_distance(&rtree);
+        let mut point_renderer = PointRenderer3D::new(4.0, nn_distance);
         for &p in points.iter() {
             point_renderer.push(p, ColorMap::default_color());
         }
@@ -89,34 +89,63 @@ impl VisualizationState3D {
             camera: VisualizationState3D::get_default_camera(),
             tree: rtree,
             renderer: point_renderer,
-            dimension_count: dimension_count,
             color_maps: color_maps,
             explanation: ExplanationMode::None
         }
     }
 
-    pub fn load_explanations(&mut self, explanations: Vec<DaSilvaExplanation>) {
-        // Create the colour map
-        let color_map = ColorMap::from_da_silva(&explanations, self.dimension_count);
-        self.color_maps.insert(ExplanationMode::DaSilva, color_map);
+    /// Get a reference to the color map that is currently being displayed
+    pub fn get_colour_map(&self) -> &ColorMap {
+        let map: Option<&ColorMap> = self.color_maps.get(&self.explanation);
+        match map {
+            Some(m) => m,
+            None => panic!("There is no color map for the current explanation mode, this should never happen")
+        }
+    }
 
-        // TODO: This assert is just for testing, this should be caught earlier on and have a documented exit code
-        assert!(self.tree.size() == explanations.len());
-
-        // Add the annotations to all the points in the search tree
-        self.tree.iter_mut().map(|ap| {
-            ap.da_silva = explanations[ap.point.index];
-        });
+    pub fn get_explanation_mode(&self) -> ExplanationMode {
+        self.explanation
     }
 
     // Set the explanation mode and reload the points in the renderer using the correct coloring mode.
-    fn set_explanation_mode(&self, mode: ExplanationMode) -> bool {
-
+    pub fn set_explanation_mode(&mut self, mode: ExplanationMode) -> bool {
+        if !self.color_maps.contains_key(&mode) {
+            eprintln!("Color map for {} is not yet loaded", mode.to_str());
+            false
+        } else {
+            self.explanation = mode;
+            self.reload_renderer_colors();
+            true
+        }
     }
 
     // Reload all the points in the renderer using the current rendering mode
-    fn reload_renderer(&mut self){
+    fn reload_renderer_colors(&mut self){
+        // Clear all points and colors from the render
+        // self.renderer.clear();
+        // Get the current color map
+        let color_map = self.get_colour_map();
+        // Add every point back to the renderer with the correct data.
+        let points_x_colors = self.tree.iter().map(|annotated_point| {
+            let color = match self.explanation {
+                ExplanationMode::None => {
+                    color_map.get_color(0usize, 1.0f32)
+                },
+                ExplanationMode::DaSilva => {
+                    let explanation: DaSilvaExplanation = annotated_point.da_silva.unwrap();
+                    color_map.get_color(explanation.attribute_index, explanation.confidence)
+                },
+                ExplanationMode::VanDriel => {
+                    let explanation: VanDrielExplanation = annotated_point.van_driel.unwrap();
+                    color_map.get_color(explanation.dimension, explanation.confidence)
+                }
+            };
+            (annotated_point.point.into(), color)
+        }).collect::<Vec<(Point3<f32>,Point3<f32>)>>();
 
+        for (p, c) in points_x_colors {
+            self.renderer.push(p, c);
+        }
     }
 
     pub fn get_default_camera() -> ArcBall {
@@ -126,6 +155,60 @@ impl VisualizationState3D {
         let mut cam = ArcBall::new_with_frustrum(std::f32::consts::PI / 3.0, 0.01, 1024.0, eye, at);
         cam.set_dist_step(10.0);
         cam
+    }
+
+    fn find_average_nearest_neighbor_distance(tree: &RTree<AnnotatedPoint<IndexedPoint3D>, RTreeParameters3D>) -> f32 {
+        let mut res = Vec::<f32>::new();
+        for query_point in tree.iter() {
+            // Get the second nearest neighbor from the query point, the first will be itself.
+            let &nn = tree
+                .nearest_neighbor_iter(&[query_point.point.x,query_point.point.y,query_point.point.z])
+                .take(2)
+                .skip(1)
+                .collect::<Vec<&AnnotatedPoint<IndexedPoint3D>>>()
+                .first()
+                .expect("Could not get nearest neighbor");
+
+            let dist = query_point.distance_2(&[nn.point.x,nn.point.y,nn.point.z]);
+            res.push(dist.sqrt());
+        }
+        let average = res.iter().sum::<f32>() / (res.len() as f32);
+        // We draw the blob within a square, to ensure the drawn blob has radius of nn_distance we need to correct it.
+        (average.powi(2) * 2.0).sqrt()
+    }
+}
+
+impl Load<Vec<DaSilvaExplanation>> for VisualizationState3D {
+    fn load(&mut self, explanations: Vec<DaSilvaExplanation>) {
+        // Create the colour map
+        let color_map = ColorMap::from(&explanations);
+        self.color_maps.insert(ExplanationMode::DaSilva, color_map);
+
+        // TODO: This assert is just for testing, this should be caught earlier on and have a documented exit code
+        assert!(self.tree.size() == explanations.len());
+
+        // Add the annotations to all the points in the search tree
+        for ap in self.tree.iter_mut() {
+            ap.da_silva = Some(explanations[ap.point.index]);
+        };
+
+        self.set_explanation_mode(ExplanationMode::DaSilva);
+    }
+}
+
+impl Load<Vec<VanDrielExplanation>> for VisualizationState3D {
+    fn load(&mut self, explanations: Vec<VanDrielExplanation>) {
+        // Create the colour map
+        let color_map = ColorMap::from(&explanations);
+        self.color_maps.insert(ExplanationMode::VanDriel, color_map);
+
+        // TODO: This assert is just for testing, this should be caught earlier on and have a documented exit code
+        assert!(self.tree.size() == explanations.len());
+
+        // Add the annotations to all the points in the search tree
+        for ap in self.tree.iter_mut() {
+            ap.van_driel = Some(explanations[ap.point.index]);
+        };
     }
 }
 
@@ -144,7 +227,6 @@ impl VisualizationState2D {
     pub fn new(
         points: Vec<Point2<f32>>,
         explanations: Vec<DaSilvaExplanation>,
-        original_points: &Vec<PointN>,
     ) -> VisualizationState2D {
         let indexed_points: Vec<IndexedPoint2D> = points
             .iter()
@@ -160,17 +242,12 @@ impl VisualizationState2D {
         let rtree =
             RTree::<IndexedPoint2D, RTreeParameters2D>::bulk_load_with_params(indexed_points);
 
-        // Find the blob size based on the average first nearest neighbor distance
-        // We draw the blob within a square, to ensure the drawn blob has radius of nn_distance we need to correct it.
-        let nn_distance = IndexedPoint2D::find_average_nearest_neightbor_distance(&rtree);
-        let corrected_distance = (nn_distance * nn_distance * 2.0).sqrt();
-
         // Create the colour map
-        let dimension_count = original_points.first().unwrap().len();
-        let color_map = ColorMap::from_explanations(&explanations, dimension_count);
+        let color_map = ColorMap::from(&explanations);
 
         // Create the point renderer and insert the points
-        let mut point_renderer = PointRenderer2D::new(4.0, corrected_distance);
+        let nn_distance = VisualizationState2D::find_average_nearest_neighbor_distance(&rtree);
+        let mut point_renderer = PointRenderer2D::new(4.0, nn_distance);
 
         for (&p, e) in points.iter().zip(explanations) {
             let color = color_map.get_color(e.attribute_index, e.confidence);
@@ -183,6 +260,26 @@ impl VisualizationState2D {
             renderer: point_renderer,
             color_map: color_map,
         }
+    }
+
+    fn find_average_nearest_neighbor_distance(tree: &RTree<IndexedPoint2D, RTreeParameters2D>) -> f32 {
+        let mut res = Vec::<f32>::new();
+        for query_point in tree.iter() {
+            // Get the second nearest neighbor from the query point, the first will be itself.
+            let &nn = tree
+                .nearest_neighbor_iter(&[query_point.x,query_point.y])
+                .take(2)
+                .skip(1)
+                .collect::<Vec<&IndexedPoint2D>>()
+                .first()
+                .expect("Could not get nearest neighbor");
+
+            let dist = query_point.distance_2(&[nn.x, nn.y]);
+            res.push(dist.sqrt());
+        }
+        let average = res.iter().sum::<f32>() / (res.len() as f32);
+        // We draw the blob within a square, to ensure the drawn blob has radius of nn_distance we need to correct it.
+        (average.powi(2) * 2.0).sqrt()
     }
 
     // TODO: Get a good camera that just views all the points

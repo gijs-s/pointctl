@@ -19,6 +19,9 @@ use crate::view::color_map::ColorMap;
 pub struct PointRenderer3D {
     // The shader itself
     shader: Effect,
+    /// Data allocation
+    points_vec: GPUVec<Point3<f32>>,
+    colors_vec: GPUVec<Point3<f32>>,
     /// Shader attributes
     pos_attribute: ShaderAttribute<Point3<f32>>,
     color_attribute: ShaderAttribute<Point3<f32>>,
@@ -29,8 +32,6 @@ pub struct PointRenderer3D {
     render_mode_uniform: ShaderUniform<i32>,
     blob_size_uniform: ShaderUniform<f32>,
     gamma_uniform: ShaderUniform<f32>,
-    // Data allocation
-    points: GPUVec<Point3<f32>>,
     // Normal variables
     alpha_texture: Texture,
     gamma: f32,
@@ -49,7 +50,8 @@ impl PointRenderer3D {
         PointRenderer3D {
             // Points and their color interleaved. note that each point in the cloud will have 6 points here as it defines
             // 2 triangles in the continous render mode
-            points: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
+            points_vec: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
+            colors_vec: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
             // Shader variables
             pos_attribute: shader
                 .get_attrib::<Point3<f32>>("position")
@@ -90,36 +92,31 @@ impl PointRenderer3D {
 
     /// Insert a single point with a color
     pub fn push(&mut self, point: Point3<f32>, color: Point3<f32>) {
-        for points_buffer in self.points.data_mut().iter_mut() {
+        for points in self.points_vec.data_mut().iter_mut() {
             for _ in 0..6 {
-                points_buffer.push(point);
-                points_buffer.push(color);
+                points.push(point);
             }
         }
-    }
-
-    /// Insert a large number of points with colors at once
-    pub fn batch_insert(&mut self, points_x_colors: Vec<(Point3<f32>, Point3<f32>)>) {
-        for points_buffer in self.points.data_mut().iter_mut() {
-            for &(point, color) in points_x_colors.iter() {
-                for _ in 0..6 {
-                    points_buffer.push(point);
-                    points_buffer.push(color);
-                }
+        for colors in self.colors_vec.data_mut().iter_mut() {
+            for _ in 0..6 {
+                colors.push(color);
             }
         }
     }
 
     /// Clear all the points and their colors
     pub fn clear(&mut self) {
-        for points in self.points.data_mut().iter_mut() {
+        for points in self.points_vec.data_mut().iter_mut() {
+            points.clear()
+        }
+        for points in self.colors_vec.data_mut().iter_mut() {
             points.clear()
         }
     }
 
     /// Indicates whether some points have to be drawn.
     pub fn needs_rendering(&self) -> bool {
-        self.points.len() != 0 && self.visible
+        self.points_vec.len() != 0 && self.visible
     }
 
     // Turn off the rendering for this renderer and clear the screen.
@@ -138,8 +135,7 @@ impl PointRenderer3D {
 
     // Retrieve the number of points
     pub fn num_points(&self) -> usize {
-        // Points and colours are interleaved so we divide by 2
-        self.points.len() / 2
+        self.points_vec.len()
     }
 }
 
@@ -250,10 +246,9 @@ impl Renderer for PointRenderer3D {
                 // Set the point size
                 ctxt.point_size(self.get_point_size());
 
-                // The points and colours are interleaved in the same buffer
-                self.pos_attribute.bind_sub_buffer(&mut self.points, 11, 0);
+                self.pos_attribute.bind_sub_buffer(&mut self.points_vec, 5, 0);
                 self.color_attribute
-                    .bind_sub_buffer(&mut self.points, 11, 1);
+                    .bind_sub_buffer(&mut self.colors_vec, 5, 0);
 
                 ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32 / 6);
             }
@@ -265,8 +260,8 @@ impl Renderer for PointRenderer3D {
                 ctxt.point_size(1.0f32);
 
                 // The points and colours are interleaved in the same buffer
-                self.pos_attribute.bind_sub_buffer(&mut self.points, 1, 0);
-                self.color_attribute.bind_sub_buffer(&mut self.points, 1, 1);
+                self.pos_attribute.bind_sub_buffer(&mut self.points_vec, 1, 0);
+                self.color_attribute.bind_sub_buffer(&mut self.colors_vec, 1, 0);
 
                 // Set the correct drawing method of the polygons
                 let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));

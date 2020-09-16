@@ -62,7 +62,7 @@ impl DimensionalityMode {
 pub enum ExplanationMode {
     None,
     DaSilva,
-    // VanDriel,
+    VanDriel,
 }
 
 impl ExplanationMode {
@@ -71,6 +71,7 @@ impl ExplanationMode {
         match self {
             ExplanationMode::None => "None".to_string(),
             ExplanationMode::DaSilva => "Da Silva".to_string(),
+            ExplanationMode::VanDriel => "Van Driel".to_string(),
         }
     }
 }

@@ -26,7 +26,7 @@ use crate::{
         point_renderer_2d::PointRenderer2D,
         point_renderer_3d::PointRenderer3D,
         ui::{draw_overlay, WidgetId},
-        visualization_state::{VisualizationState2D, VisualizationState3D},
+        visualization_state::{Load, VisualizationState2D, VisualizationState3D},
         DimensionalityMode, RenderMode,
     },
 };
@@ -75,22 +75,28 @@ impl Scene {
     }
 
     /// Load the 3D visualization state using the da silva explanations
-    pub fn load_3d(&mut self, points: Vec<Point3<f32>>, explanations: Vec<DaSilvaExplanation>) {
+    pub fn load_3d(&mut self, points: Vec<Point3<f32>>) {
         self.state_3d = Some(VisualizationState3D::new(
-            points,
-            explanations,
-            &self.original_points,
+            points
         ));
         self.dimensionality_mode = DimensionalityMode::ThreeD;
         self.dirty = true;
+    }
+
+    /// Load the Da silva annotations from file for the 3D tooling
+    pub fn load_da_silva_3d(&mut self, explanations: Vec<DaSilvaExplanation>) {
+        if self.state_3d.is_some() {
+            self.state_3d.as_mut().unwrap().load(explanations);
+        } else {
+            eprintln!("You cannot load Annotations if the 3D points are not loaded")
+        }
     }
 
     /// Load the 2D visualization state using the da silva explanations
     pub fn load_2d(&mut self, points: Vec<Point2<f32>>, explanations: Vec<DaSilvaExplanation>) {
         self.state_2d = Some(VisualizationState2D::new(
             points,
-            explanations,
-            &self.original_points,
+            explanations
         ));
         self.dimensionality_mode = DimensionalityMode::TwoD;
         self.dirty = true;
@@ -199,7 +205,7 @@ impl Scene {
                 }
             },
             DimensionalityMode::ThreeD => match &self.state_3d {
-                Some(state) => &state.color_map,
+                Some(state) => &state.get_colour_map(),
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
@@ -372,8 +378,12 @@ pub fn display(
     }
 
     // Add the 3D points if they were provided
-    if points_3d.is_some() && explanations_3d.is_some() {
-        scene.load_3d(points_3d.unwrap(), explanations_3d.unwrap())
+    if points_3d.is_some() {
+        scene.load_3d(points_3d.unwrap())
+    }
+
+    if explanations_3d.is_some() {
+        scene.load_da_silva_3d(explanations_3d.unwrap())
     }
 
     // Start the render loop.

@@ -1,17 +1,63 @@
 // Internal module file used to define the common interface with all the explanation mechanisms and datatypes.
+extern crate nalgebra as na;
 
 use rstar;
-use rstar::{PointDistance, RTree};
-use rstar::{RStarInsertionStrategy, RTreeParams};
+use rstar::{PointDistance, RTree, RTreeObject, RStarInsertionStrategy, RTreeParams, Envelope};
+use na::{Point2, Point3};
+
 
 use super::{da_silva::DaSilvaExplanation, driel::VanDrielExplanation};
-use crate::util::types::{Point3, PointN};
+use crate::util::types::{PointN};
 
+/// Used to store this in the rtree, we can not store PointN in here since it is stored on the heap.
+/// When we keep de index so we can search for the ND point on the heap after finding the nn in 2/3D.
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct IndexedPoint2D {
+    pub index: usize,
+    pub x: f32,
+    pub y: f32,
+}
+
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct IndexedPoint3D {
+    pub index: usize,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+/// This is an abstaction on the indexed point that allows me to annotate these points.
 #[derive(Debug, PartialEq)]
 pub struct AnnotatedPoint<P> {
     pub point: P,
     pub da_silva: Option<DaSilvaExplanation>,
     pub van_driel: Option<VanDrielExplanation>,
+}
+
+impl Into<Point2<f32>> for IndexedPoint2D{
+    fn into(self: Self) -> Point2<f32> {
+        Point2::<f32>::new(self.x, self.y)
+    }
+}
+
+impl Into<Point3<f32>> for IndexedPoint3D{
+    fn into(self: Self) -> Point3<f32> {
+        Point3::<f32>::new(self.x, self.y, self.z)
+    }
+}
+
+impl rstar::RTreeObject for IndexedPoint2D {
+    type Envelope = rstar::AABB<[f32; 2]>;
+    fn envelope(&self) -> Self::Envelope {
+        rstar::AABB::from_point([self.x, self.y])
+    }
+}
+
+impl rstar::RTreeObject for IndexedPoint3D {
+    type Envelope = rstar::AABB<[f32; 3]>;
+    fn envelope(&self) -> Self::Envelope {
+        rstar::AABB::from_point([self.x, self.y, self.z])
+    }
 }
 
 impl<T> rstar::RTreeObject for AnnotatedPoint<T>
@@ -24,60 +70,20 @@ where
     }
 }
 
-impl<T> rstart::PointDistance for AnnotatedPoint<T>
-where
-    T: rstar::PointDistance,
-{
-    fn distance_2(&self, point: Self::Envelope) {
-        self.point.distance_2(point)
-    }
-
-    fn contains_point(&self, point: Self::Envelope) -> bool {
-        self.point.contains_point(point)
-    }
-
-    fn distance_2_if_less_or_equal(
-        &self,
-        point: Self::Envelope,
-        max_distance_2: f32,
-    ) -> Option<f32> {
-        self.point
-            .distance_2_if_less_or_equal(point, max_distance_2)
-    }
-}
-
-///! Used to store this in the rtree, we can not store
-/// PointN in here since it is stored on the heap. When
-/// we keep de index so we can search for the ND point
-/// on the heap after finding the nn in 2/3D.
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct IndexedPoint2D {
-    pub index: usize,
-    pub x: f32,
-    pub y: f32,
-}
-
-impl rstar::RTreeObject for IndexedPoint2D {
-    type Envelope = rstar::AABB<[f32; 2]>;
-    fn envelope(&self) -> Self::Envelope {
-        rstar::AABB::from_point([self.x, self.y])
-    }
-}
-
 impl rstar::PointDistance for IndexedPoint2D {
-    fn distance_2(&self, point: Self::Envelope) -> f32 {
+    fn distance_2(&self, point: &[f32; 2]) -> f32 {
         let x: f32 = point[0] - self.x;
         let y: f32 = point[1] - self.y;
         x.powi(2) + y.powi(2)
     }
 
-    fn contains_point(&self, point: Self::Envelope) -> bool {
+    fn contains_point(&self, point: &[f32; 2]) -> bool {
         self.x == point[0] && self.y == point[1]
     }
 
     fn distance_2_if_less_or_equal(
         &self,
-        point: Self::Envelope,
+        point: &[f32; 2],
         max_distance_2: f32,
     ) -> Option<f32> {
         let t = self.distance_2(point);
@@ -89,60 +95,28 @@ impl rstar::PointDistance for IndexedPoint2D {
     }
 }
 
-impl IndexedPoint2D {
-    pub fn find_average_nearest_neighbor_distance(tree: &RTree<Self, RTreeParameters2D>) -> f32 {
-        let mut res = Vec::<f32>::new();
-        for query_point in tree.iter() {
-            // Get the second nearest neighbor from the query point, the first will be itself.
-            let &nn = tree
-                .nearest_neighbor_iter(&[query_point.x, query_point.y])
-                .take(2)
-                .skip(1)
-                .collect::<Vec<&IndexedPoint2D>>()
-                .first()
-                .expect("Could not get nearest neighbor");
-
-            let dist = query_point.distance_2(&[nn.x, nn.y]).sqrt();
-            res.push(dist);
-        }
-        let average = res.iter().sum::<f32>() / (res.len() as f32);
-        average
+impl rstar::PointDistance for AnnotatedPoint<IndexedPoint2D> {
+    fn distance_2(&self, point: &[f32; 2]) -> f32 {
+        let x: f32 = point[0] - self.point.x;
+        let y: f32 = point[1] - self.point.y;
+        x.powi(2) + y.powi(2)
     }
-}
 
-impl IndexedPoint3D {
-    pub fn find_average_nearest_neighbor_distance(tree: &RTree<Self, RTreeParameters3D>) -> f32 {
-        let mut res = Vec::<f32>::new();
-        for query_point in tree.iter() {
-            // Get the second nearest neighbor from the query point, the first will be itself.
-            let &nn = tree
-                .nearest_neighbor_iter(&[query_point.x, query_point.y, query_point.z])
-                .take(2)
-                .skip(1)
-                .collect::<Vec<&IndexedPoint3D>>()
-                .first()
-                .expect("Could not get nearest neighbor");
-
-            let dist = query_point.distance_2(&[nn.x, nn.y, nn.z]).sqrt();
-            res.push(dist);
-        }
-        let average = res.iter().sum::<f32>() / (res.len() as f32);
-        average
+    fn contains_point(&self, point: &[f32; 2]) -> bool {
+        self.point.x == point[0] && self.point.y == point[1]
     }
-}
 
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct IndexedPoint3D {
-    pub index: usize,
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-}
-
-impl rstar::RTreeObject for IndexedPoint3D {
-    type Envelope = rstar::AABB<[f32; 3]>;
-    fn envelope(&self) -> Self::Envelope {
-        rstar::AABB::from_point([self.x, self.y, self.z])
+    fn distance_2_if_less_or_equal(
+        &self,
+        point: &[f32; 2],
+        max_distance_2: f32,
+    ) -> Option<f32> {
+        let t = self.distance_2(point);
+        if t <= max_distance_2 {
+            Some(t.sqrt())
+        } else {
+            None
+        }
     }
 }
 
@@ -168,6 +142,28 @@ impl rstar::PointDistance for IndexedPoint3D {
     }
 }
 
+impl rstar::PointDistance for AnnotatedPoint<IndexedPoint3D> {
+    fn distance_2(&self, point: &[f32; 3]) -> f32 {
+        let x = point[0] - self.point.x;
+        let y: f32 = point[1] - self.point.y;
+        let z = point[2] - self.point.z;
+        x.powi(2) + y.powi(2) + z.powi(2)
+    }
+
+    fn contains_point(&self, point: &[f32; 3]) -> bool {
+        self.point.x == point[0] && self.point.y == point[1] && self.point.z == point[2]
+    }
+
+    fn distance_2_if_less_or_equal(&self, point: &[f32; 3], max_distance_2: f32) -> Option<f32> {
+        let t = self.distance_2(point);
+        if t <= max_distance_2 {
+            Some(t.sqrt())
+        } else {
+            None
+        }
+    }
+}
+
 // Distance calculation
 pub trait Distance {
     // Euclidean distance
@@ -176,7 +172,7 @@ pub trait Distance {
     fn sq_distance(&self, other: &Self) -> f32;
 }
 
-impl Distance for Point3 {
+impl Distance for Point3<f32> {
     fn distance(&self, other: &Self) -> f32 {
         self.sq_distance(other).sqrt()
     }

@@ -127,79 +127,77 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     let color_map = scene.get_current_color_map();
     // No need to render the color legend if the color map is empty
     if !color_map.is_initialized() {
-        widget::Text::new("No color map present\nall points are grey")
+        widget::Text::new("No explanation loaded\nall points are grey")
             .font_size(FONT_SIZE)
             .top_right()
             .set(ids.text_dim_0, &mut ui);
-
-
-    }
-
-    let color = color_map.get_conrod_color_with_gamma(&0usize, scene.get_gamma());
-    widget::Canvas::new()
-        .top_right_with_margin(5.0f64)
-        .w(COLOR_PREVIEW_SIZE)
-        .h(COLOR_PREVIEW_SIZE)
-        .color(color)
-        .set(ids.color_block_0, &mut ui);
-
-    let text = format!(
-        "Dimension {}",
-        color_map.get_dimension_from_rank(&0usize).unwrap()
-    );
-    widget::Text::new(&text)
-        .font_size(FONT_SIZE)
-        .left_from(ids.color_block_0, 2.0f64)
-        .w_of(ids.text_point_count)
-        .set(ids.text_dim_0, &mut ui);
-
-    // All the ids used from drawing
-    // Here the first entry is the one we offset the current ui element from
-    // the second and third are the actual ui element ids.
-    let dimensions = vec![
-        (ids.color_block_0, ids.color_block_1, ids.text_dim_1),
-        (ids.color_block_1, ids.color_block_2, ids.text_dim_2),
-        (ids.color_block_2, ids.color_block_3, ids.text_dim_3),
-        (ids.color_block_3, ids.color_block_4, ids.text_dim_4),
-        (ids.color_block_4, ids.color_block_5, ids.text_dim_5),
-        (ids.color_block_5, ids.color_block_6, ids.text_dim_6),
-        (ids.color_block_6, ids.color_block_7, ids.text_dim_7),
-        (ids.color_block_7, ids.color_block_other, ids.text_dim_other),
-    ];
-
-    for (index, &(offset_id, preview_id, text_id)) in dimensions
-        .iter()
-        .take(color_map.dimension_count())
-        .enumerate()
-    {
-        // Enumerate is 0 indexed, so we add 1 to get the correct offset.
-        let rank = &index + 1usize;
-        // First draw the color preview with the correct color.
-        let color = color_map.get_conrod_color_with_gamma(&rank, scene.get_gamma());
-
+    } else {
+        let color = color_map.get_conrod_color_with_gamma(&0usize, scene.get_gamma());
         widget::Canvas::new()
-            .down_from(offset_id, 3.0)
+            .top_right_with_margin(5.0f64)
             .w(COLOR_PREVIEW_SIZE)
             .h(COLOR_PREVIEW_SIZE)
             .color(color)
-            .set(preview_id, &mut ui);
+            .set(ids.color_block_0, &mut ui);
 
-        let text = {
-            if index == 7usize {
-                "Other dimensions".to_string()
-            } else {
-                format!(
-                    "Dimension {}",
-                    color_map.get_dimension_from_rank(&rank).unwrap()
-                )
-            }
-        };
-
+        let text = format!(
+            "Dimension {}",
+            color_map.get_dimension_from_rank(&0usize).unwrap()
+        );
         widget::Text::new(&text)
             .font_size(FONT_SIZE)
-            .left_from(preview_id, 2.0f64)
+            .left_from(ids.color_block_0, 2.0f64)
             .w_of(ids.text_point_count)
-            .set(text_id, &mut ui);
+            .set(ids.text_dim_0, &mut ui);
+
+        // All the ids used from drawing
+        // Here the first entry is the one we offset the current ui element from
+        // the second and third are the actual ui element ids.
+        let dimensions = vec![
+            (ids.color_block_0, ids.color_block_1, ids.text_dim_1),
+            (ids.color_block_1, ids.color_block_2, ids.text_dim_2),
+            (ids.color_block_2, ids.color_block_3, ids.text_dim_3),
+            (ids.color_block_3, ids.color_block_4, ids.text_dim_4),
+            (ids.color_block_4, ids.color_block_5, ids.text_dim_5),
+            (ids.color_block_5, ids.color_block_6, ids.text_dim_6),
+            (ids.color_block_6, ids.color_block_7, ids.text_dim_7),
+            (ids.color_block_7, ids.color_block_other, ids.text_dim_other),
+        ];
+
+        for (index, &(offset_id, preview_id, text_id)) in dimensions
+            .iter()
+            .take(color_map.dimension_count())
+            .enumerate()
+        {
+            // Enumerate is 0 indexed, so we add 1 to get the correct offset.
+            let rank = &index + 1usize;
+            // First draw the color preview with the correct color.
+            let color = color_map.get_conrod_color_with_gamma(&rank, scene.get_gamma());
+
+            widget::Canvas::new()
+                .down_from(offset_id, 3.0)
+                .w(COLOR_PREVIEW_SIZE)
+                .h(COLOR_PREVIEW_SIZE)
+                .color(color)
+                .set(preview_id, &mut ui);
+
+            let text = {
+                if index == 7usize {
+                    "Other dimensions".to_string()
+                } else {
+                    format!(
+                        "Dimension {}",
+                        color_map.get_dimension_from_rank(&rank).unwrap()
+                    )
+                }
+            };
+
+            widget::Text::new(&text)
+                .font_size(FONT_SIZE)
+                .left_from(preview_id, 2.0f64)
+                .w_of(ids.text_point_count)
+                .set(text_id, &mut ui);
+        }
     }
 
     // ##################################################

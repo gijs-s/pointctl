@@ -1,12 +1,16 @@
 extern crate nalgebra as na;
 
 // Buildin
-use crate::exp::da_silva::DaSilvaExplanation;
+use crate::exp::{
+    da_silva::DaSilvaExplanation,
+    driel::VanDrielExplanation
+};
 use kiss3d::conrod::color::{rgb_bytes, rgba, Color, Rgba};
 use na::Point3;
 use std::collections::HashMap;
 
-// Everything related to the colors in the visualization
+/// Everything related to the colors in the visualization
+#[derive(Debug, PartialEq, Clone)]
 pub struct ColorMap {
     // Map of dimension to a color index
     map: HashMap<usize, usize>,
@@ -15,6 +19,39 @@ pub struct ColorMap {
     inverse_map: HashMap<usize, usize>,
     // Min max values for the confidence, used for normalization
     normalization_bounds: (f32, f32),
+}
+
+impl From<&Vec<DaSilvaExplanation>> for ColorMap {
+    fn from(explanations: &Vec<DaSilvaExplanation>) -> Self {
+        let (min, max) = DaSilvaExplanation::confidence_bounds(&explanations);
+        ColorMap::new(
+            min,
+            max,
+            DaSilvaExplanation::calculate_dimension_rankings(&explanations),
+        )
+    }
+}
+
+impl From<&Vec<VanDrielExplanation>> for ColorMap {
+    fn from(explanations: &Vec<VanDrielExplanation>) -> Self {
+        let (min, max) = VanDrielExplanation::confidence_bounds(&explanations);
+        ColorMap::new(
+            min,
+            max,
+            VanDrielExplanation::calculate_dimension_rankings(&explanations),
+        )
+    }
+}
+
+impl Default for ColorMap {
+    /// Create a dummy default color map that is completely empty
+    fn default() -> Self {
+        ColorMap {
+            map: HashMap::<usize, usize>::new(),
+            inverse_map: HashMap::<usize, usize>::new(),
+            normalization_bounds: (0.0, 1.0),
+        }
+    }
 }
 
 impl ColorMap {
@@ -35,27 +72,6 @@ impl ColorMap {
             map,
             inverse_map,
             normalization_bounds: (min_confidence, max_confidence),
-        }
-    }
-
-    pub fn from_da_silva(
-        explanations: &Vec<DaSilvaExplanation>,
-        dimension_count: usize,
-    ) -> ColorMap {
-        let (min, max) = DaSilvaExplanation::confidence_bounds(&explanations);
-        ColorMap::new(
-            min,
-            max,
-            DaSilvaExplanation::calculate_dimension_rankings(dimension_count, &explanations),
-        )
-    }
-
-    // Create a dummy place holder empty colormap
-    pub fn new_dummy() -> ColorMap {
-        ColorMap {
-            map: HashMap::<usize, usize>::new(),
-            inverse_map: HashMap::<usize, usize>::new(),
-            normalization_bounds: (0.0, 1.0),
         }
     }
 
@@ -110,7 +126,8 @@ impl ColorMap {
 
     /// Scale a color in hsv.
     fn scale_color(scale: f32, color: Point3<f32>) -> Point3<f32> {
-        let brightness = color.z * scale.cbrt();
+        // TODO: Is the brightness scale correct?
+        let brightness = color.z * scale.sqrt();
         return Point3::new(color.x, color.y, brightness);
     }
 

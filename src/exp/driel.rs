@@ -17,23 +17,28 @@ use crate::util::types::{Point3, PointN};
 use std::cmp::Ordering;
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct VanDrielExplanation {
-    dimension: i32,
-    confidence: f32,
+    pub dimension: usize,
+    pub confidence: f32,
 }
 
 impl VanDrielExplanation {
+    /// Rank the dimensions on how many times they occur
     pub fn calculate_dimension_rankings(
-        dimensions: usize,
         explanations: &Vec<VanDrielExplanation>,
     ) -> Vec<usize> {
+        if explanations.is_empty() {
+            return Vec::<usize>::new();
+        }
+
+        let max_dimension_index = explanations.iter().map(|exp| exp.dimension).max().unwrap();
         let mut ranking_counts = explanations
             .iter()
-            .map(|exp| exp.attribute_index)
+            .map(|exp| exp.dimension)
             // Count the occurrences of each dimension
-            .fold(vec![0usize; dimensions], |mut acc, attribute_index| {
-                acc[attribute_index] += 1;
+            .fold(vec![0usize; max_dimension_index], |mut acc, dim| {
+                acc[dim] += 1;
                 acc
             })
             .into_iter()
@@ -91,6 +96,7 @@ impl<'a> DrielState<'a> {
         DrielState { rtree, original_points }
     }
 
+    #[allow(unused_variables)]
     pub fn explain(
         &self,
         neighborhood_size: f32,
