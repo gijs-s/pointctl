@@ -66,14 +66,12 @@ fn main() {
                 .arg(
                     Arg::with_name("reduced_data")
                         .short("r")
-                        .required(true)
                         .takes_value(true)
                         .help("The reduced dataset in ply or csv format"),
                 )
                 .arg(
                     Arg::with_name("annotations")
                         .short("a")
-                        .required(true)
                         .takes_value(true)
                         .help("Collection of annotations in ply or csv format"),
                 )
@@ -235,46 +233,56 @@ fn view_command(matches: &ArgMatches) {
     );
 
     // Retrieve the points from the reduced dataset
-    let reduced_data_path = matches.value_of("reduced_data").unwrap();
-    let reduced_data = Path::new(reduced_data_path);
-    let (reduced_points, r) = read(reduced_data);
-    println!(
-        "Reduced 3D data loaded. Consists of {} points with {} dimensions",
-        reduced_points.len(),
-        r
-    );
+    let clean_reduced_points = match matches.value_of("reduced_data") {
+        None => None,
+        Some(reduced_data_path) => {
+            let reduced_data = Path::new(reduced_data_path);
+            let (reduced_points, r) = read(reduced_data);
+            println!(
+                "Reduced 3D data loaded. Consists of {} points with {} dimensions",
+                reduced_points.len(),
+                r
+            );
 
-    // Convert reduced data to 3D nalgebra points with optional zero padding
-    // TODO create abstraction for this!
-    let clean_reduced_points = reduced_points
-        .iter()
-        .map(|vec| match vec[..] {
-            [x, y, z] => Point3::new(x, y, z),
-            [x, y] => Point3::new(x, y, 0.0),
-            _ => {
-                eprint!("Points with {} dimensions is not supported yet", vec.len());
-                exit(15)
-            }
-        })
-        .collect::<Vec<Point3>>();
+            // Convert reduced data to 3D nalgebra points with optional zero padding
+            // TODO create abstraction for this!
+            let res = reduced_points
+                .iter()
+                .map(|vec| match vec[..] {
+                    [x, y, z] => Point3::new(x, y, z),
+                    [x, y] => Point3::new(x, y, 0.0),
+                    _ => {
+                        eprint!("Points with {} dimensions is not supported yet", vec.len());
+                        exit(15)
+                    }
+                })
+                .collect::<Vec<Point3>>();
+            Some(res)
+        }
+    };
 
     // Retrieve the points from the reduced dataset
-    let annotations_path = matches.value_of("annotations").unwrap();
-    let annotations_data = Path::new(annotations_path);
-    let (annotations, d) = read(annotations_data);
-    println!(
-        "Annotations for 3D loaded. Consists of {} points with {} dimensions",
-        annotations.len(),
-        d
-    );
+    let explanations_3d = match matches.value_of("annotations") {
+        None => None,
+        Some(annotations_path) => {
+            let annotations_data = Path::new(annotations_path);
+            let (annotations, d) = read(annotations_data);
+            println!(
+                "Annotations for 3D loaded. Consists of {} points with {} dimensions",
+                annotations.len(),
+                d
+            );
 
-    let explanations_3d = annotations
-        .iter()
-        .map(|v| exp::da_silva::DaSilvaExplanation {
-            attribute_index: v[0] as usize,
-            confidence: v[1],
-        })
-        .collect::<Vec<exp::da_silva::DaSilvaExplanation>>();
+            let res = annotations
+                .iter()
+                .map(|v| exp::da_silva::DaSilvaExplanation {
+                    attribute_index: v[0] as usize,
+                    confidence: v[1],
+                })
+                .collect::<Vec<exp::da_silva::DaSilvaExplanation>>();
+            Some(res)
+        }
+    };
 
     // Parse the 2D points if the reduced data is provided
     let reduced_points_2d: Option<Vec<Point2<f32>>> = {
@@ -326,7 +334,7 @@ fn view_command(matches: &ArgMatches) {
         original_points,
         reduced_points_2d,
         explanations_2d,
-        Some(clean_reduced_points),
-        Some(explanations_3d),
+        clean_reduced_points,
+        explanations_3d,
     );
 }
