@@ -394,6 +394,9 @@ pub fn display(
         }
     }
 
+    if scene.state_3d.is_none() && scene.state_2d.is_some() {
+        window.switch_rendering_mode();
+    }
     // Start the render loop.
     window.render_loop(scene)
 }
