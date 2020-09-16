@@ -14,7 +14,7 @@
     - [ ] Algorithm tests
  - [ ] CLI improvements
     - [ ] Allow starting the program with sparser data -> Add calc button in UI
- - [ ] Keep the annotations on a per point level, allow switching of color maps.
-    - [ ] Store annotations in the rtree
-    - [ ] Support switching color maps
+ - [x] Keep the annotations on a per point level, allow switching of color maps.
+    - [x] Store annotations in the rtree
+    - [x] Support switching color maps
  - [ ] Z buffer sorting to fix opacity blending in 3D

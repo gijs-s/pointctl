@@ -93,13 +93,21 @@ impl Scene {
     }
 
     /// Load the 2D visualization state using the da silva explanations
-    pub fn load_2d(&mut self, points: Vec<Point2<f32>>, explanations: Vec<DaSilvaExplanation>) {
+    pub fn load_2d(&mut self, points: Vec<Point2<f32>>) {
         self.state_2d = Some(VisualizationState2D::new(
             points,
-            explanations
         ));
         self.dimensionality_mode = DimensionalityMode::TwoD;
         self.dirty = true;
+    }
+
+    /// Load the Da silva annotations from file for the 2D tooling
+    pub fn load_da_silva_2d(&mut self, explanations: Vec<DaSilvaExplanation>) {
+        if self.state_2d.is_some() {
+            self.state_2d.as_mut().unwrap().load(explanations);
+        } else {
+            eprintln!("You cannot load Annotations if the 2D points are not loaded")
+        }
     }
 
     /// Check if any data has been passed, we can not work without any reduction data
@@ -198,7 +206,7 @@ impl Scene {
     pub fn get_current_color_map(&self) -> &ColorMap {
         match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &self.state_2d {
-                Some(state) => &state.color_map,
+                Some(state) => &state.get_colour_map(),
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
@@ -373,17 +381,21 @@ pub fn display(
     let mut scene = Scene::new(original_points, conrod_ids);
 
     // Add the 2D points if they were provided
-    if points_2d.is_some() && explanations_2d.is_some() {
-        scene.load_2d(points_2d.unwrap(), explanations_2d.unwrap())
+    if points_2d.is_some() {
+        scene.load_2d(points_2d.unwrap());
+
+        if explanations_2d.is_some() {
+            scene.load_da_silva_2d(explanations_2d.unwrap());
+        }
     }
 
     // Add the 3D points if they were provided
     if points_3d.is_some() {
-        scene.load_3d(points_3d.unwrap())
-    }
+        scene.load_3d(points_3d.unwrap());
 
-    if explanations_3d.is_some() {
-        scene.load_da_silva_3d(explanations_3d.unwrap())
+        if explanations_3d.is_some() {
+            scene.load_da_silva_3d(explanations_3d.unwrap());
+        }
     }
 
     // Start the render loop.
