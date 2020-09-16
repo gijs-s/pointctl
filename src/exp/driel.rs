@@ -16,7 +16,6 @@ use super::common::{Distance, IndexedPoint3D, RTreeParameters3D};
 use crate::util::types::{Point3, PointN};
 use std::cmp::Ordering;
 
-
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct VanDrielExplanation {
     pub dimension: usize,
@@ -25,9 +24,7 @@ pub struct VanDrielExplanation {
 
 impl VanDrielExplanation {
     /// Rank the dimensions on how many times they occur
-    pub fn calculate_dimension_rankings(
-        explanations: &Vec<VanDrielExplanation>,
-    ) -> Vec<usize> {
+    pub fn calculate_dimension_rankings(explanations: &Vec<VanDrielExplanation>) -> Vec<usize> {
         if explanations.is_empty() {
             return Vec::<usize>::new();
         }
@@ -70,17 +67,13 @@ impl VanDrielExplanation {
     }
 }
 
-
 pub struct DrielState<'a> {
     pub rtree: RTree<IndexedPoint3D, RTreeParameters3D>,
     pub original_points: &'a Vec<PointN>,
 }
 
 impl<'a> DrielState<'a> {
-    pub fn new(
-        reduced_points: Vec<Point3>,
-        original_points: &'a Vec<PointN>,
-    ) -> DrielState<'a> {
+    pub fn new(reduced_points: Vec<Point3>, original_points: &'a Vec<PointN>) -> DrielState<'a> {
         let indexed_points: Vec<IndexedPoint3D> = reduced_points
             .into_iter()
             .enumerate()
@@ -93,7 +86,10 @@ impl<'a> DrielState<'a> {
             .collect();
         let rtree =
             RTree::<IndexedPoint3D, RTreeParameters3D>::bulk_load_with_params(indexed_points);
-        DrielState { rtree, original_points }
+        DrielState {
+            rtree,
+            original_points,
+        }
     }
 
     #[allow(unused_variables)]

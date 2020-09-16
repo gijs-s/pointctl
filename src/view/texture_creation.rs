@@ -1,8 +1,5 @@
 /// Code for creating the alpha textures used in continous rendering mode
-use kiss3d::{
-    context::Context,
-    resource::Texture,
-};
+use kiss3d::{context::Context, resource::Texture};
 
 /// Generate a 256 x 256 blob texture with only the alpha channel encoded.
 fn generate_raw_texture() -> Vec<u8> {

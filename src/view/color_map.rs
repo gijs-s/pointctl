@@ -1,10 +1,7 @@
 extern crate nalgebra as na;
 
 // Buildin
-use crate::exp::{
-    da_silva::DaSilvaExplanation,
-    driel::VanDrielExplanation
-};
+use crate::exp::{da_silva::DaSilvaExplanation, driel::VanDrielExplanation};
 use kiss3d::conrod::color::{rgb_bytes, rgba, Color, Rgba};
 use na::Point3;
 use std::collections::HashMap;

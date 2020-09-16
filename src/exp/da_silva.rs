@@ -31,22 +31,28 @@ pub struct DaSilvaExplanation {
 
 impl DaSilvaExplanation {
     /// Rank the dimensions on how many times they occur
-    pub fn calculate_dimension_rankings(
-        explanations: &Vec<DaSilvaExplanation>,
-    ) -> Vec<usize> {
+    pub fn calculate_dimension_rankings(explanations: &Vec<DaSilvaExplanation>) -> Vec<usize> {
         if explanations.is_empty() {
             return Vec::<usize>::new();
         }
 
-        let max_dimension_index = explanations.iter().map(|exp| exp.attribute_index).max().unwrap() + 1;
+        let max_dimension_index = explanations
+            .iter()
+            .map(|exp| exp.attribute_index)
+            .max()
+            .unwrap()
+            + 1;
         let mut ranking_counts = explanations
             .iter()
             .map(|exp| exp.attribute_index)
             // Count the occurrences of each dimension
-            .fold(vec![0usize; max_dimension_index], |mut acc, attribute_index| {
-                acc[attribute_index] += 1;
-                acc
-            })
+            .fold(
+                vec![0usize; max_dimension_index],
+                |mut acc, attribute_index| {
+                    acc[attribute_index] += 1;
+                    acc
+                },
+            )
             .into_iter()
             // Add an index to the count of each dimension
             .enumerate()

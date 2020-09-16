@@ -246,7 +246,8 @@ impl Renderer for PointRenderer3D {
                 // Set the point size
                 ctxt.point_size(self.get_point_size());
 
-                self.pos_attribute.bind_sub_buffer(&mut self.points_vec, 5, 0);
+                self.pos_attribute
+                    .bind_sub_buffer(&mut self.points_vec, 5, 0);
                 self.color_attribute
                     .bind_sub_buffer(&mut self.colors_vec, 5, 0);
 
@@ -260,8 +261,10 @@ impl Renderer for PointRenderer3D {
                 ctxt.point_size(1.0f32);
 
                 // The points and colours are interleaved in the same buffer
-                self.pos_attribute.bind_sub_buffer(&mut self.points_vec, 1, 0);
-                self.color_attribute.bind_sub_buffer(&mut self.colors_vec, 1, 0);
+                self.pos_attribute
+                    .bind_sub_buffer(&mut self.points_vec, 1, 0);
+                self.color_attribute
+                    .bind_sub_buffer(&mut self.colors_vec, 1, 0);
 
                 // Set the correct drawing method of the polygons
                 let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));

@@ -76,9 +76,7 @@ impl Scene {
 
     /// Load the 3D visualization state using the da silva explanations
     pub fn load_3d(&mut self, points: Vec<Point3<f32>>) {
-        self.state_3d = Some(VisualizationState3D::new(
-            points
-        ));
+        self.state_3d = Some(VisualizationState3D::new(points));
         self.dimensionality_mode = DimensionalityMode::ThreeD;
         self.dirty = true;
     }
@@ -94,9 +92,7 @@ impl Scene {
 
     /// Load the 2D visualization state using the da silva explanations
     pub fn load_2d(&mut self, points: Vec<Point2<f32>>) {
-        self.state_2d = Some(VisualizationState2D::new(
-            points,
-        ));
+        self.state_2d = Some(VisualizationState2D::new(points));
         self.dimensionality_mode = DimensionalityMode::TwoD;
         self.dirty = true;
     }

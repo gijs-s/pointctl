@@ -18,17 +18,19 @@ use rstar::{PointDistance, RTree};
 // First party
 use crate::{
     exp::{
-        common::{AnnotatedPoint, IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D},
+        common::{
+            AnnotatedPoint, IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D,
+        },
         da_silva::DaSilvaExplanation,
-        driel::VanDrielExplanation
+        driel::VanDrielExplanation,
     },
     util::types::PointN,
     view::{
-        ExplanationMode,
         color_map::ColorMap,
         point_renderer_2d::PointRenderer2D,
         point_renderer_3d::PointRenderer3D,
         ui::{draw_overlay, WidgetId},
+        ExplanationMode,
     },
 };
 
@@ -47,14 +49,12 @@ pub struct VisualizationState3D {
     // color map used by the 3D visualizer
     pub color_maps: HashMap<ExplanationMode, ColorMap>,
     // Explanation being viewed at this moment
-    explanation: ExplanationMode
+    explanation: ExplanationMode,
 }
 
 impl VisualizationState3D {
     /// Create the visualizer with actual data.
-    pub fn new(
-        points: Vec<Point3<f32>>,
-    ) -> VisualizationState3D {
+    pub fn new(points: Vec<Point3<f32>>) -> VisualizationState3D {
         // Create the tree
         let annotated_points: Vec<AnnotatedPoint<IndexedPoint3D>> = points
             .iter()
@@ -66,13 +66,17 @@ impl VisualizationState3D {
                     y: point.y,
                     z: point.z,
                 };
-                AnnotatedPoint::<IndexedPoint3D> { point, da_silva: None, van_driel: None}
-            }
-            )
+                AnnotatedPoint::<IndexedPoint3D> {
+                    point,
+                    da_silva: None,
+                    van_driel: None,
+                }
+            })
             .collect();
         let rtree =
-            RTree::<AnnotatedPoint::<IndexedPoint3D>, RTreeParameters3D>::bulk_load_with_params(annotated_points);
-
+            RTree::<AnnotatedPoint<IndexedPoint3D>, RTreeParameters3D>::bulk_load_with_params(
+                annotated_points,
+            );
 
         // Create the colour map
         let mut color_maps = HashMap::<ExplanationMode, ColorMap>::new();
@@ -90,7 +94,7 @@ impl VisualizationState3D {
             tree: rtree,
             renderer: point_renderer,
             color_maps: color_maps,
-            explanation: ExplanationMode::None
+            explanation: ExplanationMode::None,
         }
     }
 
@@ -99,7 +103,9 @@ impl VisualizationState3D {
         let map: Option<&ColorMap> = self.color_maps.get(&self.explanation);
         match map {
             Some(m) => m,
-            None => panic!("There is no color map for the current explanation mode, this should never happen")
+            None => panic!(
+                "There is no color map for the current explanation mode, this should never happen"
+            ),
         }
     }
 
@@ -126,28 +132,30 @@ impl VisualizationState3D {
     }
 
     // Reload all the points in the renderer using the current rendering mode
-    fn reload_renderer_colors(&mut self){
+    fn reload_renderer_colors(&mut self) {
         // Clear all points and colors from the render
         self.renderer.clear();
         // Get the current color map
         let color_map = self.get_colour_map();
         // Add every point back to the renderer with the correct data.
-        let points_x_colors = self.tree.iter().map(|annotated_point| {
-            let color = match self.explanation {
-                ExplanationMode::None => {
-                    ColorMap::default_color()
-                },
-                ExplanationMode::DaSilva => {
-                    let explanation: DaSilvaExplanation = annotated_point.da_silva.unwrap();
-                    color_map.get_color(explanation.attribute_index, explanation.confidence)
-                },
-                ExplanationMode::VanDriel => {
-                    let explanation: VanDrielExplanation = annotated_point.van_driel.unwrap();
-                    color_map.get_color(explanation.dimension, explanation.confidence)
-                }
-            };
-            (annotated_point.point.into(), color)
-        }).collect::<Vec<(Point3<f32>,Point3<f32>)>>();
+        let points_x_colors = self
+            .tree
+            .iter()
+            .map(|annotated_point| {
+                let color = match self.explanation {
+                    ExplanationMode::None => ColorMap::default_color(),
+                    ExplanationMode::DaSilva => {
+                        let explanation: DaSilvaExplanation = annotated_point.da_silva.unwrap();
+                        color_map.get_color(explanation.attribute_index, explanation.confidence)
+                    }
+                    ExplanationMode::VanDriel => {
+                        let explanation: VanDrielExplanation = annotated_point.van_driel.unwrap();
+                        color_map.get_color(explanation.dimension, explanation.confidence)
+                    }
+                };
+                (annotated_point.point.into(), color)
+            })
+            .collect::<Vec<(Point3<f32>, Point3<f32>)>>();
 
         for (p, c) in points_x_colors {
             self.renderer.push(p, c);
@@ -163,19 +171,25 @@ impl VisualizationState3D {
         cam
     }
 
-    fn find_average_nearest_neighbor_distance(tree: &RTree<AnnotatedPoint<IndexedPoint3D>, RTreeParameters3D>) -> f32 {
+    fn find_average_nearest_neighbor_distance(
+        tree: &RTree<AnnotatedPoint<IndexedPoint3D>, RTreeParameters3D>,
+    ) -> f32 {
         let mut res = Vec::<f32>::new();
         for query_point in tree.iter() {
             // Get the second nearest neighbor from the query point, the first will be itself.
             let &nn = tree
-                .nearest_neighbor_iter(&[query_point.point.x,query_point.point.y,query_point.point.z])
+                .nearest_neighbor_iter(&[
+                    query_point.point.x,
+                    query_point.point.y,
+                    query_point.point.z,
+                ])
                 .take(2)
                 .skip(1)
                 .collect::<Vec<&AnnotatedPoint<IndexedPoint3D>>>()
                 .first()
                 .expect("Could not get nearest neighbor");
 
-            let dist = query_point.distance_2(&[nn.point.x,nn.point.y,nn.point.z]);
+            let dist = query_point.distance_2(&[nn.point.x, nn.point.y, nn.point.z]);
             res.push(dist.sqrt());
         }
         let average = res.iter().sum::<f32>() / (res.len() as f32);
@@ -196,7 +210,7 @@ impl Load<Vec<DaSilvaExplanation>> for VisualizationState3D {
         // Add the annotations to all the points in the search tree
         for ap in self.tree.iter_mut() {
             ap.da_silva = Some(explanations[ap.point.index]);
-        };
+        }
 
         self.set_explanation_mode(ExplanationMode::DaSilva);
     }
@@ -214,7 +228,7 @@ impl Load<Vec<VanDrielExplanation>> for VisualizationState3D {
         // Add the annotations to all the points in the search tree
         for ap in self.tree.iter_mut() {
             ap.van_driel = Some(explanations[ap.point.index]);
-        };
+        }
 
         self.set_explanation_mode(ExplanationMode::VanDriel);
     }
@@ -230,7 +244,7 @@ pub struct VisualizationState2D {
     // color map used by the 2D visualizer
     pub color_maps: HashMap<ExplanationMode, ColorMap>,
     // Explanation being viewed at this moment
-    explanation: ExplanationMode
+    explanation: ExplanationMode,
 }
 
 impl VisualizationState2D {
@@ -247,13 +261,19 @@ impl VisualizationState2D {
                     x: point.x,
                     y: point.y,
                 };
-                AnnotatedPoint::<IndexedPoint2D> { point: point, da_silva: None, van_driel: None}
+                AnnotatedPoint::<IndexedPoint2D> {
+                    point: point,
+                    da_silva: None,
+                    van_driel: None,
+                }
             })
             .collect();
 
         // Initialize the search tree
         let rtree =
-            RTree::<AnnotatedPoint<IndexedPoint2D>, RTreeParameters2D>::bulk_load_with_params(annotated_points);
+            RTree::<AnnotatedPoint<IndexedPoint2D>, RTreeParameters2D>::bulk_load_with_params(
+                annotated_points,
+            );
 
         // Create the colour map
         let mut color_maps = HashMap::<ExplanationMode, ColorMap>::new();
@@ -272,16 +292,18 @@ impl VisualizationState2D {
             tree: rtree,
             renderer: point_renderer,
             color_maps: color_maps,
-            explanation: ExplanationMode::None
+            explanation: ExplanationMode::None,
         }
     }
 
-    fn find_average_nearest_neighbor_distance(tree: &RTree<AnnotatedPoint<IndexedPoint2D>, RTreeParameters2D>) -> f32 {
+    fn find_average_nearest_neighbor_distance(
+        tree: &RTree<AnnotatedPoint<IndexedPoint2D>, RTreeParameters2D>,
+    ) -> f32 {
         let mut res = Vec::<f32>::new();
         for query_point in tree.iter() {
             // Get the second nearest neighbor from the query point, the first will be itself.
             let &nn = tree
-                .nearest_neighbor_iter(&[query_point.point.x,query_point.point.y])
+                .nearest_neighbor_iter(&[query_point.point.x, query_point.point.y])
                 .take(2)
                 .skip(1)
                 .collect::<Vec<&AnnotatedPoint<IndexedPoint2D>>>()
@@ -296,12 +318,14 @@ impl VisualizationState2D {
         (average.powi(2) * 2.0).sqrt()
     }
 
-       /// Get a reference to the color map that is currently being displayed
-       pub fn get_colour_map(&self) -> &ColorMap {
+    /// Get a reference to the color map that is currently being displayed
+    pub fn get_colour_map(&self) -> &ColorMap {
         let map: Option<&ColorMap> = self.color_maps.get(&self.explanation);
         match map {
             Some(m) => m,
-            None => panic!("There is no color map for the current explanation mode, this should never happen")
+            None => panic!(
+                "There is no color map for the current explanation mode, this should never happen"
+            ),
         }
     }
 
@@ -328,28 +352,30 @@ impl VisualizationState2D {
     }
 
     // Reload all the points in the renderer using the current rendering mode
-    fn reload_renderer_colors(&mut self){
+    fn reload_renderer_colors(&mut self) {
         // Clear all points and colors from the render
         self.renderer.clear();
         // Get the current color map
         let color_map = self.get_colour_map();
         // Add every point back to the renderer with the correct data.
-        let points_x_colors = self.tree.iter().map(|annotated_point| {
-            let color = match self.explanation {
-                ExplanationMode::None => {
-                    ColorMap::default_color()
-                },
-                ExplanationMode::DaSilva => {
-                    let explanation: DaSilvaExplanation = annotated_point.da_silva.unwrap();
-                    color_map.get_color(explanation.attribute_index, explanation.confidence)
-                },
-                ExplanationMode::VanDriel => {
-                    let explanation: VanDrielExplanation = annotated_point.van_driel.unwrap();
-                    color_map.get_color(explanation.dimension, explanation.confidence)
-                }
-            };
-            (annotated_point.point.into(), color)
-        }).collect::<Vec<(Point2<f32>,Point3<f32>)>>();
+        let points_x_colors = self
+            .tree
+            .iter()
+            .map(|annotated_point| {
+                let color = match self.explanation {
+                    ExplanationMode::None => ColorMap::default_color(),
+                    ExplanationMode::DaSilva => {
+                        let explanation: DaSilvaExplanation = annotated_point.da_silva.unwrap();
+                        color_map.get_color(explanation.attribute_index, explanation.confidence)
+                    }
+                    ExplanationMode::VanDriel => {
+                        let explanation: VanDrielExplanation = annotated_point.van_driel.unwrap();
+                        color_map.get_color(explanation.dimension, explanation.confidence)
+                    }
+                };
+                (annotated_point.point.into(), color)
+            })
+            .collect::<Vec<(Point2<f32>, Point3<f32>)>>();
 
         for (p, c) in points_x_colors {
             self.renderer.push(p, c);
@@ -377,7 +403,7 @@ impl Load<Vec<DaSilvaExplanation>> for VisualizationState2D {
         // Add the annotations to all the points in the search tree
         for ap in self.tree.iter_mut() {
             ap.da_silva = Some(explanations[ap.point.index]);
-        };
+        }
 
         self.set_explanation_mode(ExplanationMode::DaSilva);
     }
@@ -395,7 +421,7 @@ impl Load<Vec<VanDrielExplanation>> for VisualizationState2D {
         // Add the annotations to all the points in the search tree
         for ap in self.tree.iter_mut() {
             ap.van_driel = Some(explanations[ap.point.index]);
-        };
+        }
 
         self.set_explanation_mode(ExplanationMode::VanDriel);
     }

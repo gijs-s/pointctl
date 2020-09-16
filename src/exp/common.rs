@@ -1,13 +1,12 @@
 // Internal module file used to define the common interface with all the explanation mechanisms and datatypes.
 extern crate nalgebra as na;
 
-use rstar;
-use rstar::{PointDistance, RTree, RTreeObject, RStarInsertionStrategy, RTreeParams, Envelope};
 use na::{Point2, Point3};
-
+use rstar;
+use rstar::{Envelope, PointDistance, RStarInsertionStrategy, RTree, RTreeObject, RTreeParams};
 
 use super::{da_silva::DaSilvaExplanation, driel::VanDrielExplanation};
-use crate::util::types::{PointN};
+use crate::util::types::PointN;
 
 /// Used to store this in the rtree, we can not store PointN in here since it is stored on the heap.
 /// When we keep de index so we can search for the ND point on the heap after finding the nn in 2/3D.
@@ -34,13 +33,13 @@ pub struct AnnotatedPoint<P> {
     pub van_driel: Option<VanDrielExplanation>,
 }
 
-impl Into<Point2<f32>> for IndexedPoint2D{
+impl Into<Point2<f32>> for IndexedPoint2D {
     fn into(self: Self) -> Point2<f32> {
         Point2::<f32>::new(self.x, self.y)
     }
 }
 
-impl Into<Point3<f32>> for IndexedPoint3D{
+impl Into<Point3<f32>> for IndexedPoint3D {
     fn into(self: Self) -> Point3<f32> {
         Point3::<f32>::new(self.x, self.y, self.z)
     }
@@ -81,11 +80,7 @@ impl rstar::PointDistance for IndexedPoint2D {
         self.x == point[0] && self.y == point[1]
     }
 
-    fn distance_2_if_less_or_equal(
-        &self,
-        point: &[f32; 2],
-        max_distance_2: f32,
-    ) -> Option<f32> {
+    fn distance_2_if_less_or_equal(&self, point: &[f32; 2], max_distance_2: f32) -> Option<f32> {
         let t = self.distance_2(point);
         if t <= max_distance_2 {
             Some(t.sqrt())
@@ -106,11 +101,7 @@ impl rstar::PointDistance for AnnotatedPoint<IndexedPoint2D> {
         self.point.x == point[0] && self.point.y == point[1]
     }
 
-    fn distance_2_if_less_or_equal(
-        &self,
-        point: &[f32; 2],
-        max_distance_2: f32,
-    ) -> Option<f32> {
+    fn distance_2_if_less_or_equal(&self, point: &[f32; 2], max_distance_2: f32) -> Option<f32> {
         let t = self.distance_2(point);
         if t <= max_distance_2 {
             Some(t.sqrt())
