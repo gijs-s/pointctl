@@ -53,39 +53,44 @@ fn main() {
                 .about(
                     "Allows you to view 3D data points given the original data, reduced points and \
                     the annotations. This command assumes that the reduced points, original data and \
-                    annotations have matching indexes. There is also support for showing a 2D \
-                    reduction, simple provide the 2d reduction and its annotations \
-                    via the command line.")
+                    annotations have matching indexes. The to start the viewer you need to provide the \
+                    original data and either a 2d or 3d reduced set. Annotations are optional and can \
+                    be computed from the viewer ")
                 .arg(
                     Arg::with_name("original_data")
                         .short("i")
+                        .long("input")
                         .required(true)
                         .takes_value(true)
                         .help("The original dataset in ply or csv format"),
                 )
                 .arg(
-                    Arg::with_name("reduced_data")
+                    Arg::with_name("reduced_data_3d")
                         .short("r")
+                        .long("r3d")
                         .takes_value(true)
-                        .help("The reduced dataset in ply or csv format"),
+                        .help("The 3D reduced dataset in ply or csv format"),
                 )
                 .arg(
-                    Arg::with_name("annotations")
+                    Arg::with_name("annotations_3d")
                         .short("a")
+                        .long("a3d")
                         .takes_value(true)
-                        .help("Collection of annotations in ply or csv format"),
+                        .help("Annotations for the 3D data in ply or csv format"),
                 )
                 .arg(
                     Arg::with_name("reduced_data_2d")
                         .short("x")
+                        .long("r2d")
                         .takes_value(true)
-                        .help("Optional 2D reduction, only shown if annotations are provided.")
+                        .help("The 2D reduced dataset in ply or csv format"),
                 )
                 .arg(
                     Arg::with_name("annotations_2d")
                         .short("b")
+                        .long("a2d")
                         .takes_value(true)
-                        .help("Optional annotations for the 2D data")
+                        .help("Annotations for the 2D data in ply or csv format")
                 ),
         )
         .subcommand(
@@ -233,20 +238,19 @@ fn view_command(matches: &ArgMatches) {
     );
 
     // Retrieve the points from the reduced dataset
-    let clean_reduced_points = match matches.value_of("reduced_data") {
+    let reduced_points_3d = match matches.value_of("reduced_data_3d") {
         None => None,
         Some(reduced_data_path) => {
-            let reduced_data = Path::new(reduced_data_path);
-            let (reduced_points, r) = read(reduced_data);
+            let (reduced_data, r) = read(Path::new(reduced_data_path));
             println!(
                 "Reduced 3D data loaded. Consists of {} points with {} dimensions",
-                reduced_points.len(),
+                reduced_data.len(),
                 r
             );
 
             // Convert reduced data to 3D nalgebra points with optional zero padding
             // TODO create abstraction for this!
-            let res = reduced_points
+            let reduced_points = reduced_data
                 .iter()
                 .map(|vec| match vec[..] {
                     [x, y, z] => Point3::new(x, y, z),
@@ -257,18 +261,18 @@ fn view_command(matches: &ArgMatches) {
                     }
                 })
                 .collect::<Vec<Point3>>();
-            Some(res)
+            Some(reduced_points)
         }
     };
 
     // Retrieve the points from the reduced dataset
-    let explanations_3d = match matches.value_of("annotations") {
+    let explanations_3d = match matches.value_of("annotations_3d") {
         None => None,
         Some(annotations_path) => {
             let annotations_data = Path::new(annotations_path);
             let (annotations, d) = read(annotations_data);
             println!(
-                "Annotations for 3D loaded. Consists of {} points with {} dimensions",
+                "Da Silva annotations for 3D loaded. Consists of {} points with {} dimensions",
                 annotations.len(),
                 d
             );
@@ -313,7 +317,7 @@ fn view_command(matches: &ArgMatches) {
         if let Some(path) = matches.value_of("annotations_2d") {
             let (annotations, d) = read(Path::new(path));
             println!(
-                "Annotations for 2D loaded. Consists of {} points with {} dimensions",
+                "Da Silva annotations for 2D loaded. Consists of {} points with {} dimensions",
                 annotations.len(),
                 d
             );
@@ -334,7 +338,7 @@ fn view_command(matches: &ArgMatches) {
         original_points,
         reduced_points_2d,
         explanations_2d,
-        clean_reduced_points,
+        reduced_points_3d,
         explanations_3d,
     );
 }
