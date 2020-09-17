@@ -113,6 +113,13 @@ impl Scene {
         !(self.state_2d.is_none() && self.state_3d.is_none())
     }
 
+    pub fn dimension_switch_available(&self) -> bool {
+        match self.dimensionality_mode {
+            DimensionalityMode::TwoD => self.state_3d.is_some(),
+            DimensionalityMode::ThreeD => self.state_2d.is_some()
+        }
+    }
+
     /// Reset the camera view of the current rendering mode
     pub fn reset_camera(&mut self) {
         match self.dimensionality_mode {
@@ -251,16 +258,6 @@ impl Scene {
         }
     }
 
-    /// Switch between rendering the continous and discreet point cloud representation
-    pub fn switch_render_mode(&mut self) {
-        self.current_render_mode_mut().switch_render_mode();
-    }
-
-    /// Get the current rendering mode
-    pub fn get_current_render_mode(&self) -> RenderMode {
-        self.current_render_mode().get_current_render_mode()
-    }
-
     /// Get the color map that is currently in use
     pub fn get_current_color_map(&self) -> &ColorMap {
         match self.dimensionality_mode {
@@ -279,6 +276,16 @@ impl Scene {
                 }
             },
         }
+    }
+
+    /// Switch between rendering the continous and discreet point cloud representation
+    pub fn switch_render_mode(&mut self) {
+        self.current_render_mode_mut().switch_render_mode();
+    }
+
+    /// Get the current rendering mode
+    pub fn get_current_render_mode(&self) -> RenderMode {
+        self.current_render_mode().get_current_render_mode()
     }
 
     /// Get the gamma which will be used to next render loop

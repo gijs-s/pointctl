@@ -258,12 +258,12 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     // Only show the 2 other options, switching to the mode you are already in does not make sense.
     let (text_1, event_1, text_2, event_2) = match scene.get_explanation_mode() {
         ExplanationMode::None => (
-            text_da_silva,
-            event_da_silva,
             text_van_driel,
             event_van_driel,
+            text_da_silva,
+            event_da_silva,
         ),
-        ExplanationMode::DaSilva => (text_none, event_none, text_van_driel, event_van_driel),
+        ExplanationMode::DaSilva => (text_van_driel, event_van_driel, text_none, event_none),
         ExplanationMode::VanDriel => (text_da_silva, event_da_silva, text_none, event_none),
     };
 
@@ -317,18 +317,19 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         queue.push(UIEvents::ResetButtonPress)
     }
 
-    // Button for switching 2D/3D
-    // TODO: Only show this button if the other rendering mode is available
-    let text = format!("Switch to {}", scene.dimensionality_mode.inverse().to_str());
-    for _ in widget::Button::new()
-        .label(&text)
-        .label_font_size(FONT_SIZE)
-        .up_from(ids.button_reset, 5.0f64)
-        .w(BUTTON_WIDTH)
-        .h(BUTTON_HEIGHT)
-        .set(ids.button_dimension_switch, &mut ui)
-    {
-        queue.push(UIEvents::DimensionalitySwitch)
+    // Button for switching 2D/3D if available
+    if scene.dimension_switch_available() {
+        let text = format!("Switch to {}", scene.dimensionality_mode.inverse().to_str());
+        for _ in widget::Button::new()
+            .label(&text)
+            .label_font_size(FONT_SIZE)
+            .up_from(ids.button_reset, 5.0f64)
+            .w(BUTTON_WIDTH)
+            .h(BUTTON_HEIGHT)
+            .set(ids.button_dimension_switch, &mut ui)
+        {
+            queue.push(UIEvents::DimensionalitySwitch)
+        }
     }
 
     // Settings for the gamma
