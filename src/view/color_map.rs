@@ -124,7 +124,7 @@ impl ColorMap {
     /// Scale a color in hsv.
     fn scale_color(scale: f32, color: Point3<f32>) -> Point3<f32> {
         // TODO: Is the brightness scale correct?
-        let brightness = color.z * scale.sqrt();
+        let brightness = color.z * scale.cbrt();
         return Point3::new(color.x, color.y, brightness);
     }
 

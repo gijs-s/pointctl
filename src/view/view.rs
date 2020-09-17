@@ -31,6 +31,8 @@ use crate::{
     },
 };
 
+use super::ExplanationMode;
+
 // Easy access to buttons
 mod buttons {
     use kiss3d::event::Key;
@@ -146,6 +148,67 @@ impl Scene {
                 false => println!("Cannot switch to 2D since there is no 2D state loaded"),
             },
         }
+    }
+
+    /// Check if a given explanation mode is already loaded for the current state
+    pub fn is_explanation_available(&self, mode: &ExplanationMode) -> bool {
+        match self.dimensionality_mode {
+            DimensionalityMode::TwoD => match &self.state_2d {
+                Some(state) => state.is_explanation_available(&mode),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+            DimensionalityMode::ThreeD => match &self.state_3d {
+                Some(state) => state.is_explanation_available(&mode),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+        }
+    }
+
+    pub fn get_explanation_mode(&self) -> ExplanationMode {
+        match self.dimensionality_mode {
+            DimensionalityMode::TwoD => match &self.state_2d {
+                Some(state) => state.get_explanation_mode(),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+            DimensionalityMode::ThreeD => match &self.state_3d {
+                Some(state) => state.get_explanation_mode(),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+        }
+    }
+
+    pub fn set_explanation_mode(&mut self, mode: ExplanationMode) {
+        let success = match self.dimensionality_mode {
+            DimensionalityMode::TwoD => match &mut self.state_2d {
+                Some(state) => state.set_explanation_mode(mode),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+            DimensionalityMode::ThreeD => match &mut self.state_3d {
+                Some(state) => state.set_explanation_mode(mode),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+        };
+        if !success{
+            println!("Switching to rendering mode failed")
+        };
     }
 
     /// Retrieve the current rendering mode for interaction.

@@ -10,7 +10,7 @@ use kiss3d::{
 // Internal imports
 use crate::view::{color_map::ColorMap, view::Scene, DimensionalityMode};
 
-use super::RenderMode;
+use super::{ExplanationMode, RenderMode};
 
 // Generate a unique `WidgetId` for each widget.
 widget_ids! {
@@ -19,6 +19,7 @@ widget_ids! {
         text_point_count,
         text_dimensionality,
         text_render_mode,
+        text_explanation_mode,
         text_error,
         // Buttons controlling the viewer
         button_reset,
@@ -55,7 +56,8 @@ widget_ids! {
         button_gamma_reset,
         slider_gamma,
         // - Calculate da silva button
-        button_da_silva,
+        button_explanation_1,
+        button_explanation_2,
     }
 }
 
@@ -72,6 +74,8 @@ enum UIEvents {
     SetPointSize(f32),
     SetBlobSize(f32),
     SetGamma(f32),
+    SetExplanationMode(ExplanationMode),
+    RunExplanationMode(ExplanationMode),
 }
 
 /// Draw an overlay in the window of the given scene
@@ -84,30 +88,43 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     // # Draw the basic information about the current view in the left top. #
     // ######################################################################
 
-    // Display the amount of points
-    let num_points_text = format!("Point count: {}", scene.original_points.len());
-    widget::Text::new(&num_points_text)
+    // Display the current explanation mode
+    let explanation_mode_text = format!(
+        "Explanation mode: {}",
+        scene.get_explanation_mode().to_str()
+    );
+    widget::Text::new(&explanation_mode_text)
         .font_size(FONT_SIZE)
         .top_left()
-        .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
-        .set(ids.text_point_count, &mut ui);
 
-    // Display the current reduction dimensionality
-    let dimensionality_text = format!("Reduced to: {}", scene.dimensionality_mode.to_str());
-    widget::Text::new(&dimensionality_text)
-        .font_size(FONT_SIZE)
-        .down_from(ids.text_point_count, 5.0f64)
         .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
-        .set(ids.text_dimensionality, &mut ui);
+        .set(ids.text_explanation_mode, &mut ui);
 
     // Display the current rendering mode
     let render_mode = scene.get_current_render_mode().to_str();
     let render_mode_text = format!("Render mode: {}", render_mode);
     widget::Text::new(&render_mode_text)
         .font_size(FONT_SIZE)
-        .down_from(ids.text_dimensionality, 5.0f64)
+        .down_from(ids.text_explanation_mode, 5.0f64)
         .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
         .set(ids.text_render_mode, &mut ui);
+
+    // Display the current reduction dimensionality
+    let dimensionality_text = format!("Reduced to: {}", scene.dimensionality_mode.to_str());
+    widget::Text::new(&dimensionality_text)
+        .font_size(FONT_SIZE)
+        .down_from(ids.text_render_mode, 5.0f64)
+        .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
+        .set(ids.text_dimensionality, &mut ui);
+
+    // Display the amount of points
+    let num_points_text = format!("Point count: {}", scene.original_points.len());
+    widget::Text::new(&num_points_text)
+        .font_size(FONT_SIZE)
+        .down_from(ids.text_dimensionality, 5.0f64)
+        .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
+        .set(ids.text_point_count, &mut ui);
+
 
     // Draw error if no data is present
     if !scene.initialized() {
@@ -209,6 +226,69 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     // mutate the scene.
     let mut queue: Vec<UIEvents> = Vec::new();
 
+    // Add buttons for switching and running explanation modes
+    // First gather the possible text and event for each button
+    let (text_none, event_none) = (
+        "Switch off annotations".to_string(),
+        UIEvents::SetExplanationMode(ExplanationMode::None),
+    );
+    let (text_da_silva, event_da_silva) =
+        match scene.is_explanation_available(&ExplanationMode::DaSilva) {
+            true => (
+                "Switch to Da Silva annotations".to_string(),
+                UIEvents::SetExplanationMode(ExplanationMode::DaSilva),
+            ),
+            false => (
+                "Calculate Da Silva annotations".to_string(),
+                UIEvents::RunExplanationMode(ExplanationMode::DaSilva),
+            ),
+        };
+    let (text_van_driel, event_van_driel) =
+        match scene.is_explanation_available(&ExplanationMode::VanDriel) {
+            true => (
+                "Switch to Van Driel annotations".to_string(),
+                UIEvents::SetExplanationMode(ExplanationMode::VanDriel),
+            ),
+            false => (
+                "Calculate Van Driel annotations".to_string(),
+                UIEvents::RunExplanationMode(ExplanationMode::VanDriel),
+            ),
+        };
+
+    // Only show the 2 other options, switching to the mode you are already in does not make sense.
+    let (text_1, event_1, text_2, event_2) = match scene.get_explanation_mode() {
+        ExplanationMode::None => (
+            text_da_silva,
+            event_da_silva,
+            text_van_driel,
+            event_van_driel,
+        ),
+        ExplanationMode::DaSilva => (text_none, event_none, text_van_driel, event_van_driel),
+        ExplanationMode::VanDriel => (text_da_silva, event_da_silva, text_none, event_none),
+    };
+
+    for _ in widget::Button::new()
+        .label(&text_1)
+        .label_font_size(FONT_SIZE - 4u32)
+        .bottom_left_with_margin(5.0f64)
+        .w(BUTTON_WIDTH)
+        .h(BUTTON_HEIGHT)
+        .set(ids.button_explanation_1, &mut ui)
+    {
+        queue.push(event_1)
+    }
+
+    for _ in widget::Button::new()
+        .label(&text_2)
+        .label_font_size(FONT_SIZE - 4u32)
+        .up_from(ids.button_explanation_1, 5.0f64)
+        .w(BUTTON_WIDTH)
+        .h(BUTTON_HEIGHT)
+        .set(ids.button_explanation_2, &mut ui)
+    {
+        queue.push(event_2)
+    }
+
     // Button for switching render mode
     let text = format!(
         "Switch to {}",
@@ -217,7 +297,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     for _ in widget::Button::new()
         .label(&text)
         .label_font_size(FONT_SIZE)
-        .bottom_left_with_margin(5.0f64)
+        .up_from(ids.button_explanation_2, 5.0f64)
         .w(BUTTON_WIDTH)
         .h(BUTTON_HEIGHT)
         .set(ids.buttom_render_mode, &mut ui)
@@ -238,6 +318,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     }
 
     // Button for switching 2D/3D
+    // TODO: Only show this button if the other rendering mode is available
     let text = format!("Switch to {}", scene.dimensionality_mode.inverse().to_str());
     for _ in widget::Button::new()
         .label(&text)
@@ -351,12 +432,6 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         }
     };
 
-    // If the color map is not initialized offer an option to run the calculation
-    // if !color_map.is_initialized() {
-    //     for _ in widget::Button::new()
-    //         .label("Run `DaSilva` colouring method")
-    // }
-
     // Handle all the enqueued events in order.
     for event in queue {
         match event {
@@ -366,6 +441,10 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             UIEvents::SetPointSize(size) => scene.set_point_size(size),
             UIEvents::SetBlobSize(size) => scene.set_blob_size(size),
             UIEvents::SetGamma(gamma) => scene.set_gamma(gamma),
+            UIEvents::SetExplanationMode(mode) => scene.set_explanation_mode(mode),
+            UIEvents::RunExplanationMode(_mode) => {
+                println!("Calculating explanations is not yet supported")
+            }
         }
     }
 }

@@ -119,7 +119,7 @@ impl VisualizationState3D {
         self.explanation
     }
 
-    // Set the explanation mode and reload the points in the renderer using the correct coloring mode.
+    /// Set the explanation mode and reload the points in the renderer using the correct coloring mode.
     pub fn set_explanation_mode(&mut self, mode: ExplanationMode) -> bool {
         if self.is_explanation_available(&mode) {
             self.explanation = mode;

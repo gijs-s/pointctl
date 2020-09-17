@@ -262,9 +262,9 @@ impl Renderer for PointRenderer3D {
 
                 // The points and colours are interleaved in the same buffer
                 self.pos_attribute
-                    .bind_sub_buffer(&mut self.points_vec, 1, 0);
+                    .bind_sub_buffer(&mut self.points_vec, 0, 0);
                 self.color_attribute
-                    .bind_sub_buffer(&mut self.colors_vec, 1, 0);
+                    .bind_sub_buffer(&mut self.colors_vec, 0, 0);
 
                 // Set the correct drawing method of the polygons
                 let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));
