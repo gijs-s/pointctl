@@ -194,7 +194,7 @@ impl VisualizationState3D {
         }
         let average = res.iter().sum::<f32>() / (res.len() as f32);
         // We draw the blob within a square, to ensure the drawn blob has radius of nn_distance we need to correct it.
-        (average.powi(2) * 2.0).sqrt()
+        (average.powi(2) * 2.0).sqrt() * 5.0
     }
 }
 
@@ -315,7 +315,7 @@ impl VisualizationState2D {
         }
         let average = res.iter().sum::<f32>() / (res.len() as f32);
         // We draw the blob within a square, to ensure the drawn blob has radius of nn_distance we need to correct it.
-        (average.powi(2) * 2.0).sqrt()
+        (average.powi(2) * 2.0).sqrt() * 5.0
     }
 
     /// Get a reference to the color map that is currently being displayed

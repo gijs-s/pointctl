@@ -13,6 +13,7 @@ In an ideal world the program never panics and always returns a exit code.
 | 13 | File was empty |
 | 14 | Not all points in file where the same length |
 | 15 | Dimensionality of the reduced data is not supported |
+| 16 | Could not parse the argument passed for p as float |
 | 2x | Error writing data |
 | 3x | Error processing data |
 | 41 | Program entered an invalid state |

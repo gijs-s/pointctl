@@ -27,7 +27,7 @@ fn main() {
         .subcommand(
             SubCommand::with_name("explain")
                 .alias("exp")
-                .about("Calculate a explanation given the original and reduced dataset (2D only for now)")
+                .about("Calculate a explanation given the original and reduced dataset (Only DaSilva right now)")
                 .arg(
                     Arg::with_name("original_data")
                         .short("i")
@@ -42,6 +42,12 @@ fn main() {
                         .takes_value(true)
                         .help("The reduced dataset in ply or csv format"),
                 ).arg(
+                    Arg::with_name("neighborhood_size")
+                        .short("p")
+                        .takes_value(true)
+                        .help("The P value used for the explanation process"),
+                )
+                .arg(
                     Arg::with_name("OUTPUT_FILE")
                     .short("o")
                     .help("Set the file to output the explained data to")
@@ -193,10 +199,22 @@ fn explain_command(matches: &ArgMatches) {
         })
         .collect::<Vec<Point3>>();
 
+
+    let p_value = match matches.value_of("neighborhood_size") {
+        None => 5.0f32,
+        Some(p_str) => match p_str.parse::<f32>() {
+            Ok(p) => p,
+            Err(_) => {
+                eprint!("Invalid P value was passed, expected a float value but got '{}'", p_str);
+                exit(16)
+            }
+        }
+    };
+
     // Create a Da Silva explanation mechanism
     let da_silva_mechanism =
         exp::da_silva::DaSilvaMechanismState::new(clean_reduced_points, &original_points);
-    let da_silva_explanation = da_silva_mechanism.explain(5.0, 250);
+    let da_silva_explanation = da_silva_mechanism.explain(p_value, None);
 
     // Write the annotations to file
     let annotations = da_silva_explanation

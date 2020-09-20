@@ -112,10 +112,14 @@ impl<'a> DaSilvaMechanismState<'a> {
         }
     }
 
+    /// Run the da silva explanation mechanism
     pub fn explain(
         &self,
         neighborhood_size: f32,
-        neighborhood_bound: usize,
+        // TODO: Do I want to keep in this non deterministic sampeling, it could prove introduces the
+        // assumption that clusters in 2d/3d are also close in nD (e.i the reduction is perfect). This
+        // is a bold assumption.
+        neighborhood_bound: Option<usize>,
     ) -> Vec<DaSilvaExplanation> {
         // Calculate the global contribution of each point (centroid of the nD space and
         //_every_ point in its neighborhood)
@@ -134,16 +138,22 @@ impl<'a> DaSilvaMechanismState<'a> {
                 let neighbors = self.find_neighbors(neighborhood_size, *indexed_point);
                 // limit the neigborhoods size by the bound. If it exceeds this bound we take random
                 // samples without replacement.
-                if neighbors.len() < neighborhood_bound {
-                    (indexed_point.index, neighbors)
-                } else {
-                    // sample from the original neighbors.
-                    let neighbors_samples = neighbors
-                        .choose_multiple(&mut rng, neighborhood_bound)
-                        .cloned()
-                        .collect();
-                    (indexed_point.index, neighbors_samples)
+                match neighborhood_bound {
+                    None => (indexed_point.index, neighbors),
+                    Some(bound) => {
+                        if neighbors.len() < bound {
+                            (indexed_point.index, neighbors)
+                        } else {
+                            // sample from the original neighbors.
+                            let neighbors_samples = neighbors
+                                .choose_multiple(&mut rng, bound)
+                                .cloned()
+                                .collect();
+                            (indexed_point.index, neighbors_samples)
+                        }
+                    }
                 }
+
             })
             .collect();
         indexed_neighborhoods.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap());
