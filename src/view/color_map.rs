@@ -79,11 +79,13 @@ impl ColorMap {
 
     /// Retrieve the amount of dimensions in the ranking map
     pub fn dimension_count(&self) -> usize {
+        assert_eq!(self.map.len(), self.inverse_map.len());
         self.map.len()
     }
 
-    /// Retrieve the dimension from the rank
+    /// Retrieve the dimension from the rank (0 indexed)
     pub fn get_dimension_from_rank(&self, rank: &usize) -> Option<&usize> {
+        assert_eq!(self.map.len(), self.inverse_map.len());
         self.inverse_map.get(rank)
     }
 

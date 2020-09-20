@@ -183,7 +183,8 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
 
         for (index, &(offset_id, preview_id, text_id)) in dimensions
             .iter()
-            .take(color_map.dimension_count())
+            // The first dimension is already drawn
+            .take(color_map.dimension_count() - 1)
             .enumerate()
         {
             // Enumerate is 0 indexed, so we add 1 to get the correct offset.
@@ -334,7 +335,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
 
     // Settings for the gamma
     // The gamma slider
-    for gamma in widget::Slider::new(scene.get_gamma(), 1.2, 3.2)
+    for gamma in widget::Slider::new(scene.get_gamma(), 1.0, 3.4)
         .label(&scene.get_gamma().to_string())
         .label_font_size(FONT_SIZE)
         .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
