@@ -30,7 +30,7 @@ pub struct PointRenderer3D {
     view_uniform: ShaderUniform<Matrix4<f32>>,
     alpha_texture_uniform: ShaderUniform<i32>,
     render_mode_uniform: ShaderUniform<i32>,
-    blob_size_uniform: ShaderUniform<f32>,
+    size_uniform: ShaderUniform<f32>,
     gamma_uniform: ShaderUniform<f32>,
     // Normal variables
     alpha_texture: Texture,
@@ -65,9 +65,9 @@ impl PointRenderer3D {
             view_uniform: shader
                 .get_uniform::<Matrix4<f32>>("view")
                 .expect("Failed to get 'view' shader attribute."),
-            blob_size_uniform: shader
-                .get_uniform("blobSize")
-                .expect("Failed to get 'blobSize' uniform shader attribute"),
+            size_uniform: shader
+                .get_uniform("size")
+                .expect("Failed to get 'size' uniform shader attribute"),
             alpha_texture_uniform: shader
                 .get_uniform("alphaTexture")
                 .expect("Failed to get 'alphaTexture' uniform shader attribute"),
@@ -227,7 +227,7 @@ impl Renderer for PointRenderer3D {
         self.alpha_texture_uniform.upload(&1);
 
         // Set the blob size and point size
-        self.blob_size_uniform.upload(&self.get_blob_size());
+        self.size_uniform.upload(&self.get_blob_size());
 
         // Set the gamma
         self.gamma_uniform.upload(&self.gamma);
@@ -247,7 +247,7 @@ impl Renderer for PointRenderer3D {
                 self.render_mode_uniform.upload(&0);
 
                 // Set the point size
-                ctxt.point_size(self.get_point_size());
+                self.size_uniform.upload(&self.get_point_size());
 
                 self.pos_attribute
                     .bind_sub_buffer(&mut self.points_vec, 5, 0);
@@ -260,8 +260,8 @@ impl Renderer for PointRenderer3D {
                 // set the correct render mode in the shader.
                 self.render_mode_uniform.upload(&1);
 
-                // Set the point size to 1
-                ctxt.point_size(1.0f32);
+                // Set the blob size
+                self.size_uniform.upload(&self.get_blob_size());
 
                 // The points and colours are interleaved in the same buffer
                 self.pos_attribute
@@ -300,7 +300,7 @@ const VERTEX_SHADER_SRC_3D: &'static str = "#version 460
     // Uniform variables for all vertices.
     uniform mat4 proj;
     uniform mat4 view;
-    uniform float blobSize;
+    uniform float size;
     uniform int renderMode;
 
     // Passed on to the rest of the shader pipeline
@@ -323,8 +323,8 @@ const VERTEX_SHADER_SRC_3D: &'static str = "#version 460
 
     // Get the offset vector.
     vec2 getOffset() {
-        float scale = blobSize;
-        float negScale = -1.0 * blobSize;
+        float scale = size;
+        float negScale = -1.0 * size;
 
         float index = mod(gl_VertexID, 6);
         if (index == 0.0) {
@@ -351,6 +351,10 @@ const VERTEX_SHADER_SRC_3D: &'static str = "#version 460
     void render_discreet() {
         // Transform the world coordinate to a screen coordinate.
         gl_Position = proj * view * vec4(position, 1.0);
+
+        // Set the size of the points. This needs to be done in the
+        // shader because of a bug for intel igpus.
+        gl_PointSize = size;
 
         // Make the color and tex coordinate available to the fragment shader.
         PointColor = color;

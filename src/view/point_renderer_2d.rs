@@ -25,7 +25,7 @@ pub struct PointRenderer2D {
     view_uniform: ShaderUniform<Matrix3<f32>>,
     alpha_texture_uniform: ShaderUniform<i32>,
     render_mode_uniform: ShaderUniform<i32>,
-    blob_size_uniform: ShaderUniform<f32>,
+    size_uniform: ShaderUniform<f32>,
     gamma_uniform: ShaderUniform<f32>,
     // GPU vecs
     points_vec: GPUVec<Point2<f32>>,
@@ -62,9 +62,9 @@ impl PointRenderer2D {
             view_uniform: shader
                 .get_uniform::<Matrix3<f32>>("view")
                 .expect("Failed to get 'view' uniform shader attribute"),
-            blob_size_uniform: shader
-                .get_uniform("blobSize")
-                .expect("Failed to get 'blobSize' uniform shader attribute"),
+            size_uniform: shader
+                .get_uniform("size")
+                .expect("Failed to get 'size' uniform shader attribute"),
             alpha_texture_uniform: shader
                 .get_uniform("alphaTexture")
                 .expect("Failed to get 'alphaTexture' uniform shader attribute"),
@@ -223,9 +223,6 @@ impl PlanarRenderer for PointRenderer2D {
         // Set the texture
         self.alpha_texture_uniform.upload(&1);
 
-        // Set the blob size
-        self.blob_size_uniform.upload(&self.get_blob_size());
-
         // Set the gamma
         self.gamma_uniform.upload(&self.gamma);
 
@@ -237,6 +234,8 @@ impl PlanarRenderer for PointRenderer2D {
         verify!(ctxt.blend_func(Context::SRC_ALPHA, Context::ONE_MINUS_SRC_ALPHA));
 
         // Manually enable GL_VERTEX_PROGRAM_POINT_SIZE -> 8642_16 -> 34370_10
+        // TODO: Is this required? Added because of a bug in the intel igpu where
+        // setting the point size is broken.
         verify!(ctxt.enable(34370u32));
 
         match self.render_mode {
@@ -245,7 +244,7 @@ impl PlanarRenderer for PointRenderer2D {
                 self.render_mode_uniform.upload(&0);
 
                 // Set the point size
-                ctxt.point_size(self.get_point_size());
+                self.size_uniform.upload(&self.get_point_size());
 
                 // Draw the first point of all the triangle sets, hence the stride of 5
                 self.pos_attribute
@@ -259,8 +258,8 @@ impl PlanarRenderer for PointRenderer2D {
                 // set the correct render mode in the shader.
                 self.render_mode_uniform.upload(&1);
 
-                // Set the point size to 1
-                ctxt.point_size(1.0f32);
+                // Set the blob size
+                self.size_uniform.upload(&self.get_blob_size());
 
                 // Bind the buffers with data to all the shader attributes
                 self.pos_attribute
@@ -297,7 +296,7 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
     // Uniform variables over all the inputs
     uniform mat3 proj;
     uniform mat3 view;
-    uniform float blobSize;
+    uniform float size;
     uniform int renderMode;
 
     // Passed on to the rest of the shader pipeline
@@ -320,8 +319,8 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
 
     // Get the offset vector.
     vec2 getOffset() {
-        float scale = blobSize;
-        float negScale = -1.0 * blobSize;
+        float scale = size;
+        float negScale = -1.0 * size;
 
         float index = mod(gl_VertexID, 6);
         if (index == 0.0) {
@@ -353,9 +352,12 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
         // Set the screenspace position
         gl_Position = vec4(projected_pos, 1.0);
 
+        // Set the size of the points. This needs to be done in the
+        // shader because of a bug for intel igpus.
+        gl_PointSize = size;
+
         // Make the color and tex coordinate available to the fragment shader.
         PointColor = color;
-        TextureCoordinate = getTextureCoordinate();
     }
 
     void render_continuos() {
