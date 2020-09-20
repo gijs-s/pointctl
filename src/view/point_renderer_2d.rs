@@ -236,6 +236,9 @@ impl PlanarRenderer for PointRenderer2D {
         verify!(ctxt.enable(Context::BLEND));
         verify!(ctxt.blend_func(Context::SRC_ALPHA, Context::ONE_MINUS_SRC_ALPHA));
 
+        // Manually enable GL_VERTEX_PROGRAM_POINT_SIZE -> 8642_16 -> 34370_10
+        verify!(ctxt.enable(34370u32));
+
         match self.render_mode {
             RenderMode::Discreet => {
                 // set the correct render mode in the shader.

@@ -385,7 +385,7 @@ impl VisualizationState2D {
     // TODO: Get a good camera that just views all the points
     pub fn get_default_camera() -> Sidescroll {
         let mut cam = Sidescroll::new();
-        cam.set_zoom(8.0);
+        cam.set_zoom(16.0);
         cam.set_zoom_step(2.7);
         cam
     }
