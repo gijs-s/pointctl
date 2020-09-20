@@ -25,7 +25,7 @@ pub struct PointRenderer2D {
     view_uniform: ShaderUniform<Matrix3<f32>>,
     alpha_texture_uniform: ShaderUniform<i32>,
     render_mode_uniform: ShaderUniform<i32>,
-    blob_size_uniform: ShaderUniform<f32>,
+    size_uniform: ShaderUniform<f32>,
     gamma_uniform: ShaderUniform<f32>,
     // GPU vecs
     points_vec: GPUVec<Point2<f32>>,
@@ -62,9 +62,9 @@ impl PointRenderer2D {
             view_uniform: shader
                 .get_uniform::<Matrix3<f32>>("view")
                 .expect("Failed to get 'view' uniform shader attribute"),
-            blob_size_uniform: shader
-                .get_uniform("blobSize")
-                .expect("Failed to get 'blobSize' uniform shader attribute"),
+            size_uniform: shader
+                .get_uniform("size")
+                .expect("Failed to get 'size' uniform shader attribute"),
             alpha_texture_uniform: shader
                 .get_uniform("alphaTexture")
                 .expect("Failed to get 'alphaTexture' uniform shader attribute"),
@@ -223,9 +223,6 @@ impl PlanarRenderer for PointRenderer2D {
         // Set the texture
         self.alpha_texture_uniform.upload(&1);
 
-        // Set the blob size
-        self.blob_size_uniform.upload(&self.get_blob_size());
-
         // Set the gamma
         self.gamma_uniform.upload(&self.gamma);
 
@@ -236,46 +233,38 @@ impl PlanarRenderer for PointRenderer2D {
         verify!(ctxt.enable(Context::BLEND));
         verify!(ctxt.blend_func(Context::SRC_ALPHA, Context::ONE_MINUS_SRC_ALPHA));
 
+        // Draw the first point of all the triangle sets, hence the stride of 5
+        self.pos_attribute
+            .bind_sub_buffer(&mut self.points_vec, 0, 0);
+        self.color_attribute
+            .bind_sub_buffer(&mut self.colors_vec, 0, 0);
+
+        // Set the correct drawing method of the polygons
+        let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));
+
         match self.render_mode {
             RenderMode::Discreet => {
                 // set the correct render mode in the shader.
                 self.render_mode_uniform.upload(&0);
 
                 // Set the point size
-                ctxt.point_size(self.get_point_size());
-
-                // Draw the first point of all the triangle sets, hence the stride of 5
-                self.pos_attribute
-                    .bind_sub_buffer(&mut self.points_vec, 5, 0);
-                self.color_attribute
-                    .bind_sub_buffer(&mut self.colors_vec, 5, 0);
-
-                verify!(ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32 / 6));
+                self.size_uniform.upload(&(self.get_point_size() / 30.0f32));
             }
             RenderMode::Continuous => {
                 // set the correct render mode in the shader.
                 self.render_mode_uniform.upload(&1);
 
-                // Set the point size to 1
-                ctxt.point_size(1.0f32);
-
-                // Bind the buffers with data to all the shader attributes
-                self.pos_attribute
-                    .bind_sub_buffer(&mut self.points_vec, 0, 0);
-                self.color_attribute
-                    .bind_sub_buffer(&mut self.colors_vec, 0, 0);
-
-                // Set the correct drawing method of the polygons
-                let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));
+                // Set the blob size
+                self.size_uniform.upload(&self.get_blob_size());
 
                 // Ensure we use the correct texture
                 verify!(ctxt.bind_texture(Context::TEXTURE_2D, Some(&self.alpha_texture)));
-
-                // Actually draw the textured polygons. Each point is split represented by
-                // 2 textured triangles.
-                verify!(ctxt.draw_arrays(Context::TRIANGLES, 0, self.num_points() as i32));
             }
         }
+
+        // Actually draw the textured polygons. Each point is split represented by
+        // 2 textured triangles.
+        verify!(ctxt.draw_arrays(Context::TRIANGLES, 0, self.num_points() as i32));
 
         // Disable the blending again.
         verify!(ctxt.disable(Context::BLEND));
@@ -294,8 +283,7 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
     // Uniform variables over all the inputs
     uniform mat3 proj;
     uniform mat3 view;
-    uniform float blobSize;
-    uniform int renderMode;
+    uniform float size;
 
     // Passed on to the rest of the shader pipeline
     out vec2 TextureCoordinate;
@@ -317,45 +305,30 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
 
     // Get the offset vector.
     vec2 getOffset() {
-        float scale = blobSize;
-        float negScale = -1.0 * blobSize;
+        float neg_size = -1.0 * size;
 
         float index = mod(gl_VertexID, 6);
         if (index == 0.0) {
-            return vec2(negScale, 0.0);
+            return vec2(neg_size, 0.0);
         }
         if (index == 1.0) {
-            return vec2(0.0, scale);
+            return vec2(0.0, size);
         }
         if (index == 2.0) {
-            return vec2(scale, 0.0);
+            return vec2(size, 0.0);
         }
         if (index == 3.0) {
-            return vec2(negScale, 0.0);
+            return vec2(neg_size, 0.0);
         }
         if (index == 4.0) {
-            return vec2(0.0, negScale);
+            return vec2(0.0, neg_size);
         }
         if (index == 5.0) {
-            return vec2(scale, 0.0);
+            return vec2(size, 0.0);
         }
     }
 
-    void render_discreet() {
-        // Transform the world coordinate to a screen coordinate
-        vec3 projected_pos = proj * view * vec3(position, 1.0);
-        // We set the z to 0 to draw all points along a plane.
-        projected_pos.z = 0.0;
-
-        // Set the screenspace position
-        gl_Position = vec4(projected_pos, 1.0);
-
-        // Make the color and tex coordinate available to the fragment shader.
-        PointColor = color;
-        TextureCoordinate = getTextureCoordinate();
-    }
-
-    void render_continuos() {
+    void main() {
         // Get the offset to one of the triangle corners
         vec2 offset_position = position + getOffset();
 
@@ -371,14 +344,6 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
         // Make the color and tex coordinate available to the fragment shader.
         PointColor = color;
         TextureCoordinate = getTextureCoordinate();
-    }
-
-    void main() {
-        if (renderMode == 0) {
-            render_discreet();
-        } else {
-            render_continuos();
-        }
     }";
 
 /// Fragment shader used by the point renderer
