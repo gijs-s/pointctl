@@ -8,9 +8,10 @@
 // least-varying dimensions over each neighborhood. We demonstrate our technique with both synthetic and real-world datasets.
 
 use rstar::RTree;
+use nalgebra::Point3;
 
 use super::common::{Distance, IndexedPoint3D, RTreeParameters3D};
-use crate::util::types::{Point3, PointN};
+use crate::util::types::PointN;
 
 use rand::{seq::SliceRandom, thread_rng};
 use std::cmp::Ordering;
@@ -91,7 +92,7 @@ pub struct DaSilvaMechanismState<'a> {
 
 impl<'a> DaSilvaMechanismState<'a> {
     pub fn new(
-        reduced_points: Vec<Point3>,
+        reduced_points: Vec<Point3<f32>>,
         original_points: &'a Vec<PointN>,
     ) -> DaSilvaMechanismState<'a> {
         let indexed_points: Vec<IndexedPoint3D> = reduced_points
@@ -352,7 +353,8 @@ impl<'a> DaSilvaMechanismState<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::util::types::{Point3, PointN};
+    use nalgebra::Point3;
+    use crate::util::types::PointN;
 
     #[test]
     fn calculates_correct_neighbors() {

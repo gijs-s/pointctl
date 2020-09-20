@@ -1,7 +1,7 @@
 extern crate pointctl as pc;
 
 // Build in imports
-use nalgebra::Point2;
+use nalgebra::{Point2, Point3};
 use std::path::Path;
 use std::process::exit;
 
@@ -12,7 +12,7 @@ use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 use pc::exp;
 use pc::fs::prelude::{read, write};
 use pc::generate::generate_cube;
-use pc::util::{types::Point3, validator};
+use pc::util::validator;
 use pc::view::view::display;
 
 fn main() {
@@ -190,14 +190,14 @@ fn explain_command(matches: &ArgMatches) {
     let clean_reduced_points = reduced_points
         .iter()
         .map(|vec| match vec[..] {
-            [x, y, z] => Point3::new(x, y, z),
-            [x, y] => Point3::new(x, y, 0.0),
+            [x, y, z] => Point3::<f32>::new(x, y, z),
+            [x, y] => Point3::<f32>::new(x, y, 0.0),
             _ => {
                 eprint!("Points with {} dimensions is not supported yet", vec.len());
                 exit(15)
             }
         })
-        .collect::<Vec<Point3>>();
+        .collect::<Vec<Point3<f32>>>();
 
 
     let p_value = match matches.value_of("neighborhood_size") {
@@ -271,14 +271,14 @@ fn view_command(matches: &ArgMatches) {
             let reduced_points = reduced_data
                 .iter()
                 .map(|vec| match vec[..] {
-                    [x, y, z] => Point3::new(x, y, z),
-                    [x, y] => Point3::new(x, y, 0.0),
+                    [x, y, z] => Point3::<f32>::new(x, y, z),
+                    [x, y] => Point3::<f32>::new(x, y, 0.0),
                     _ => {
                         eprint!("Points with {} dimensions is not supported yet", vec.len());
                         exit(15)
                     }
                 })
-                .collect::<Vec<Point3>>();
+                .collect::<Vec<Point3<f32>>>();
             Some(reduced_points)
         }
     };

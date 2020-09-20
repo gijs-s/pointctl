@@ -10,10 +10,11 @@
 // We demonstrate our approach using several datasets.
 
 use rstar::RTree;
+use nalgebra::Point3;
 
 use super::common::{Distance, IndexedPoint3D, RTreeParameters3D};
 
-use crate::util::types::{Point3, PointN};
+use crate::util::types::PointN;
 use std::cmp::Ordering;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -73,7 +74,7 @@ pub struct DrielState<'a> {
 }
 
 impl<'a> DrielState<'a> {
-    pub fn new(reduced_points: Vec<Point3>, original_points: &'a Vec<PointN>) -> DrielState<'a> {
+    pub fn new(reduced_points: Vec<Point3<f32>>, original_points: &'a Vec<PointN>) -> DrielState<'a> {
         let indexed_points: Vec<IndexedPoint3D> = reduced_points
             .into_iter()
             .enumerate()

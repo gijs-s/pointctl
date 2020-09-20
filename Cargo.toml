@@ -29,4 +29,4 @@ rstar = "*"
 # rustacuda_derive = "0.1"
 
 [profile.release]
-debug = true
+# debug = true
