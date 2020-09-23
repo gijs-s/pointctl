@@ -7,5 +7,12 @@ cargo run -- explain -i data/winequality/winequality.csv -r data/winequality/win
 
 # Run the viewer
 ``` sh
-cargo run -- view -i data/winequality/winequality.csv -r data/winequality/winequality-tsne-3d.csv -a data/winequality/annotations-3d.csv -x data/winequality/winequality-tsne-2d.csv -b data/winequality/annotations-2d.csv
+# cube 2d pca
+cargo run --release -- view -i data/cube/cube.csv --r2d data/cube/reduced-cube-pca-2d.csv --a2d data/cube/annotations.csv
+
+# winequality 2d lamp
+cargo run --release -- view -i data/winequality/winequality.csv --r2d data/winequality/winequality-lamp-2d.csv --a2d data/winequality/annotations-lamp-2d.csv
+
+# winequality 3d tsne
+cargo run --release -- view -i data/winequality/winequality.csv --r3d data/winequality/winequality-tsne-3d.csv --a3d data/winequality/annotations-3d.csv
 ```

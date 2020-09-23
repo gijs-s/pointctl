@@ -6,6 +6,7 @@
     - [x] Buttons
     - [x] Blob / point size slider
     - [x] Gamma slider
+    - [ ] Make calculate annotation button work
     - [ ] Show explanation specific details
        - [ ] Global and local rankings for da silva
  - [x] 3D continous with billboarding in vertex shader
@@ -15,7 +16,7 @@
     - [ ] Algorithm implementation
     - [ ] Algorithm tests
  - [x] CLI improvements
-    - [ ] Allow starting the program with sparser data -> Add calc button in UI
+    - [x] Allow starting the program with sparser data -> Add calc button in UI
  - [x] Keep the annotations on a per point level, allow switching of color maps.
     - [x] Store annotations in the rtree
     - [x] Support switching color maps
