@@ -57,6 +57,7 @@ fn main() {
                 .arg(
                     Arg::with_name("OUTPUT_FILE")
                     .short("o")
+                    .index(1)
                     .help("Set the file to output the explained data to")
                 ),
         )

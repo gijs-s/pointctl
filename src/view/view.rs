@@ -19,6 +19,7 @@ use rstar::{PointDistance, RTree};
 
 // First party
 use crate::{
+    exp,
     exp::da_silva::DaSilvaExplanation,
     util::types::PointN,
     view::{
@@ -216,6 +217,25 @@ impl Scene {
         if !success{
             println!("Switching to rendering mode failed")
         };
+    }
+
+    pub fn run_explanation_mode(&mut self, mode: ExplanationMode) {
+         match self.dimensionality_mode {
+            DimensionalityMode::TwoD => match &mut self.state_2d {
+                Some(state) => state.run_explanation_mode(mode, &self.original_points, exp::Neighborhood::K(40)),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+            DimensionalityMode::ThreeD => match &mut self.state_3d {
+                Some(state) => state.run_explanation_mode(mode, &self.original_points, exp::Neighborhood::K(40)),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+        }
     }
 
     /// Retrieve the current rendering mode for interaction.

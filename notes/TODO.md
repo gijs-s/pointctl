@@ -20,4 +20,5 @@
  - [x] Keep the annotations on a per point level, allow switching of color maps.
     - [x] Store annotations in the rtree
     - [x] Support switching color maps
- - [ ] Z buffer sorting to fix opacity blending in 3D
+ - [x] Z buffer sorting to fix opacity blending in 3D
+ - [ ] Make r proportional to the projection width
