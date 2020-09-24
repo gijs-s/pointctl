@@ -10,7 +10,7 @@
 use rstar::RTree;
 use nalgebra::Point3;
 
-use super::common::{Distance, IndexedPoint3D, RTreeParameters3D};
+use super::{Neighborhood, common::{Distance, IndexedPoint3D, RTreeParameters3D}};
 use crate::util::types::PointN;
 
 use rand::{seq::SliceRandom, thread_rng};
@@ -116,7 +116,7 @@ impl<'a> DaSilvaMechanismState<'a> {
     /// Run the da silva explanation mechanism
     pub fn explain(
         &self,
-        neighborhood_size: f32,
+        neighborhood_size: Neighborhood,
         // TODO: Do I want to keep in this non deterministic sampeling, it could prove introduces the
         // assumption that clusters in 2d/3d are also close in nD (e.i the reduction is perfect). This
         // is a bold assumption.
@@ -136,7 +136,10 @@ impl<'a> DaSilvaMechanismState<'a> {
             .rtree
             .iter()
             .map(|indexed_point| {
-                let neighbors = self.find_neighbors(neighborhood_size, *indexed_point);
+                let neighbors = match neighborhood_size {
+                    Neighborhood::R(size) => self.find_neighbors_r(size, *indexed_point),
+                    Neighborhood::K(size) => self.find_neighbors_k(size, *indexed_point)
+                };
                 // limit the neigborhoods size by the bound. If it exceeds this bound we take random
                 // samples without replacement.
                 match neighborhood_bound {
@@ -187,14 +190,30 @@ impl<'a> DaSilvaMechanismState<'a> {
     }
 
     // Get a reference to all neighbors within a certain range. This used the rtree.
-    fn find_neighbors(
+    fn find_neighbors_r(
         &self,
-        neighborhood_size: f32,
+        r: f32,
         indexed_point: IndexedPoint3D,
     ) -> NeighborIndices {
         let query_point = [indexed_point.x, indexed_point.y, indexed_point.z];
         self.rtree
-            .locate_within_distance(query_point, neighborhood_size * neighborhood_size)
+            .locate_within_distance(query_point, r * r)
+            .map(|elem| elem.index)
+            .filter(|&index| index != indexed_point.index)
+            .collect::<NeighborIndices>()
+    }
+
+    // Get a reference to the k nearest neighbors.
+    fn find_neighbors_k(
+        &self,
+        k: usize,
+        indexed_point: IndexedPoint3D,
+    ) -> NeighborIndices {
+        let query_point = [indexed_point.x, indexed_point.y, indexed_point.z];
+        self.rtree
+            .nearest_neighbor_iter(&query_point)
+            .take(k + 1)
+            .skip(1)
             .map(|elem| elem.index)
             .filter(|&index| index != indexed_point.index)
             .collect::<NeighborIndices>()
@@ -369,7 +388,7 @@ mod tests {
 
         // Check neighbors
         assert_eq!(
-            mechanism.find_neighbors(
+            mechanism.find_neighbors_r(
                 2.0,
                 IndexedPoint3D {
                     index: 2,
@@ -381,7 +400,7 @@ mod tests {
             vec![1]
         );
         assert_eq!(
-            mechanism.find_neighbors(
+            mechanism.find_neighbors_r(
                 4.0,
                 IndexedPoint3D {
                     index: 2,

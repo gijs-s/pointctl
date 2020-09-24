@@ -1,6 +1,7 @@
 extern crate pointctl as pc;
 
 // Build in imports
+use exp::Neighborhood;
 use nalgebra::{Point2, Point3};
 use std::path::Path;
 use std::process::exit;
@@ -9,10 +10,10 @@ use std::process::exit;
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 
 // Local imports
-use pc::{exp, generate};
 use pc::fs::prelude::{read, write};
 use pc::util::validator;
 use pc::view::view::display;
+use pc::{exp, generate};
 
 fn main() {
     // TODO: Move this entire mess to a yaml file. See https://docs.rs/clap/2.33.1/clap/
@@ -41,11 +42,17 @@ fn main() {
                         .takes_value(true)
                         .help("The reduced dataset in ply or csv format"),
                 ).arg(
-                    Arg::with_name("neighborhood_size")
-                        .short("p")
+                    Arg::with_name("neighborhood_size_r")
+                        .short("r")
                         .takes_value(true)
                         .validator(validator::is_float)
-                        .help("The P value used for the explanation process"),
+                        .help("The radius based P value used for the explanation process"),
+                ).arg(
+                    Arg::with_name("neighborhood_size_k")
+                        .short("k")
+                        .takes_value(true)
+                        .validator(validator::is_usize)
+                        .help("The count based P value used for the explanation process"),
                 )
                 .arg(
                     Arg::with_name("OUTPUT_FILE")
@@ -158,7 +165,8 @@ fn generate_command(matches: &ArgMatches) {
     };
 
     enum Shapes {
-        Cube, HyperCube
+        Cube,
+        HyperCube,
     }
 
     // Find out which pattern should be used
@@ -169,9 +177,8 @@ fn generate_command(matches: &ArgMatches) {
             eprint!("Invalid value was passed as shape, received `{}`", v);
             exit(17)
         }
-        _ => panic!("This should not happend, programming error")
+        _ => panic!("This should not happend, programming error"),
     };
-
 
     // Retrieve the output file from args, unwrap is safe since output file is required.
     let output_file_path = matches.value_of("OUTPUT_FILE").unwrap();
@@ -180,9 +187,9 @@ fn generate_command(matches: &ArgMatches) {
     // generate the points
     let generated_points = match pattern {
         Shapes::Cube => {
-                println!("Will generate {} points in cube pattern", point_count);
-                generate::generate_cube(point_count, 0.00)
-        },
+            println!("Will generate {} points in cube pattern", point_count);
+            generate::generate_cube(point_count, 0.00)
+        }
         Shapes::HyperCube => {
             println!("Will generate {} points in hypercube pattern", point_count);
             generate::generate_hyper_cube(point_count, 0.00)
@@ -230,22 +237,27 @@ fn explain_command(matches: &ArgMatches) {
         })
         .collect::<Vec<Point3<f32>>>();
 
-
-    let p_value = match matches.value_of("neighborhood_size") {
-        None => 5.0f32,
-        Some(p_str) => match p_str.parse::<f32>() {
-            Ok(p) => p,
-            Err(_) => {
-                eprint!("Invalid P value was passed, expected a float value but got '{}'", p_str);
-                exit(16)
-            }
+    let neigborhoods_size = match (
+        matches.value_of("neighborhood_size_r"),
+        matches.value_of("neighborhood_size_k"),
+    ) {
+        (None, None) => {
+            eprint!("No neighborhood size was choses");
+            exit(17);
+        }
+        // Safe because this was already checked by the validator in the CLI
+        (Some(r_str), None) => Neighborhood::R(r_str.parse::<f32>().unwrap()),
+        (None, Some(k_str)) => Neighborhood::K(k_str.parse::<usize>().unwrap()),
+        (Some(_), Some(_)) => {
+            eprint!("Two types of neighborhood size were chosen, please select only one");
+            exit(17);
         }
     };
 
     // Create a Da Silva explanation mechanism
     let da_silva_mechanism =
         exp::da_silva::DaSilvaMechanismState::new(clean_reduced_points, &original_points);
-    let da_silva_explanation = da_silva_mechanism.explain(p_value, None);
+    let da_silva_explanation = da_silva_mechanism.explain(neigborhoods_size, None);
 
     // Write the annotations to file
     let annotations = da_silva_explanation
@@ -254,10 +266,9 @@ fn explain_command(matches: &ArgMatches) {
         .collect();
     let output_file_path = matches.value_of("OUTPUT_FILE").unwrap();
     let output_file = Path::new(output_file_path);
-    write(output_file, annotations);
 
-    // Run the data through the mechanism and get a vector of annotated points back
     // Write these annotated points to file
+    write(output_file, annotations);
 }
 
 // Command used to reduce datasets

@@ -5,7 +5,8 @@ pub mod common;
 pub mod da_silva;
 pub mod driel;
 
-// #[derive(Debug, PartialEq)]
-// pub enum SupportedExplanations {
-//     DaSilva,
-// }
+#[derive(Debug, PartialEq)]
+pub enum Neighborhood {
+    K(usize),
+    R(f32)
+}

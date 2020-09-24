@@ -18,4 +18,7 @@ cargo run --release -- view -i data/winequality/winequality.csv --r2d data/wineq
 
 # winequality 3d tsne
 cargo run --release -- view -i data/winequality/winequality.csv --r3d data/winequality/winequality-tsne-3d.csv --a3d data/winequality/annotations-3d.csv
+
+# Both winequality
+cargo run --release -- view -i data/winequality/winequality.csv --r2d data/winequality/winequality-lamp-2d.csv --a2d data/winequality/annotations-lamp-2d.csv --r3d data/winequality/winequality-tsne-3d.csv --a3d data/winequality/annotations-3d.csv
 ```
