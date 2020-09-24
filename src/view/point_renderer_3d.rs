@@ -20,8 +20,8 @@ pub struct PointRenderer3D {
     // The shader itself
     shader: Effect,
     /// Data allocation
-    points_vec: GPUVec<Point3<f32>>,
-    colors_vec: GPUVec<Point3<f32>>,
+    point_data: Vec<PointData>,
+    gpu_vec: GPUVec<Point3<f32>>,
     /// Shader attributes
     pos_attribute: ShaderAttribute<Point3<f32>>,
     color_attribute: ShaderAttribute<Point3<f32>>,
@@ -40,6 +40,15 @@ pub struct PointRenderer3D {
     blob_size: (f32, f32),
     visible: bool,
     pub render_mode: RenderMode,
+    // last transform
+    last_transform: Matrix4<f32>,
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct PointData {
+    pub point: Point3<f32>,
+    pub color: Point3<f32>,
+    pub projected_z: f32,
 }
 
 impl PointRenderer3D {
@@ -50,8 +59,8 @@ impl PointRenderer3D {
         PointRenderer3D {
             // Points and their color interleaved. note that each point in the cloud will have 6 points here as it defines
             // 2 triangles in the continous render mode
-            points_vec: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
-            colors_vec: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
+            point_data: Vec::new(),
+            gpu_vec: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
             // Shader variables
             pos_attribute: shader
                 .get_attrib::<Point3<f32>>("position")
@@ -87,36 +96,26 @@ impl PointRenderer3D {
             visible: true,
             alpha_texture: load_texture(),
             render_mode: RenderMode::Discreet,
+            last_transform: Matrix4::identity(),
         }
     }
 
     /// Insert a single point with a color
     pub fn push(&mut self, point: Point3<f32>, color: Point3<f32>) {
-        for points in self.points_vec.data_mut().iter_mut() {
-            for _ in 0..6 {
-                points.push(point);
-            }
-        }
-        for colors in self.colors_vec.data_mut().iter_mut() {
-            for _ in 0..6 {
-                colors.push(color);
-            }
-        }
+        self.point_data.push(PointData { point: point, color: color, projected_z: 0.0f32});
     }
 
     /// Clear all the points and their colors
     pub fn clear(&mut self) {
-        for points in self.points_vec.data_mut().iter_mut() {
-            points.clear()
-        }
-        for points in self.colors_vec.data_mut().iter_mut() {
+        self.point_data.clear();
+        for points in self.gpu_vec.data_mut().iter_mut() {
             points.clear()
         }
     }
 
     /// Indicates whether some points have to be drawn.
     pub fn needs_rendering(&self) -> bool {
-        self.points_vec.len() != 0 && self.visible
+        self.gpu_vec.len() != 0 && self.visible
     }
 
     // Turn off the rendering for this renderer and clear the screen.
@@ -135,7 +134,50 @@ impl PointRenderer3D {
 
     // Retrieve the number of points
     pub fn num_points(&self) -> usize {
-        self.points_vec.len()
+        self.gpu_vec.len() / 2
+    }
+
+    pub fn sort_point_if_needed(&mut self, camera: &dyn Camera) {
+        if self.last_transform == camera.transformation(){
+            return;
+        }
+        self.sort_z_buffer(camera);
+        self.sync_gpu_vector();
+    }
+
+    /// Sync the gpu vector back up with the data contained in `point_data`
+    pub fn sync_gpu_vector(&mut self) {
+        for points in self.gpu_vec.data_mut().iter_mut() {
+            // Clear the GPU data array
+            points.clear();
+            // Reinsert all the points
+            for point_data in &self.point_data {
+                for _ in 0..6 {
+                    points.push(point_data.point);
+                    points.push(point_data.color);
+                }
+            }
+        }
+    }
+
+    fn sort_z_buffer(&mut self, camera: &dyn Camera) {
+        // Update the z value for each point using the current camera
+        for point in self.point_data.iter_mut() {
+            point.projected_z = PointRenderer3D::get_projected_z_value(&point.point, camera);
+        }
+
+        // Sort the array using this new information
+        self.point_data.sort_by(|a, b| {
+             b.projected_z.partial_cmp(&a.projected_z).unwrap()
+        })
+    }
+
+    fn get_projected_z_value(point: &Point3<f32>, camera: &dyn Camera) -> f32 {
+        // TODO: This is very slow, it needs fixing.
+        let h_world_coord = point.to_homogeneous();
+        let h_camera_point = camera.transformation() * h_world_coord;
+        let projected_point = Point3::from_homogeneous(h_camera_point).unwrap();
+        projected_point.z
     }
 }
 
@@ -249,10 +291,9 @@ impl Renderer for PointRenderer3D {
                 // Set the point size
                 self.size_uniform.upload(&self.get_point_size());
 
-                self.pos_attribute
-                    .bind_sub_buffer(&mut self.points_vec, 5, 0);
+                self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 11, 0);
                 self.color_attribute
-                    .bind_sub_buffer(&mut self.colors_vec, 5, 0);
+                    .bind_sub_buffer(&mut self.gpu_vec, 11, 1);
 
                 ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32 / 6);
             }
@@ -263,11 +304,13 @@ impl Renderer for PointRenderer3D {
                 // Set the blob size
                 self.size_uniform.upload(&self.get_blob_size());
 
+                // Sort the points
+                self.sort_point_if_needed(camera);
+
                 // The points and colours are interleaved in the same buffer
-                self.pos_attribute
-                    .bind_sub_buffer(&mut self.points_vec, 0, 0);
+                self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 1, 0);
                 self.color_attribute
-                    .bind_sub_buffer(&mut self.colors_vec, 0, 0);
+                    .bind_sub_buffer(&mut self.gpu_vec, 1, 1);
 
                 // Set the correct drawing method of the polygons
                 let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));
@@ -280,6 +323,8 @@ impl Renderer for PointRenderer3D {
                 verify!(ctxt.draw_arrays(Context::TRIANGLES, 0, self.num_points() as i32));
             }
         }
+
+        self.last_transform = camera.transformation();
 
         // Disable the blending again.
         verify!(ctxt.disable(Context::BLEND));

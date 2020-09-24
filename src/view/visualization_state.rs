@@ -88,6 +88,7 @@ impl VisualizationState3D {
         for p in points {
             point_renderer.push(p, ColorMap::default_color());
         }
+        point_renderer.sync_gpu_vector();
 
         VisualizationState3D {
             camera: VisualizationState3D::get_default_camera(),
@@ -160,6 +161,7 @@ impl VisualizationState3D {
         for (p, c) in points_x_colors {
             self.renderer.push(p, c);
         }
+        self.renderer.sync_gpu_vector();
     }
 
     pub fn get_default_camera() -> ArcBall {
