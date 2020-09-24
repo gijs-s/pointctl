@@ -58,7 +58,6 @@ fn main() {
                     Arg::with_name("OUTPUT_FILE")
                     .short("o")
                     .help("Set the file to output the explained data to")
-                    .index(1),
                 ),
         )
         .subcommand(
@@ -121,11 +120,20 @@ fn main() {
                 )
                 .arg(
                     Arg::with_name("shape")
-                        .default_value("cube")
                         .short("s")
                         .long("shape")
+                        .default_value("cube")
                         .takes_value(true)
                         .help("The type of shape you wish to create, chose from `cube` and `hypercube`"),
+                )
+                .arg(
+                    Arg::with_name("noise")
+                        .short("n")
+                        .long("noise")
+                        .default_value("0.0")
+                        .takes_value(true)
+                        .validator(validator::is_float)
+                        .help("The amount of noise to introduce to each point."),
                 )
                 .arg(
                     Arg::with_name("OUTPUT_FILE")
@@ -147,7 +155,6 @@ fn main() {
 
 // Generate datasets
 // pointclt generate 1000 ./output.csv
-// TODO: support for noise
 fn generate_command(matches: &ArgMatches) {
     // Find amount of points to generate from args, default to 10k
     let point_count: i32 = match matches.value_of("points") {
@@ -180,24 +187,35 @@ fn generate_command(matches: &ArgMatches) {
         _ => panic!("This should not happend, programming error"),
     };
 
-    // Retrieve the output file from args, unwrap is safe since output file is required.
-    let output_file_path = matches.value_of("OUTPUT_FILE").unwrap();
-    let output_file = Path::new(output_file_path);
+    let noise = match matches.value_of("noise") {
+        None => 0.0f32,
+        Some(n_str) => {
+            let n = n_str.parse::<f32>().unwrap();
+            if n < 0.0f32 {
+                0.0f32
+            } else {
+                n
+            }
+        }
+    };
 
     // generate the points
     let generated_points = match pattern {
         Shapes::Cube => {
             println!("Will generate {} points in cube pattern", point_count);
-            generate::generate_cube(point_count, 0.00)
+            generate::generate_cube(point_count, noise)
         }
         Shapes::HyperCube => {
             println!("Will generate {} points in hypercube pattern", point_count);
-            generate::generate_hyper_cube(point_count, 0.00)
+            generate::generate_hyper_cube(point_count, noise)
         }
     };
 
     println!("Generated {} points", generated_points.len());
 
+    // Retrieve the output file from args, unwrap is safe since output file is required.
+    let output_file_path = matches.value_of("OUTPUT_FILE").unwrap();
+    let output_file = Path::new(output_file_path);
     // Do a buffered write to file for all the points
     write(output_file, generated_points);
 }
