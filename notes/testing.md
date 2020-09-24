@@ -10,6 +10,9 @@ cargo run -- explain -i data/winequality/winequality.csv -r data/winequality/win
 # cube 2d pca
 cargo run --release -- view -i data/cube/cube.csv --r2d data/cube/reduced-cube-pca-2d.csv --a2d data/cube/annotations.csv
 
+# cube 3d pca
+cargo run --release -- view -i data/cube/hyper-cube.csv --r3d data/cube/reduced-hyper-cube-pca-3d.csv --a2d data/cube/annotations-3d.csv
+
 # winequality 2d lamp
 cargo run --release -- view -i data/winequality/winequality.csv --r2d data/winequality/winequality-lamp-2d.csv --a2d data/winequality/annotations-lamp-2d.csv
 

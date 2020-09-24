@@ -9,9 +9,8 @@ use std::process::exit;
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 
 // Local imports
-use pc::exp;
+use pc::{exp, generate};
 use pc::fs::prelude::{read, write};
-use pc::generate::generate_cube;
 use pc::util::validator;
 use pc::view::view::display;
 
@@ -45,6 +44,7 @@ fn main() {
                     Arg::with_name("neighborhood_size")
                         .short("p")
                         .takes_value(true)
+                        .validator(validator::is_float)
                         .help("The P value used for the explanation process"),
                 )
                 .arg(
@@ -113,10 +113,18 @@ fn main() {
                         .help("Amount of point used to generate"),
                 )
                 .arg(
+                    Arg::with_name("shape")
+                        .default_value("cube")
+                        .short("s")
+                        .long("shape")
+                        .takes_value(true)
+                        .help("The type of shape you wish to create, chose from `cube` and `hypercube`"),
+                )
+                .arg(
                     Arg::with_name("OUTPUT_FILE")
-                        .help("Sets the output file to use")
                         .required(true)
-                        .index(1),
+                        .index(1)
+                        .help("Sets the output file to use"),
                 ),
         )
         .get_matches();
@@ -149,15 +157,38 @@ fn generate_command(matches: &ArgMatches) {
         },
     };
 
-    println!("Will generate {} points in cube pattern", point_count);
+    enum Shapes {
+        Cube, HyperCube
+    }
+
+    // Find out which pattern should be used
+    let pattern = match matches.value_of("shape") {
+        Some("cube") => Shapes::Cube,
+        Some("hypercube") => Shapes::HyperCube,
+        Some(v) => {
+            eprint!("Invalid value was passed as shape, received `{}`", v);
+            exit(17)
+        }
+        _ => panic!("This should not happend, programming error")
+    };
+
 
     // Retrieve the output file from args, unwrap is safe since output file is required.
     let output_file_path = matches.value_of("OUTPUT_FILE").unwrap();
     let output_file = Path::new(output_file_path);
 
     // generate the points
-    // TODO: Allow support for choosing different patterns here
-    let generated_points = generate_cube(point_count, 0.00);
+    let generated_points = match pattern {
+        Shapes::Cube => {
+                println!("Will generate {} points in cube pattern", point_count);
+                generate::generate_cube(point_count, 0.00)
+        },
+        Shapes::HyperCube => {
+            println!("Will generate {} points in hypercube pattern", point_count);
+            generate::generate_hyper_cube(point_count, 0.00)
+        }
+    };
+
     println!("Generated {} points", generated_points.len());
 
     // Do a buffered write to file for all the points
