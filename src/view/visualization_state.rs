@@ -1,6 +1,7 @@
 extern crate kiss3d;
 extern crate nalgebra as na;
 
+use crate::exp;
 use std::collections::HashMap;
 
 // Third party
@@ -129,6 +130,34 @@ impl VisualizationState3D {
         } else {
             eprintln!("Color map for {} is not yet loaded", mode.to_str());
             false
+        }
+    }
+
+    pub fn run_explanation_mode(
+        &mut self,
+        mode: ExplanationMode,
+        original_points: &Vec<PointN>,
+        neighborhood_size: exp::Neighborhood,
+    ) {
+        // render mode is already loaded, first remove it
+        if self.is_explanation_available(&mode) {
+            self.explanation = ExplanationMode::None;
+            self.color_maps.remove(&mode);
+        }
+        match mode {
+            ExplanationMode::DaSilva => {
+                let points = self.tree.iter().map(|ann| ann.point).collect();
+                let da_silva_mechanism =
+                    exp::da_silva::DaSilvaMechanismState::new_with_indexed_point(
+                        points,
+                        &original_points,
+                    );
+                let da_silva_explanation = da_silva_mechanism.explain(neighborhood_size, None);
+                self.load(da_silva_explanation);
+                self.set_explanation_mode(mode);
+            }
+            ExplanationMode::VanDriel => eprint!("Van Driel is not supported yet supported"),
+            ExplanationMode::None => (),
         }
     }
 
@@ -350,6 +379,38 @@ impl VisualizationState2D {
         } else {
             eprintln!("Color map for {} is not yet loaded", mode.to_str());
             false
+        }
+    }
+
+    pub fn run_explanation_mode(
+        &mut self,
+        mode: ExplanationMode,
+        original_points: &Vec<PointN>,
+        neighborhood_size: exp::Neighborhood,
+    ) {
+        // render mode is already loaded, first remove it
+        if self.is_explanation_available(&mode) {
+            self.explanation = ExplanationMode::None;
+            self.color_maps.remove(&mode);
+        }
+        match mode {
+            ExplanationMode::DaSilva => {
+                let points = self
+                    .tree
+                    .iter()
+                    .map(|ann| ann.point.into())
+                    .collect::<Vec<IndexedPoint3D>>();
+                let da_silva_mechanism =
+                    exp::da_silva::DaSilvaMechanismState::new_with_indexed_point(
+                        points,
+                        &original_points,
+                    );
+                let da_silva_explanation = da_silva_mechanism.explain(neighborhood_size, None);
+                self.load(da_silva_explanation);
+                self.set_explanation_mode(mode);
+            }
+            ExplanationMode::VanDriel => eprint!("Van Driel is not supported yet supported"),
+            ExplanationMode::None => (),
         }
     }
 

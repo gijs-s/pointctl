@@ -105,6 +105,14 @@ impl<'a> DaSilvaMechanismState<'a> {
                 z: point.z,
             })
             .collect();
+
+        DaSilvaMechanismState::new_with_indexed_point(indexed_points, original_points)
+    }
+
+    pub fn new_with_indexed_point(
+        indexed_points: Vec<IndexedPoint3D>,
+        original_points: &'a Vec<PointN>,
+    ) -> DaSilvaMechanismState<'a> {
         let rtree =
             RTree::<IndexedPoint3D, RTreeParameters3D>::bulk_load_with_params(indexed_points);
         DaSilvaMechanismState {

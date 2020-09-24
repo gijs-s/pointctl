@@ -444,9 +444,8 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             UIEvents::SetBlobSize(size) => scene.set_blob_size(size),
             UIEvents::SetGamma(gamma) => scene.set_gamma(gamma),
             UIEvents::SetExplanationMode(mode) => scene.set_explanation_mode(mode),
-            UIEvents::RunExplanationMode(_mode) => {
-                println!("Calculating explanations is not yet supported")
-            }
+            // TODO: include parameters for setting K and R
+            UIEvents::RunExplanationMode(mode) => scene.run_explanation_mode(mode),
         }
     }
 }

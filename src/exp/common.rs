@@ -25,6 +25,17 @@ pub struct IndexedPoint3D {
     pub z: f32,
 }
 
+impl From<IndexedPoint2D> for IndexedPoint3D {
+    fn from(point: IndexedPoint2D) -> IndexedPoint3D {
+        IndexedPoint3D {
+            index: point.index,
+            x: point.x,
+            y: point.y,
+            z: 0.0f32,
+        }
+    }
+}
+
 /// This is an abstaction on the indexed point that allows me to annotate these points.
 #[derive(Debug, PartialEq)]
 pub struct AnnotatedPoint<P> {
