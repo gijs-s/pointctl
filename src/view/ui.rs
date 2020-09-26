@@ -62,8 +62,10 @@ widget_ids! {
 }
 
 const FONT_SIZE: u32 = 12;
-const BUTTON_WIDTH: f64 = 144.0f64;
-const BUTTON_HEIGHT: f64 = 22.0f64;
+const FONT_SIZE_SMALL: u32 = FONT_SIZE - 4;
+const BUTTON_WIDTH: f64 = 120.0f64;
+const BUTTON_HEIGHT: f64 = 18.0f64;
+const SLIDER_HEIGHT: f64 = 18.0f64;
 const COLOR_PREVIEW_SIZE: f64 = 18.0f64;
 /// All the types of event that can happen in the UI.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -230,28 +232,28 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     // Add buttons for switching and running explanation modes
     // First gather the possible text and event for each button
     let (text_none, event_none) = (
-        "Switch off annotations".to_string(),
+        "Turn off annotations".to_string(),
         UIEvents::SetExplanationMode(ExplanationMode::None),
     );
     let (text_da_silva, event_da_silva) =
         match scene.is_explanation_available(&ExplanationMode::DaSilva) {
             true => (
-                "Switch to Da Silva annotations".to_string(),
+                "View to Da Silva".to_string(),
                 UIEvents::SetExplanationMode(ExplanationMode::DaSilva),
             ),
             false => (
-                "Calculate Da Silva annotations".to_string(),
+                "Calculate Da Silva".to_string(),
                 UIEvents::RunExplanationMode(ExplanationMode::DaSilva),
             ),
         };
     let (text_van_driel, event_van_driel) =
         match scene.is_explanation_available(&ExplanationMode::VanDriel) {
             true => (
-                "Switch to Van Driel annotations".to_string(),
+                "View Van Driel".to_string(),
                 UIEvents::SetExplanationMode(ExplanationMode::VanDriel),
             ),
             false => (
-                "Calculate Van Driel annotations".to_string(),
+                "Calculate Van Driel".to_string(),
                 UIEvents::RunExplanationMode(ExplanationMode::VanDriel),
             ),
         };
@@ -270,7 +272,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
 
     for _ in widget::Button::new()
         .label(&text_1)
-        .label_font_size(FONT_SIZE - 4u32)
+        .label_font_size(FONT_SIZE_SMALL)
         .bottom_left_with_margin(5.0f64)
         .w(BUTTON_WIDTH)
         .h(BUTTON_HEIGHT)
@@ -281,8 +283,8 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
 
     for _ in widget::Button::new()
         .label(&text_2)
-        .label_font_size(FONT_SIZE - 4u32)
-        .up_from(ids.button_explanation_1, 5.0f64)
+        .label_font_size(FONT_SIZE_SMALL)
+        .up_from(ids.button_explanation_1, 3.0f64)
         .w(BUTTON_WIDTH)
         .h(BUTTON_HEIGHT)
         .set(ids.button_explanation_2, &mut ui)
@@ -297,8 +299,8 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     );
     for _ in widget::Button::new()
         .label(&text)
-        .label_font_size(FONT_SIZE)
-        .up_from(ids.button_explanation_2, 5.0f64)
+        .label_font_size(FONT_SIZE_SMALL)
+        .up_from(ids.button_explanation_2, 3.0f64)
         .w(BUTTON_WIDTH)
         .h(BUTTON_HEIGHT)
         .set(ids.buttom_render_mode, &mut ui)
@@ -309,8 +311,8 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     // Button for reseting the current view
     for _ in widget::Button::new()
         .label("Reset view")
-        .label_font_size(FONT_SIZE)
-        .up_from(ids.buttom_render_mode, 5.0f64)
+        .label_font_size(FONT_SIZE_SMALL)
+        .up_from(ids.buttom_render_mode, 3.0f64)
         .w(BUTTON_WIDTH)
         .h(BUTTON_HEIGHT)
         .set(ids.button_reset, &mut ui)
@@ -323,8 +325,8 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         let text = format!("Switch to {}", scene.dimensionality_mode.inverse().to_str());
         for _ in widget::Button::new()
             .label(&text)
-            .label_font_size(FONT_SIZE)
-            .up_from(ids.button_reset, 5.0f64)
+            .label_font_size(FONT_SIZE_SMALL)
+            .up_from(ids.button_reset, 3.0f64)
             .w(BUTTON_WIDTH)
             .h(BUTTON_HEIGHT)
             .set(ids.button_dimension_switch, &mut ui)
@@ -340,6 +342,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         .label_font_size(FONT_SIZE)
         .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
         .bottom_right_with_margin(5.0f64)
+        .h(SLIDER_HEIGHT)
         .set(ids.slider_gamma, &mut ui)
     {
         queue.push(UIEvents::SetGamma(gamma))
@@ -348,10 +351,10 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     // Gamma reset button
     for _ in widget::Button::new()
         .label("Reset gamma")
-        .label_font_size(FONT_SIZE - 2)
-        .up_from(ids.slider_gamma, 5.0f64)
+        .label_font_size(FONT_SIZE_SMALL)
+        .up_from(ids.slider_gamma, 2.0f64)
         .w_of(ids.slider_gamma)
-        .h(BUTTON_HEIGHT - 4f64)
+        .h(BUTTON_HEIGHT - 2f64)
         .set(ids.button_gamma_reset, &mut ui)
     {
         queue.push(UIEvents::SetGamma(scene.get_default_gamma()))
@@ -359,76 +362,82 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
 
     // Gamma helper text
     widget::Text::new("Set the gamma:")
-        .font_size(FONT_SIZE)
-        .up_from(ids.button_gamma_reset, 5.0f64)
+        .font_size(FONT_SIZE - 2)
+        .up_from(ids.button_gamma_reset, 3.0f64)
         .w_of(ids.button_gamma_reset)
         .set(ids.text_gamma_slider, &mut ui);
 
     // Settings for the point size
     match scene.get_current_render_mode() {
         RenderMode::Discreet => {
+            // Point size slider
             for point_size in widget::Slider::new(
                 scene.get_point_size(),
                 scene.get_default_point_size() / 4f32,
                 scene.get_default_point_size() * 4f32,
             )
-            .label(&scene.get_point_size().to_string())
-            .label_font_size(FONT_SIZE)
-            .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-            .h_of(ids.slider_gamma)
-            .up_from(ids.text_gamma_slider, 8.0f64)
-            .set(ids.slider_point_size, &mut ui)
+                .label(&scene.get_point_size().to_string())
+                .label_font_size(FONT_SIZE)
+                .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+                .h_of(ids.slider_gamma)
+                .up_from(ids.text_gamma_slider, 7.0f64)
+                .set(ids.slider_point_size, &mut ui)
             {
                 queue.push(UIEvents::SetPointSize(point_size))
             }
 
+            // Point size reset button
             for _ in widget::Button::new()
                 .label("Reset point size")
-                .label_font_size(FONT_SIZE - 2)
-                .up_from(ids.slider_point_size, 5.0f64)
+                .label_font_size(FONT_SIZE_SMALL)
+                .up_from(ids.slider_point_size, 2.0f64)
                 .w_of(ids.slider_point_size)
-                .h(BUTTON_HEIGHT - 4f64)
+                .h(BUTTON_HEIGHT - 2f64)
                 .set(ids.button_size_reset, &mut ui)
             {
                 queue.push(UIEvents::SetPointSize(scene.get_default_point_size()))
             }
 
+            // Point size helper text
             widget::Text::new("Set the point size:")
-                .font_size(FONT_SIZE)
-                .up_from(ids.button_size_reset, 5.0f64)
+                .font_size(FONT_SIZE - 2)
+                .up_from(ids.button_size_reset, 3.0f64)
                 .w_of(ids.button_size_reset)
                 .set(ids.text_size_slider, &mut ui);
         }
         RenderMode::Continuous => {
+            // Create slider to set the blob size
             for blob_size in widget::Slider::new(
                 scene.get_blob_size(),
                 scene.get_default_blob_size() / 4f32,
                 scene.get_default_blob_size() * 4f32,
             )
-            .label(&scene.get_blob_size().to_string())
-            .label_font_size(FONT_SIZE)
-            .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-            .h_of(ids.slider_gamma)
-            .up_from(ids.text_gamma_slider, 8.0f64)
-            .set(ids.slider_blob_size, &mut ui)
+                .label(&scene.get_blob_size().to_string())
+                .label_font_size(FONT_SIZE)
+                .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+                .h_of(ids.slider_gamma)
+                .up_from(ids.text_gamma_slider, 7.0f64)
+                .set(ids.slider_blob_size, &mut ui)
             {
                 queue.push(UIEvents::SetBlobSize(blob_size))
             }
 
+            // Blob reset button
             for _ in widget::Button::new()
                 .label("Reset size")
-                .label_font_size(FONT_SIZE - 2)
-                .up_from(ids.slider_blob_size, 5.0f64)
+                .label_font_size(FONT_SIZE_SMALL)
+                .up_from(ids.slider_blob_size, 2.0f64)
                 .w_of(ids.slider_point_size)
-                .h(BUTTON_HEIGHT - 4f64)
+                .h(BUTTON_HEIGHT - 2f64)
                 .set(ids.button_size_reset, &mut ui)
             {
                 queue.push(UIEvents::SetBlobSize(scene.get_default_blob_size()))
             }
 
+            // Blob helper text
             widget::Text::new("Set the blob size:")
-                .font_size(FONT_SIZE)
-                .up_from(ids.button_size_reset, 5.0f64)
+                .font_size(FONT_SIZE - 2)
+                .up_from(ids.button_size_reset, 3.0f64)
                 .w_of(ids.button_size_reset)
                 .set(ids.text_size_slider, &mut ui);
         }

@@ -37,7 +37,7 @@ fn main() {
                 )
                 .arg(
                     Arg::with_name("reduced_data")
-                        .short("r")
+                        .short("d")
                         .required(true)
                         .takes_value(true)
                         .help("The reduced dataset in ply or csv format"),
