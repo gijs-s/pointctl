@@ -55,7 +55,7 @@ widget_ids! {
         text_gamma_slider,
         button_gamma_reset,
         slider_gamma,
-        // - Calculate da silva button
+        // - Calculate da silva / van driel button
         button_explanation_1,
         button_explanation_2,
     }
@@ -337,9 +337,13 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
 
     // Settings for the gamma
     // The gamma slider
+
+    let mut text_slider_value = scene.get_gamma().to_string();
+    text_slider_value.truncate(5);
+
     for gamma in widget::Slider::new(scene.get_gamma(), 1.0, 3.4)
-        .label(&scene.get_gamma().to_string())
-        .label_font_size(FONT_SIZE)
+        .label(&text_slider_value)
+        .label_font_size(FONT_SIZE - 1)
         .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
         .bottom_right_with_margin(5.0f64)
         .h(SLIDER_HEIGHT)
@@ -371,13 +375,17 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     match scene.get_current_render_mode() {
         RenderMode::Discreet => {
             // Point size slider
+
+            let mut text_slider_value = scene.get_point_size().to_string();
+            text_slider_value.truncate(5);
+
             for point_size in widget::Slider::new(
                 scene.get_point_size(),
                 scene.get_default_point_size() / 4f32,
                 scene.get_default_point_size() * 4f32,
             )
-                .label(&scene.get_point_size().to_string())
-                .label_font_size(FONT_SIZE)
+                .label(&text_slider_value)
+                .label_font_size(FONT_SIZE -1)
                 .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
                 .h_of(ids.slider_gamma)
                 .up_from(ids.text_gamma_slider, 7.0f64)
@@ -407,13 +415,16 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         }
         RenderMode::Continuous => {
             // Create slider to set the blob size
+            let mut text_slider_value = scene.get_blob_size().to_string();
+            text_slider_value.truncate(5);
+
             for blob_size in widget::Slider::new(
                 scene.get_blob_size(),
                 scene.get_default_blob_size() / 4f32,
                 scene.get_default_blob_size() * 4f32,
             )
-                .label(&scene.get_blob_size().to_string())
-                .label_font_size(FONT_SIZE)
+                .label(&text_slider_value)
+                .label_font_size(FONT_SIZE - 1)
                 .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
                 .h_of(ids.slider_gamma)
                 .up_from(ids.text_gamma_slider, 7.0f64)
