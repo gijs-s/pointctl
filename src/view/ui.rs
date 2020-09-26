@@ -8,7 +8,10 @@ use kiss3d::{
 };
 
 // Internal imports
-use crate::view::{color_map::ColorMap, view::Scene, DimensionalityMode};
+use crate::{
+    exp::Neighborhood,
+    view::{color_map::ColorMap, view::Scene, DimensionalityMode},
+};
 
 use super::{ExplanationMode, RenderMode};
 
@@ -58,6 +61,11 @@ widget_ids! {
         // - Calculate da silva / van driel button
         button_explanation_1,
         button_explanation_2,
+        // - Recompute the current metric
+        text_recompute,
+        button_recompute,
+        button_switch_neighborhood_type,
+        slider_neighborhood,
     }
 }
 
@@ -77,7 +85,88 @@ enum UIEvents {
     SetBlobSize(f32),
     SetGamma(f32),
     SetExplanationMode(ExplanationMode),
-    RunExplanationMode(ExplanationMode),
+    RunExplanationMode(ExplanationMode, Neighborhood),
+    UpdateUINeighborhood(Neighborhood),
+    UpdateUISwitchNeighborhood,
+}
+
+// Small enum used to denote which neighborhood type is currently being used.
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum NeighborhoodType {
+    K,
+    R,
+}
+
+impl NeighborhoodType {
+    pub fn inverse(self) -> Self {
+        match self {
+            NeighborhoodType::K => NeighborhoodType::R,
+            NeighborhoodType::R => NeighborhoodType::K,
+        }
+    }
+}
+
+impl ToString for NeighborhoodType {
+    fn to_string(&self) -> String {
+        match self {
+            NeighborhoodType::K => "K".to_string(),
+            NeighborhoodType::R => "R".to_string(),
+        }
+    }
+}
+
+// Struct that contains data about the UI state that are not relevant to the state itself
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct UIState {
+    pub neighborhood_type: NeighborhoodType,
+    // Neighborhood size 10...50
+    pub k: usize,
+    // Radius between 0.0...1.0
+    pub r: f32,
+}
+
+impl UIState {
+    /// Initialize the UI state
+    pub fn new() -> Self {
+        UIState {
+            neighborhood_type: NeighborhoodType::K,
+            k: 30,
+            r: 0.05,
+        }
+    }
+
+    /// Get a text representation of the current neigborhood
+    pub fn get_neighborhood_text(&self) -> String {
+        match self.neighborhood_type {
+            NeighborhoodType::R => {
+                let mut r_text = self.r.to_string();
+                r_text.truncate(5);
+                format!("R: {}", r_text)
+            }
+            NeighborhoodType::K => format!("K: {}", self.k.to_string()),
+        }
+    }
+
+    pub fn switch_neighborhood_type(&mut self) {
+        self.neighborhood_type = self.neighborhood_type.inverse()
+    }
+
+    /// Update the current object using a new neighborhood
+    pub fn update(&mut self, neighborhood: Neighborhood) {
+        match neighborhood {
+            Neighborhood::K(k) => self.k = k,
+            Neighborhood::R(r) => self.r = r,
+        }
+    }
+}
+
+impl Into<Neighborhood> for UIState {
+    fn into(self: UIState) -> Neighborhood {
+        match self.neighborhood_type {
+            NeighborhoodType::K => Neighborhood::K(self.k),
+            NeighborhoodType::R => Neighborhood::R(self.r),
+        }
+    }
 }
 
 /// Draw an overlay in the window of the given scene
@@ -98,7 +187,6 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     widget::Text::new(&explanation_mode_text)
         .font_size(FONT_SIZE)
         .top_left()
-
         .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
         .set(ids.text_explanation_mode, &mut ui);
 
@@ -126,7 +214,6 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         .down_from(ids.text_dimensionality, 5.0f64)
         .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
         .set(ids.text_point_count, &mut ui);
-
 
     // Draw error if no data is present
     if !scene.initialized() {
@@ -243,7 +330,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             ),
             false => (
                 "Calculate Da Silva".to_string(),
-                UIEvents::RunExplanationMode(ExplanationMode::DaSilva),
+                UIEvents::RunExplanationMode(ExplanationMode::DaSilva, scene.ui_state.into()),
             ),
         };
     let (text_van_driel, event_van_driel) =
@@ -254,7 +341,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             ),
             false => (
                 "Calculate Van Driel".to_string(),
-                UIEvents::RunExplanationMode(ExplanationMode::VanDriel),
+                UIEvents::RunExplanationMode(ExplanationMode::VanDriel, scene.ui_state.into()),
             ),
         };
 
@@ -337,7 +424,6 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
 
     // Settings for the gamma
     // The gamma slider
-
     let mut text_slider_value = scene.get_gamma().to_string();
     text_slider_value.truncate(5);
 
@@ -384,12 +470,12 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
                 scene.get_default_point_size() / 4f32,
                 scene.get_default_point_size() * 4f32,
             )
-                .label(&text_slider_value)
-                .label_font_size(FONT_SIZE -1)
-                .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-                .h_of(ids.slider_gamma)
-                .up_from(ids.text_gamma_slider, 7.0f64)
-                .set(ids.slider_point_size, &mut ui)
+            .label(&text_slider_value)
+            .label_font_size(FONT_SIZE - 1)
+            .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+            .h_of(ids.slider_gamma)
+            .up_from(ids.text_gamma_slider, 7.0f64)
+            .set(ids.slider_point_size, &mut ui)
             {
                 queue.push(UIEvents::SetPointSize(point_size))
             }
@@ -423,12 +509,12 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
                 scene.get_default_blob_size() / 4f32,
                 scene.get_default_blob_size() * 4f32,
             )
-                .label(&text_slider_value)
-                .label_font_size(FONT_SIZE - 1)
-                .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-                .h_of(ids.slider_gamma)
-                .up_from(ids.text_gamma_slider, 7.0f64)
-                .set(ids.slider_blob_size, &mut ui)
+            .label(&text_slider_value)
+            .label_font_size(FONT_SIZE - 1)
+            .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+            .h_of(ids.slider_gamma)
+            .up_from(ids.text_gamma_slider, 7.0f64)
+            .set(ids.slider_blob_size, &mut ui)
             {
                 queue.push(UIEvents::SetBlobSize(blob_size))
             }
@@ -454,18 +540,98 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         }
     };
 
+    // Recomputing the current metric
+    // Only show this menu if the explanation mode is not none
+    if scene.get_explanation_mode() != ExplanationMode::None {
+        // Create the slider and metric switch button
+        match scene.ui_state.neighborhood_type {
+            NeighborhoodType::R => {
+                for radius_value in widget::Slider::new(scene.ui_state.r, 0.01, 1.00)
+                    .label(&scene.ui_state.get_neighborhood_text())
+                    .label_font_size(FONT_SIZE - 1)
+                    .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+                    .h_of(ids.slider_gamma)
+                    .up_from(ids.text_size_slider, 7.0f64)
+                    .set(ids.slider_neighborhood, &mut ui)
+                {
+                    queue.push(UIEvents::UpdateUINeighborhood(Neighborhood::R(
+                        radius_value
+                    )))
+                }
+            }
+            NeighborhoodType::K => {
+                // Hack: usize sliders are not supported, need to make the slider one for floats and cast to usize every time.
+                for neighborhood_size in widget::Slider::new(scene.ui_state.k as f32, 10.0f32, 50.0f32)
+                    .label(&scene.ui_state.get_neighborhood_text())
+                    .label_font_size(FONT_SIZE - 1)
+                    .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+                    .h_of(ids.slider_gamma)
+                    .up_from(ids.text_size_slider, 7.0f64)
+                    .set(ids.slider_neighborhood, &mut ui)
+                {
+                    queue.push(UIEvents::UpdateUINeighborhood(Neighborhood::K(
+                        neighborhood_size as usize,
+                    )))
+                }
+            }
+        }
+
+        // Add switch between K and R
+        for _ in widget::Button::new()
+            .label(&format!(
+                "Switch to {}",
+                scene.ui_state.neighborhood_type.inverse().to_string()
+            ))
+            .label_font_size(FONT_SIZE_SMALL)
+            .up_from(ids.slider_neighborhood, 2.0f64)
+            .w(BUTTON_WIDTH / 2.0)
+            .h(BUTTON_HEIGHT - 2f64)
+            .set(ids.button_switch_neighborhood_type, &mut ui)
+        {
+            queue.push(UIEvents::UpdateUISwitchNeighborhood)
+        }
+
+        for _ in widget::Button::new()
+            .label("Compute")
+            .label_font_size(FONT_SIZE_SMALL)
+            .right_from(ids.button_switch_neighborhood_type, 2.0f64)
+            .w(BUTTON_WIDTH / 2.0)
+            .h(BUTTON_HEIGHT - 2f64)
+            .set(ids.button_recompute, &mut ui)
+        {
+            queue.push(UIEvents::RunExplanationMode(
+                scene.get_explanation_mode(),
+                scene.ui_state.into(),
+            ))
+        }
+
+        // Recompute text
+        widget::Text::new("Recompute current metric:")
+            .font_size(FONT_SIZE_SMALL)
+            .up_from(ids.button_switch_neighborhood_type, 3.0f64)
+            .w_of(ids.button_size_reset)
+            .set(ids.text_recompute, &mut ui);
+    }
+
     // Handle all the enqueued events in order.
     for event in queue {
         match event {
             UIEvents::ResetButtonPress => scene.reset_camera(),
             UIEvents::RenderModeSwitch => scene.switch_render_mode(),
             UIEvents::DimensionalitySwitch => scene.switch_dimensionality(),
+            // Setting scene options
             UIEvents::SetPointSize(size) => scene.set_point_size(size),
             UIEvents::SetBlobSize(size) => scene.set_blob_size(size),
             UIEvents::SetGamma(gamma) => scene.set_gamma(gamma),
             UIEvents::SetExplanationMode(mode) => scene.set_explanation_mode(mode),
-            // TODO: include parameters for setting K and R
-            UIEvents::RunExplanationMode(mode) => scene.run_explanation_mode(mode),
+            // Running the explanation method
+            UIEvents::RunExplanationMode(mode, neighborhood) => {
+                scene.ui_state.update(neighborhood);
+                scene.run_explanation_mode(mode, neighborhood)
+            }
+            // UI specific
+            UIEvents::UpdateUINeighborhood(neighborhood) => scene.ui_state.update(neighborhood),
+            UIEvents::UpdateUISwitchNeighborhood => scene.ui_state.switch_neighborhood_type(),
         }
     }
 }

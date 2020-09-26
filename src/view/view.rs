@@ -32,14 +32,14 @@ use crate::{
     },
 };
 
-use super::ExplanationMode;
+use super::{ExplanationMode, ui::UIState};
 
 // Easy access to buttons
 mod buttons {
     use kiss3d::event::Key;
     pub const GAMMA_UP_KEY: Key = Key::PageUp;
     pub const GAMMA_DOWN_KEY: Key = Key::PageDown;
-    // Switch between Discreet and Continous
+    // Switch between Discreet and Continuous
     pub const SWITCH_RENDER_MODE: Key = Key::N;
     // Switch between 2D and 3D
     pub const SWITCH_DIMENSIONALITY: Key = Key::M;
@@ -59,6 +59,9 @@ pub struct Scene {
     pub state_3d: Option<VisualizationState3D>,
     // Used by conrod to assign widget ids
     pub conrod_ids: WidgetId,
+    // The state of the current UI which are not relevant for the rest
+    // of the program
+    pub ui_state: UIState,
     // Used when rendering, set to dirty if the window needs to be synced
     // with the scene
     dirty: bool,
@@ -73,6 +76,7 @@ impl Scene {
             state_3d: None,
             original_points: original_points,
             conrod_ids,
+            ui_state: UIState::new(),
             dirty: false,
         }
     }
@@ -219,17 +223,17 @@ impl Scene {
         };
     }
 
-    pub fn run_explanation_mode(&mut self, mode: ExplanationMode) {
+    pub fn run_explanation_mode(&mut self, mode: ExplanationMode, neighborhood: exp::Neighborhood) {
          match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &mut self.state_2d {
-                Some(state) => state.run_explanation_mode(mode, &self.original_points, exp::Neighborhood::K(40)),
+                Some(state) => state.run_explanation_mode(mode, &self.original_points, neighborhood),
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
                 }
             },
             DimensionalityMode::ThreeD => match &mut self.state_3d {
-                Some(state) => state.run_explanation_mode(mode, &self.original_points, exp::Neighborhood::K(40)),
+                Some(state) => state.run_explanation_mode(mode, &self.original_points, neighborhood),
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);

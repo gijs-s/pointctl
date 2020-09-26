@@ -5,7 +5,7 @@ pub mod common;
 pub mod da_silva;
 pub mod driel;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Neighborhood {
     K(usize),
     R(f32)
