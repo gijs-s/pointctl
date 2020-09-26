@@ -6,9 +6,13 @@
     - [x] Buttons
     - [x] Blob / point size slider
     - [x] Gamma slider
-    - [ ] Make calculate annotation button work
+    - [x] Make calculate annotation button work
     - [ ] Show explanation specific details
        - [ ] Global and local rankings for da silva
+    - [ ] Modifying the P/K
+       - [ ] Set neighborhood P/K slider
+       - [ ] Switch between neighborhood mode
+       - [ ] Recompute button
  - [x] 3D continous with billboarding in vertex shader
  - [ ] Van Driel explanation
     - [x] Basic data definition
