@@ -16,7 +16,7 @@ clap = "^2.33.1"
 # Used for visualization
 # kiss3d = { git = "https://github.com/G3ntIeMan/kiss3d", branch = "planar-renderer", features= ['conrod']}
 kiss3d = { path = '../kiss3d', features = ['conrod']}
-nalgebra = "*"
+nalgebra = "0.21.1"
 gl = "0.14"
 # Used for generarting random points
 rand = "^0.7"
