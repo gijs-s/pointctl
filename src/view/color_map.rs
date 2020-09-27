@@ -109,9 +109,8 @@ impl ColorMap {
     /// Get a RGB color based on the current pallet
     pub fn get_color(&self, dimension: usize, confidence: f32) -> Point3<f32> {
         // normalize the confidence
-        let normalized_conf = confidence
-            - self.normalization_bounds.0
-                / (self.normalization_bounds.1 - self.normalization_bounds.0);
+        let normalized_conf = (confidence - self.normalization_bounds.0)
+            / (self.normalization_bounds.1 - self.normalization_bounds.0);
 
         // Retrieve the color that used for that dimension
         // First we get the rank of that dimennsion, than we convert that rank to a color.
@@ -127,7 +126,7 @@ impl ColorMap {
     fn scale_color(scale: f32, color: Point3<f32>) -> Point3<f32> {
         // TODO: Is the brightness scale correct?
         // TODO: Make this scaling changeable
-        let brightness = color.z * scale.sqrt();
+        let brightness = color.z * scale;
         return Point3::new(color.x, color.y, brightness);
     }
 

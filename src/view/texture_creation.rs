@@ -35,7 +35,7 @@ fn generate_raw_texture() -> Vec<u8> {
                 distance => {
                     // The normalized distance to the edge (0..1)
                     let normalized_distance = (radius - distance) / radius;
-                    (normalized_distance.powi(3) * 256f32) as u8
+                    (normalized_distance.powf(2.5) * 256f32) as u8
                 }
             };
 
