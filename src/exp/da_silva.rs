@@ -25,6 +25,8 @@ type LocalContributions = Vec<f32>;
 type GlobalContribution = Vec<f32>;
 type Ranking = (usize, f32);
 
+pub enum DaSilvaType { Euclidean, Variance }
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct DaSilvaExplanation {
     // Attribute index is the index of which dimension in nD is most important for this point
@@ -91,6 +93,7 @@ impl DaSilvaExplanation {
 pub struct DaSilvaMechanismState<'a> {
     pub rtree: RTree<IndexedPoint3D, RTreeParameters3D>,
     pub original_points: &'a Vec<PointN>,
+    pub ranking_method: DaSilvaType
     // How large the total projection is. mesured by the two points furthest apart.
     // pub projection_width: f32,
 }
@@ -114,6 +117,7 @@ impl<'a> DaSilvaMechanismState<'a> {
         DaSilvaMechanismState::new_with_indexed_point(indexed_points, original_points)
     }
 
+    /// Initialize the mechanism with already indexed points
     pub fn new_with_indexed_point(
         indexed_points: Vec<IndexedPoint3D>,
         original_points: &'a Vec<PointN>,
@@ -123,7 +127,14 @@ impl<'a> DaSilvaMechanismState<'a> {
         DaSilvaMechanismState {
             rtree,
             original_points,
+            ranking_method: DaSilvaType::Variance
         }
+    }
+
+    /// Use the euclidean metric, sadly this has proven to work quite poorly
+    /// so it is hidden behind a manual toggle
+    pub fn use_euclidean_metric(&mut self) {
+        self.ranking_method = DaSilvaType::Euclidean;
     }
 
     /// Run the da silva explanation mechanism
@@ -131,8 +142,10 @@ impl<'a> DaSilvaMechanismState<'a> {
         // Calculate the global contribution of each point (centroid of the nD space and
         //_every_ point in its neighborhood)
         let centroid: PointN = Self::find_centroid(&self.original_points);
-        let global_contribution: GlobalContribution =
-            Self::calculate_global_contribution(centroid, &self.original_points);
+        let global_contribution: GlobalContribution = match self.ranking_method {
+            DaSilvaType::Euclidean => Self::calculate_global_contribution(centroid, &self.original_points),
+            DaSilvaType::Variance => Self::calculate_global_variance(&self.original_points)
+        };
 
         // Find out what the projection width is based on the bounding box
         // TODO: only do this when using radius based NN search
@@ -167,8 +180,10 @@ impl<'a> DaSilvaMechanismState<'a> {
                 // Calculate the local contribution lc_j between each point p_i and all its neighbors
                 // v_i for every dimension j. Then average the contribution for every dimension within
                 // the neighborhood
-                let lc: LocalContributions =
-                    Self::calculate_local_contributions(index, self.original_points, neighborhood);
+                let lc: LocalContributions = match self.ranking_method {
+                    DaSilvaType::Euclidean => Self::calculate_local_contributions(index, self.original_points, neighborhood),
+                    DaSilvaType::Variance => Self::calculate_local_variance(index, self.original_points, neighborhood)
+                };
                 // Normalize the local contribution by dividing by the global contribution (per dimension)
                 let nlc: LocalContributions = Self::normalize_rankings(lc, &global_contribution);
                 // Create a ranking vector from the normalized local contribution
@@ -263,7 +278,7 @@ impl<'a> DaSilvaMechanismState<'a> {
             .collect::<PointN>()
     }
 
-    // Given 2 points, calculate the contribution of each dimension to the distance.
+    // Given 2 points, calculate the contribution of distance for each dimension.
     // corresponds to formula 1. lc_j = (p_j - r_j)^2 / ||p-r||^2 where j is the dim.
     fn calculate_distance_contribution(p: &PointN, r: &PointN) -> LocalContributions {
         // ||p - r||^2
@@ -275,9 +290,29 @@ impl<'a> DaSilvaMechanismState<'a> {
             .collect::<LocalContributions>()
     }
 
-    // Given a point index, the set of points and the indices of the neighbors calculate the
-    // average local contribution for each dimension over the neighborhood.
-    // Corresponds to formula 2. lc_j = Sum over r in neighborhood of lc^j_p,r divided |neighborhood|
+    // Calculate the distance contribution of all points from the centriod of the entire data set
+    fn calculate_global_contribution(centroid: PointN, points: &Vec<PointN>) -> GlobalContribution {
+        points
+            .iter()
+            // Calculate the distance contribution between the centroid and all points.
+            .map(|r| Self::calculate_distance_contribution(&centroid, r))
+            // Fold to collect all the contributions into one single cumulative one.
+            .fold(vec![0.0f32; centroid.len()], |acc, lc| {
+                acc.iter()
+                    .zip(lc)
+                    .map(|(&acc_j, lc_j)| acc_j + lc_j)
+                    .collect::<LocalContributions>()
+            })
+            .iter()
+            // For each dimension normalize using the size of the points set.
+            .map(|&dim| dim / (points.len() as f32))
+            .collect()
+    }
+
+
+    /// Given a point index, the set of points and the indices of the neighbors calculate the
+    /// average local contribution for each dimension over the neighborhood.
+    /// Corresponds to formula 2. lc_j = Sum over r in neighborhood of lc^j_p,r divided |neighborhood|
     fn calculate_local_contributions(
         point_index: usize,
         original_points: &Vec<PointN>,
@@ -307,22 +342,53 @@ impl<'a> DaSilvaMechanismState<'a> {
             .collect()
     }
 
-    // Does the same as calculate_local_contributions but for the entire dataset.
-    fn calculate_global_contribution(centroid: PointN, points: &Vec<PointN>) -> GlobalContribution {
+    /// Calculate the variance over all point per dimension.
+    /// TODO: This is horrible code please fix
+    fn calculate_global_variance(points: &Vec<PointN>) -> GlobalContribution {
+        let dimension_count = points.first().unwrap().len();
+        // This is basicly a transpose the points and then take the variance
         points
             .iter()
-            // Calculate the distance contribution between the centroid and all points.
-            .map(|r| Self::calculate_distance_contribution(&centroid, r))
-            // Fold to collect all the contributions into one single cumulative one.
-            .fold(vec![0.0f32; centroid.len()], |acc, lc| {
-                acc.iter()
-                    .zip(lc)
-                    .map(|(&acc_j, lc_j)| acc_j + lc_j)
-                    .collect::<LocalContributions>()
+            // Transpose the points
+            .fold(vec![Vec::new(); dimension_count], |mut acc, p| {
+                for (acc_j, &p_j) in acc.iter_mut().zip(p) {
+                    acc_j.push(p_j)
+                };
+                acc
             })
             .iter()
-            // For each dimension normalize using the size of the points set.
-            .map(|&dim| dim / (points.len() as f32))
+            // Get the variance per dimension
+            .map(|acc_j| Self::get_variance(acc_j).unwrap())
+            .collect()
+    }
+
+    /// Calculate the variance in a set of a neighborhood _including_ the point
+    fn calculate_local_variance(
+        point_index: usize,
+        original_points: &Vec<PointN>,
+        neighbor_indices: &NeighborIndices,
+    ) -> LocalContributions {
+
+        // Create the accumulator using the search point an put each dimension into a singleton
+        let accumulator: Vec<Vec<f32>> = original_points[point_index].clone()
+            .iter()
+            .map(|&v| vec![v])
+            .collect();
+
+        neighbor_indices
+            .iter()
+            // Retrieve the actual point using the index
+            .map(|&index| &original_points[index])
+            // Fold to collect all the contributions into one single cumulative one.
+            // Transpose the points. Use search point as initial value for the accumulator
+            .fold(accumulator, |mut acc, p| {
+                for (acc_j, &p_j) in acc.iter_mut().zip(p) {
+                    acc_j.push(p_j);
+                };
+                acc
+            })
+            .iter()
+            .map(|acc_j| Self::get_variance(acc_j).unwrap())
             .collect()
     }
 
@@ -388,6 +454,31 @@ impl<'a> DaSilvaMechanismState<'a> {
             .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
             .map(|(index, &f)| (index, f))
             .unwrap()
+    }
+
+
+    /// Get the variance of a vector of floats
+    pub fn get_variance(data: &Vec<f32>) -> Option<f32> {
+        match (Self::get_mean(&data), data.len()) {
+            (Some(mean), count) if count > 0 => {
+                let variance = data.iter().map(|value| {
+                    let diff = mean - (*value as f32);
+                    diff * diff
+                }).sum::<f32>() / count as f32;
+                Some(variance)
+            },
+            _ => None
+        }
+    }
+
+    /// Get the mean of a vector of floats
+    pub fn get_mean(data: &Vec<f32>) -> Option<f32> {
+        let sum = data.iter().sum::<f32>();
+        let count = data.len();
+        match count {
+            positive if positive > 0 => Some(sum / count as f32),
+            _ => None,
+        }
     }
 }
 

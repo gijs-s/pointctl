@@ -278,6 +278,9 @@ fn explain_command(matches: &ArgMatches) {
         exp::da_silva::DaSilvaMechanismState::new(clean_reduced_points, &original_points);
     let da_silva_explanation = da_silva_mechanism.explain(neigborhoods_size);
 
+    // Temp for testing
+    let _ = exp::da_silva::DaSilvaExplanation::calculate_dimension_rankings(&da_silva_explanation);
+
     // Write the annotations to file
     let annotations = da_silva_explanation
         .iter()

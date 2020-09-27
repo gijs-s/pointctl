@@ -131,7 +131,7 @@ impl UIState {
         UIState {
             neighborhood_type: NeighborhoodType::R,
             k: 30,
-            r: 0.05,
+            r: 0.1,
         }
     }
 
@@ -155,7 +155,11 @@ impl UIState {
     pub fn update(&mut self, neighborhood: Neighborhood) {
         match neighborhood {
             Neighborhood::K(k) => self.k = k,
-            Neighborhood::R(r) => self.r = r,
+            Neighborhood::R(r) => {
+                // Round  the value to 0.005
+                let rounded = (r * 200f32) as i32 as f32 / 200f32;
+                self.r = rounded
+            }
         }
     }
 }

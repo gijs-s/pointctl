@@ -27,3 +27,4 @@
  - [x] Z buffer sorting to fix opacity blending in 3D
  - [x] Make r proportional to the projection width
  - [ ] Handle jumping color schemes between recomputation?
+ - [ ] Cleanup the Da silva variance based computation
