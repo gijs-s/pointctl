@@ -546,7 +546,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         // Create the slider and metric switch button
         match scene.ui_state.neighborhood_type {
             NeighborhoodType::R => {
-                for radius_value in widget::Slider::new(scene.ui_state.r, 0.01, 1.00)
+                for radius_value in widget::Slider::new(scene.ui_state.r, 0.01, 1.10)
                     .label(&scene.ui_state.get_neighborhood_text())
                     .label_font_size(FONT_SIZE - 1)
                     .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))

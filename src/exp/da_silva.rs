@@ -205,9 +205,9 @@ impl<'a> DaSilvaMechanismState<'a> {
     fn projection_width(&self) -> f32 {
         let (min, max) = self.axis_aligned_bounding_box();
         let mut width = f32::NEG_INFINITY;
-        for (a, b) in min.iter().zip(max.iter()) {
-            if b - a > width {
-                width = b - a;
+        for (min_i, max_i) in min.iter().zip(max.iter()) {
+            if max_i - min_i > width {
+                width = max_i - min_i;
             }
         }
         width

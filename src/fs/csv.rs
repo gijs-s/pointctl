@@ -16,6 +16,7 @@ pub fn write(file_path: &Path, points: Vec<PointN>) -> std::io::Result<()> {
     // File does not have a header
     // let header = format!();
     // buffer.write_all(header.as_bytes())?;
+        writeln!(buffer, "x;y;z")?;
 
     // For all the generated points write them to file.
     for (i, p) in points.iter().enumerate() {
