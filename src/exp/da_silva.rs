@@ -7,10 +7,13 @@
 // this, we rank dimensions by increasing variance over each point-neighborhood, and propose a visual encoding to show the
 // least-varying dimensions over each neighborhood. We demonstrate our technique with both synthetic and real-world datasets.
 
-use rstar::RTree;
 use nalgebra::Point3;
+use rstar::RTree;
 
-use super::{Neighborhood, common::{Distance, IndexedPoint3D, RTreeParameters3D}};
+use super::{
+    common::{Distance, IndexedPoint3D, RTreeParameters3D},
+    Neighborhood,
+};
 use crate::util::types::PointN;
 
 use rand::{seq::SliceRandom, thread_rng};
@@ -136,6 +139,10 @@ impl<'a> DaSilvaMechanismState<'a> {
         let global_contribution: GlobalContribution =
             Self::calculate_global_contribution(centroid, &self.original_points);
 
+        // Find out what the projection width is based on the bounding box
+        // TODO: only do this when needed
+        let projection_width = self.projection_width();
+
         // Pre-compute all neighborhoods, each neighborhood consists of all points witing
         // p v_i for point p_i in 3d. The nd neighborhood is {P(p) \in v_i}. Note that we
         // do this for every (unorderd) element in the rtree so we sort after.
@@ -145,8 +152,8 @@ impl<'a> DaSilvaMechanismState<'a> {
             .iter()
             .map(|indexed_point| {
                 let neighbors = match neighborhood_size {
-                    Neighborhood::R(size) => self.find_neighbors_r(size, *indexed_point),
-                    Neighborhood::K(size) => self.find_neighbors_k(size, *indexed_point)
+                    Neighborhood::R(size) => self.find_neighbors_r(projection_width * size, *indexed_point),
+                    Neighborhood::K(size) => self.find_neighbors_k(size, *indexed_point),
                 };
                 // limit the neigborhoods size by the bound. If it exceeds this bound we take random
                 // samples without replacement.
@@ -165,7 +172,6 @@ impl<'a> DaSilvaMechanismState<'a> {
                         }
                     }
                 }
-
             })
             .collect();
         indexed_neighborhoods.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap());
@@ -197,12 +203,46 @@ impl<'a> DaSilvaMechanismState<'a> {
             .collect::<Vec<DaSilvaExplanation>>()
     }
 
-    // Get a reference to all neighbors within a certain range. This used the rtree.
-    fn find_neighbors_r(
-        &self,
-        r: f32,
-        indexed_point: IndexedPoint3D,
-    ) -> NeighborIndices {
+    /// Retrieve the projection width based on the largest axis aligned bounding box distance
+    /// TODO: this is a temporary hack, using a convex hull would be nicer
+    fn projection_width(&self) -> f32 {
+        let (min, max) = self.axis_aligned_bounding_box();
+        let mut width = f32::NEG_INFINITY;
+        for (a, b) in min.iter().zip(max.iter()) {
+            if b - a > width {
+                width = b - a;
+            }
+        }
+        width
+    }
+
+    /// Get the axis aligned bounding box of all points.
+    fn axis_aligned_bounding_box(&self) -> (Point3<f32>, Point3<f32>) {
+        let mut min = Point3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
+        let mut max = Point3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
+        for point in self.rtree.iter() {
+            // Update the min and max values
+            if point.x < min.x {
+                min.x = point.x
+            } else if point.x > max.x {
+                max.x = point.x
+            }
+            if point.y < min.y {
+                min.y = point.y
+            } else if point.y > max.y {
+                max.y = point.y
+            }
+            if point.z < min.z {
+                min.z = point.z
+            } else if point.z > max.z {
+                max.z = point.z
+            }
+        }
+        (min, max)
+    }
+
+    /// Get a reference to all neighbors within a certain range. This used the rtree.
+    fn find_neighbors_r(&self, r: f32, indexed_point: IndexedPoint3D) -> NeighborIndices {
         let query_point = [indexed_point.x, indexed_point.y, indexed_point.z];
         self.rtree
             .locate_within_distance(query_point, r * r)
@@ -211,12 +251,8 @@ impl<'a> DaSilvaMechanismState<'a> {
             .collect::<NeighborIndices>()
     }
 
-    // Get a reference to the k nearest neighbors.
-    fn find_neighbors_k(
-        &self,
-        k: usize,
-        indexed_point: IndexedPoint3D,
-    ) -> NeighborIndices {
+    /// Get a reference to the k nearest neighbors.
+    fn find_neighbors_k(&self, k: usize, indexed_point: IndexedPoint3D) -> NeighborIndices {
         let query_point = [indexed_point.x, indexed_point.y, indexed_point.z];
         self.rtree
             .nearest_neighbor_iter(&query_point)
@@ -380,8 +416,8 @@ impl<'a> DaSilvaMechanismState<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nalgebra::Point3;
     use crate::util::types::PointN;
+    use nalgebra::Point3;
 
     #[test]
     fn calculates_correct_neighbors() {
