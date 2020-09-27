@@ -226,7 +226,7 @@ fn explain_command(matches: &ArgMatches) {
     // Retrieve the points from the original dataset
     let original_data_path = matches.value_of("original_data").unwrap();
     let original_data = Path::new(original_data_path);
-    let (original_points, n) = read(original_data);
+    let (original_points, n, _) = read(original_data);
     println!(
         "Original data loaded. Consists of {} points with {} dimensions",
         original_points.len(),
@@ -236,7 +236,7 @@ fn explain_command(matches: &ArgMatches) {
     // Retrieve the points from the reduced dataset
     let reduced_data_path = matches.value_of("reduced_data").unwrap();
     let reduced_data = Path::new(reduced_data_path);
-    let (reduced_points, r) = read(reduced_data);
+    let (reduced_points, r, _) = read(reduced_data);
     println!(
         "Reduced data loaded. Consists of {} points with {} dimensions",
         reduced_points.len(),
@@ -309,7 +309,7 @@ fn view_command(matches: &ArgMatches) {
     // Retrieve the points from the original dataset
     let original_data_path = matches.value_of("original_data").unwrap();
     let original_data = Path::new(original_data_path);
-    let (original_points, n) = read(original_data);
+    let (original_points, n, dimension_names) = read(original_data);
     println!(
         "Original data loaded. Consists of {} points with {} dimensions",
         original_points.len(),
@@ -320,7 +320,7 @@ fn view_command(matches: &ArgMatches) {
     let reduced_points_3d = match matches.value_of("reduced_data_3d") {
         None => None,
         Some(reduced_data_path) => {
-            let (reduced_data, r) = read(Path::new(reduced_data_path));
+            let (reduced_data, r, _) = read(Path::new(reduced_data_path));
             println!(
                 "Reduced 3D data loaded. Consists of {} points with {} dimensions",
                 reduced_data.len(),
@@ -349,7 +349,7 @@ fn view_command(matches: &ArgMatches) {
         None => None,
         Some(annotations_path) => {
             let annotations_data = Path::new(annotations_path);
-            let (annotations, d) = read(annotations_data);
+            let (annotations, d, _) = read(annotations_data);
             println!(
                 "Da Silva annotations for 3D loaded. Consists of {} points with {} dimensions",
                 annotations.len(),
@@ -370,7 +370,7 @@ fn view_command(matches: &ArgMatches) {
     // Parse the 2D points if the reduced data is provided
     let reduced_points_2d: Option<Vec<Point2<f32>>> = {
         if let Some(path) = matches.value_of("reduced_data_2d") {
-            let (reduced_data, d) = read(Path::new(path));
+            let (reduced_data, d, _) = read(Path::new(path));
             println!(
                 "Reduced 2D data loaded. Consists of {} points with {} dimensions",
                 reduced_data.len(),
@@ -394,7 +394,7 @@ fn view_command(matches: &ArgMatches) {
 
     let explanations_2d: Option<Vec<exp::da_silva::DaSilvaExplanation>> = {
         if let Some(path) = matches.value_of("annotations_2d") {
-            let (annotations, d) = read(Path::new(path));
+            let (annotations, d, _) = read(Path::new(path));
             println!(
                 "Da Silva annotations for 2D loaded. Consists of {} points with {} dimensions",
                 annotations.len(),
@@ -415,6 +415,7 @@ fn view_command(matches: &ArgMatches) {
 
     display(
         original_points,
+        dimension_names,
         reduced_points_2d,
         explanations_2d,
         reduced_points_3d,

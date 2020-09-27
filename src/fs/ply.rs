@@ -33,6 +33,6 @@ pub fn write(file_path: &Path, points: Vec<PointN>) -> std::io::Result<()> {
 
 // Read a CSV file from disk
 // TODO: Build this using NOM
-pub fn read(_file_path: &Path) -> std::io::Result<(Vec<PointN>, usize)> {
+pub fn read(_file_path: &Path) -> std::io::Result<(Vec<PointN>, usize, Vec<String>)> {
     unimplemented!("Reading from PLY is not yet supported")
 }

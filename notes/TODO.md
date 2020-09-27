@@ -26,3 +26,4 @@
     - [x] Support switching color maps
  - [x] Z buffer sorting to fix opacity blending in 3D
  - [x] Make r proportional to the projection width
+ - [ ] Handle jumping color schemes between recomputation?

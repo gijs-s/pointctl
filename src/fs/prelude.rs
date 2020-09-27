@@ -33,7 +33,7 @@ pub fn write(file_path: &Path, points: Vec<PointN>) -> () {
 
 // Generic function to read points from disk.
 // Will return the points and their dimensionality.
-pub fn read(file_path: &Path) -> (Vec<PointN>, usize) {
+pub fn read(file_path: &Path) -> (Vec<PointN>, usize, Vec<String>) {
     let res = match get_file_extension(file_path) {
         SupportedFileFormat::CSV => csv::read(file_path),
         SupportedFileFormat::PLY => ply::read(file_path),

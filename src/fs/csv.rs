@@ -32,12 +32,27 @@ pub fn write(file_path: &Path, points: Vec<PointN>) -> std::io::Result<()> {
 }
 
 // Read a CSV file from disk
-pub fn read(file_path: &Path) -> std::io::Result<(Vec<PointN>, usize)> {
+pub fn read(file_path: &Path) -> std::io::Result<(Vec<PointN>, usize, Vec<String>)> {
     let buffer = BufReader::new(File::open(file_path)?);
-    let points = buffer
+
+    let mut raw_lines = buffer
         .lines()
-        .into_iter()
+        .into_iter();
+
+    let header = match raw_lines.next() {
+        None =>  {eprintln!("File passed was empty"); exit(12)}
+        Some(res) => match res {
+            Ok(line) => line.split(';').map(|s| s.to_string()).collect::<Vec<String>>(),
+            Err(e) => {
+                eprintln!("Error reading line from csv: {:?}", e);
+                exit(12)
+            }
+        }
+    };
+
+    let points = raw_lines
         .map(|line| match line {
+            // Parse header line
             Ok(line) => {
                 // We read a line from the file, split on `;` and attempt to parse each float.
                 match line
@@ -55,7 +70,7 @@ pub fn read(file_path: &Path) -> std::io::Result<(Vec<PointN>, usize)> {
                         exit(11)
                     }
                 }
-            }
+            },
             Err(e) => {
                 eprintln!("Error reading line from csv: {:?}", e);
                 exit(12)
@@ -76,7 +91,7 @@ pub fn read(file_path: &Path) -> std::io::Result<(Vec<PointN>, usize)> {
         exit(14);
     }
 
-    Ok((points, length))
+    Ok((points, length, header))
 }
 
 // TODO: Add tests for reading data.

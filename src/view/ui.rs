@@ -246,12 +246,10 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             .color(color)
             .set(ids.color_block_0, &mut ui);
 
-        let text = format!(
-            "Dimension {}",
-            color_map.get_dimension_from_rank(&0usize).unwrap()
-        );
+        let dim = color_map.get_dimension_from_rank(&0usize).unwrap();
+        let text = scene.get_dimension_name(dim).unwrap();
         widget::Text::new(&text)
-            .font_size(FONT_SIZE)
+            .font_size(FONT_SIZE_SMALL)
             .left_from(ids.color_block_0, 2.0f64)
             .w_of(ids.text_point_count)
             .set(ids.text_dim_0, &mut ui);
@@ -292,15 +290,13 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
                 if index == 7usize {
                     "Other dimensions".to_string()
                 } else {
-                    format!(
-                        "Dimension {}",
-                        color_map.get_dimension_from_rank(&rank).unwrap()
-                    )
+                    let dim = color_map.get_dimension_from_rank(&rank).unwrap();
+                    scene.get_dimension_name(dim).unwrap().clone()
                 }
             };
 
             widget::Text::new(&text)
-                .font_size(FONT_SIZE)
+                .font_size(FONT_SIZE_SMALL)
                 .left_from(preview_id, 2.0f64)
                 .w_of(ids.text_point_count)
                 .set(text_id, &mut ui);

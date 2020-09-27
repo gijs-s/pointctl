@@ -281,7 +281,6 @@ pub struct VisualizationState2D {
 impl VisualizationState2D {
     pub fn new(
         points: Vec<Point2<f32>>,
-        // explanations: Vec<DaSilvaExplanation>,
     ) -> VisualizationState2D {
         let annotated_points: Vec<AnnotatedPoint<IndexedPoint2D>> = points
             .iter()

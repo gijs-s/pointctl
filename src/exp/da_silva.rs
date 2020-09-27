@@ -246,6 +246,7 @@ impl<'a> DaSilvaMechanismState<'a> {
         let query_point = [indexed_point.x, indexed_point.y, indexed_point.z];
         self.rtree
             .locate_within_distance(query_point, r * r)
+            .skip(1)
             .map(|elem| elem.index)
             .filter(|&index| index != indexed_point.index)
             .collect::<NeighborIndices>()
@@ -538,7 +539,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(
-            DaSilvaExplanation::calculate_dimension_rankings(3, &explanations),
+            DaSilvaExplanation::calculate_dimension_rankings(&explanations),
             vec![1, 2, 0]
         )
     }

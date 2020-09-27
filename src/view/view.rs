@@ -59,6 +59,8 @@ pub struct Scene {
     pub state_3d: Option<VisualizationState3D>,
     // Used by conrod to assign widget ids
     pub conrod_ids: WidgetId,
+    // The dimension names
+    pub dimension_names: Vec<String>,
     // The state of the current UI which are not relevant for the rest
     // of the program
     pub ui_state: UIState,
@@ -69,12 +71,13 @@ pub struct Scene {
 
 impl Scene {
     // Create a new 3D visualization without a initializing the 2D view
-    pub fn new(original_points: Vec<PointN>, conrod_ids: WidgetId) -> Scene {
+    pub fn new(original_points: Vec<PointN>, dimension_names: Vec<String>, conrod_ids: WidgetId) -> Scene {
         Scene {
             dimensionality_mode: DimensionalityMode::ThreeD,
             state_2d: None,
             state_3d: None,
             original_points: original_points,
+            dimension_names,
             conrod_ids,
             ui_state: UIState::new(),
             dirty: false,
@@ -302,6 +305,10 @@ impl Scene {
         }
     }
 
+    pub fn get_dimension_name(&self, index: &usize) -> Option<&String> {
+        self.dimension_names.get(*index)
+    }
+
     /// Switch between rendering the continous and discreet point cloud representation
     pub fn switch_render_mode(&mut self) {
         self.current_render_mode_mut().switch_render_mode();
@@ -451,6 +458,7 @@ impl ExtendedState for Scene {
 // Main display function
 pub fn display(
     original_points: Vec<Vec<f32>>,
+    dimension_names: Vec<String>,
     points_2d: Option<Vec<Point2<f32>>>,
     explanations_2d: Option<Vec<DaSilvaExplanation>>,
     points_3d: Option<Vec<Point3<f32>>>,
@@ -468,7 +476,7 @@ pub fn display(
     let conrod_ids = WidgetId::new(window.conrod_ui_mut().widget_id_generator());
 
     // Create a scene with empty values
-    let mut scene = Scene::new(original_points, conrod_ids);
+    let mut scene = Scene::new(original_points, dimension_names, conrod_ids);
 
     // Add the 2D points if they were provided
     if points_2d.is_some() {
