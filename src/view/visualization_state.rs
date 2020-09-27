@@ -152,7 +152,7 @@ impl VisualizationState3D {
                         points,
                         &original_points,
                     );
-                let da_silva_explanation = da_silva_mechanism.explain(neighborhood_size, None);
+                let da_silva_explanation = da_silva_mechanism.explain(neighborhood_size);
                 self.load(da_silva_explanation);
                 self.set_explanation_mode(mode);
             }
@@ -279,9 +279,7 @@ pub struct VisualizationState2D {
 }
 
 impl VisualizationState2D {
-    pub fn new(
-        points: Vec<Point2<f32>>,
-    ) -> VisualizationState2D {
+    pub fn new(points: Vec<Point2<f32>>) -> VisualizationState2D {
         let annotated_points: Vec<AnnotatedPoint<IndexedPoint2D>> = points
             .iter()
             .enumerate()
@@ -404,7 +402,7 @@ impl VisualizationState2D {
                         points,
                         &original_points,
                     );
-                let da_silva_explanation = da_silva_mechanism.explain(neighborhood_size, None);
+                let da_silva_explanation = da_silva_mechanism.explain(neighborhood_size);
                 self.load(da_silva_explanation);
                 self.set_explanation_mode(mode);
             }
@@ -486,5 +484,118 @@ impl Load<Vec<VanDrielExplanation>> for VisualizationState2D {
         }
 
         self.set_explanation_mode(ExplanationMode::VanDriel);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    // Here we will calculate the average distance to the first nearest neighbor
+    fn find_average_nearest_neightbor_distance_2d_one_line() {
+        let indexed_points = vec![
+            IndexedPoint2D {
+                index: 0,
+                x: 0.0,
+                y: 0.0,
+            }
+            .into(),
+            IndexedPoint2D {
+                index: 1,
+                x: 4.0,
+                y: 0.0,
+            }
+            .into(),
+            IndexedPoint2D {
+                index: 2,
+                x: 7.0,
+                y: 0.0,
+            }
+            .into(),
+            IndexedPoint2D {
+                index: 3,
+                x: 9.0,
+                y: 0.0,
+            }
+            .into(),
+            IndexedPoint2D {
+                index: 4,
+                x: 10.0,
+                y: 0.0,
+            }
+            .into(),
+        ];
+
+        // The average nearest neighbor distance is based on 5 points
+        // | Point | Nearest Neightbor | Distance to neighbor |
+        // | 0     | 1                 | 4                    |
+        // | 1     | 2                 | 3                    |
+        // | 2     | 3                 | 2                    |
+        // | 3     | 4                 | 1                    |
+        // | 4     | 3                 | 1                    |
+
+        let tree =
+            RTree::<AnnotatedPoint<IndexedPoint2D>, RTreeParameters2D>::bulk_load_with_params(
+                indexed_points,
+            );
+        let expected = (4.0f32 + 3.0f32 + 2.0f32 + 1.0f32 + 1.0f32) / 5.0f32;
+        let actual = VisualizationState2D::find_average_nearest_neighbor_distance(&tree);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    // Here we will calculate the average distance to the first nearest neighbor
+    fn find_average_nearest_neightbor_distance_2d_xy() {
+        let indexed_points = vec![
+            IndexedPoint2D {
+                index: 0,
+                x: 0.0,
+                y: 0.0,
+            }
+            .into(),
+            IndexedPoint2D {
+                index: 1,
+                x: 4.0,
+                y: 4.0,
+            }
+            .into(),
+            IndexedPoint2D {
+                index: 2,
+                x: 7.0,
+                y: 1.0,
+            }
+            .into(),
+            IndexedPoint2D {
+                index: 3,
+                x: 9.0,
+                y: 4.0,
+            }
+            .into(),
+            IndexedPoint2D {
+                index: 4,
+                x: 9.0,
+                y: 5.0,
+            }
+            .into(),
+        ];
+
+        // The average nearest neighbor distance is based on 5 points
+        // | Point | Nearest Neightbor | Distance to neighbor |
+        // | 0     | 1                 | sqrt 32              |
+        // | 1     | 2                 | sqrt 18              |
+        // | 2     | 3                 | sqrt 13              |
+        // | 3     | 4                 | sqrt 1               |
+        // | 4     | 3                 | sqrt 1               |
+
+        let tree =
+            RTree::<AnnotatedPoint<IndexedPoint2D>, RTreeParameters2D>::bulk_load_with_params(
+                indexed_points,
+            );
+        let expected =
+            (32.0f32.sqrt() + 18.0f32.sqrt() + 13.0f32.sqrt() + 1.0f32 + 1.0f32) / 5.0f32;
+        let actual = VisualizationState2D::find_average_nearest_neighbor_distance(&tree);
+        // Transform to int to work around floating point inaccuracies
+        assert_eq!((actual * 1000000f32) as i64, (expected * 1000000f32) as i64);
     }
 }

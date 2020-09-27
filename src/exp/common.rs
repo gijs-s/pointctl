@@ -44,6 +44,26 @@ pub struct AnnotatedPoint<P> {
     pub van_driel: Option<VanDrielExplanation>,
 }
 
+impl Into<AnnotatedPoint<IndexedPoint2D>> for IndexedPoint2D {
+    fn into(self: Self) -> AnnotatedPoint<Self> {
+        AnnotatedPoint::<IndexedPoint2D> {
+            point: self,
+            da_silva: None,
+            van_driel: None,
+        }
+    }
+}
+
+impl Into<AnnotatedPoint<IndexedPoint3D>> for IndexedPoint3D {
+    fn into(self: Self) -> AnnotatedPoint<Self> {
+        AnnotatedPoint::<IndexedPoint3D> {
+            point: self,
+            da_silva: None,
+            van_driel: None,
+        }
+    }
+}
+
 impl Into<Point2<f32>> for IndexedPoint2D {
     fn into(self: Self) -> Point2<f32> {
         Point2::<f32>::new(self.x, self.y)
@@ -223,103 +243,4 @@ impl RTreeParams for RTreeParameters3D {
     const MAX_SIZE: usize = 20;
     const REINSERTION_COUNT: usize = 3;
     type DefaultInsertionStrategy = RStarInsertionStrategy;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    // Here we will calculate the average distance to the first nearest neighbor
-    fn find_average_nearest_neightbor_distance_2d_one_line() {
-        let indexed_points = vec![
-            IndexedPoint2D {
-                index: 0,
-                x: 0.0,
-                y: 0.0,
-            },
-            IndexedPoint2D {
-                index: 1,
-                x: 4.0,
-                y: 0.0,
-            },
-            IndexedPoint2D {
-                index: 2,
-                x: 7.0,
-                y: 0.0,
-            },
-            IndexedPoint2D {
-                index: 3,
-                x: 9.0,
-                y: 0.0,
-            },
-            IndexedPoint2D {
-                index: 4,
-                x: 10.0,
-                y: 0.0,
-            },
-        ];
-
-        // The average nearest neighbor distance is based on 5 points
-        // | Point | Nearest Neightbor | Distance to neighbor |
-        // | 0     | 1                 | 4                    |
-        // | 1     | 2                 | 3                    |
-        // | 2     | 3                 | 2                    |
-        // | 3     | 4                 | 1                    |
-        // | 4     | 3                 | 1                    |
-
-        let tree =
-            RTree::<IndexedPoint2D, RTreeParameters2D>::bulk_load_with_params(indexed_points);
-        let expected = (4.0f32 + 3.0f32 + 2.0f32 + 1.0f32 + 1.0f32) / 5.0f32;
-        let actual = IndexedPoint2D::find_average_nearest_neightbor_distance(&tree);
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    // Here we will calculate the average distance to the first nearest neighbor
-    fn find_average_nearest_neightbor_distance_2d_xy() {
-        let indexed_points = vec![
-            IndexedPoint2D {
-                index: 0,
-                x: 0.0,
-                y: 0.0,
-            },
-            IndexedPoint2D {
-                index: 1,
-                x: 4.0,
-                y: 4.0,
-            },
-            IndexedPoint2D {
-                index: 2,
-                x: 7.0,
-                y: 1.0,
-            },
-            IndexedPoint2D {
-                index: 3,
-                x: 9.0,
-                y: 4.0,
-            },
-            IndexedPoint2D {
-                index: 4,
-                x: 9.0,
-                y: 5.0,
-            },
-        ];
-
-        // The average nearest neighbor distance is based on 5 points
-        // | Point | Nearest Neightbor | Distance to neighbor |
-        // | 0     | 1                 | sqrt 32              |
-        // | 1     | 2                 | sqrt 18              |
-        // | 2     | 3                 | sqrt 13              |
-        // | 3     | 4                 | sqrt 1               |
-        // | 4     | 3                 | sqrt 1               |
-
-        let tree =
-            RTree::<IndexedPoint2D, RTreeParameters2D>::bulk_load_with_params(indexed_points);
-        let expected =
-            (32.0f32.sqrt() + 18.0f32.sqrt() + 13.0f32.sqrt() + 1.0f32 + 1.0f32) / 5.0f32;
-        let actual = IndexedPoint2D::find_average_nearest_neightbor_distance(&tree);
-        // Transform to int to work around floating point inaccuracies
-        assert_eq!((actual * 1000000f32) as i64, (expected * 1000000f32) as i64);
-    }
 }

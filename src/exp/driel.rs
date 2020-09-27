@@ -9,8 +9,8 @@
 // which is efficient to compute, scales well visually for large and dense MP scatterplots, and can handle any projection technique.
 // We demonstrate our approach using several datasets.
 
-use rstar::RTree;
 use nalgebra::Point3;
+use rstar::RTree;
 
 use super::common::{Distance, IndexedPoint3D, RTreeParameters3D};
 
@@ -74,7 +74,10 @@ pub struct DrielState<'a> {
 }
 
 impl<'a> DrielState<'a> {
-    pub fn new(reduced_points: Vec<Point3<f32>>, original_points: &'a Vec<PointN>) -> DrielState<'a> {
+    pub fn new(
+        reduced_points: Vec<Point3<f32>>,
+        original_points: &'a Vec<PointN>,
+    ) -> DrielState<'a> {
         let indexed_points: Vec<IndexedPoint3D> = reduced_points
             .into_iter()
             .enumerate()

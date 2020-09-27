@@ -62,6 +62,8 @@ impl DaSilvaExplanation {
             .enumerate()
             .collect::<Vec<(usize, usize)>>();
 
+        println!("Dimension rank: {:?}", ranking_counts);
+
         // Sort desc
         ranking_counts.sort_by(|(_, a), (_, b)| b.cmp(a));
         ranking_counts
@@ -125,14 +127,7 @@ impl<'a> DaSilvaMechanismState<'a> {
     }
 
     /// Run the da silva explanation mechanism
-    pub fn explain(
-        &self,
-        neighborhood_size: Neighborhood,
-        // TODO: Do I want to keep in this non deterministic sampeling, it could prove introduces the
-        // assumption that clusters in 2d/3d are also close in nD (e.i the reduction is perfect). This
-        // is a bold assumption.
-        neighborhood_bound: Option<usize>,
-    ) -> Vec<DaSilvaExplanation> {
+    pub fn explain(&self, neighborhood_size: Neighborhood) -> Vec<DaSilvaExplanation> {
         // Calculate the global contribution of each point (centroid of the nD space and
         //_every_ point in its neighborhood)
         let centroid: PointN = Self::find_centroid(&self.original_points);
@@ -140,40 +135,27 @@ impl<'a> DaSilvaMechanismState<'a> {
             Self::calculate_global_contribution(centroid, &self.original_points);
 
         // Find out what the projection width is based on the bounding box
-        // TODO: only do this when needed
+        // TODO: only do this when using radius based NN search
         let projection_width = self.projection_width();
 
         // Pre-compute all neighborhoods, each neighborhood consists of all points witing
         // p v_i for point p_i in 3d. The nd neighborhood is {P(p) \in v_i}. Note that we
         // do this for every (unorderd) element in the rtree so we sort after.
-        let mut rng = thread_rng();
         let mut indexed_neighborhoods: Vec<(usize, NeighborIndices)> = self
             .rtree
             .iter()
             .map(|indexed_point| {
                 let neighbors = match neighborhood_size {
-                    Neighborhood::R(size) => self.find_neighbors_r(projection_width * size, *indexed_point),
+                    Neighborhood::R(size) => {
+                        self.find_neighbors_r(projection_width * size, *indexed_point)
+                    }
                     Neighborhood::K(size) => self.find_neighbors_k(size, *indexed_point),
                 };
-                // limit the neigborhoods size by the bound. If it exceeds this bound we take random
-                // samples without replacement.
-                match neighborhood_bound {
-                    None => (indexed_point.index, neighbors),
-                    Some(bound) => {
-                        if neighbors.len() < bound {
-                            (indexed_point.index, neighbors)
-                        } else {
-                            // sample from the original neighbors.
-                            let neighbors_samples = neighbors
-                                .choose_multiple(&mut rng, bound)
-                                .cloned()
-                                .collect();
-                            (indexed_point.index, neighbors_samples)
-                        }
-                    }
-                }
+                (indexed_point.index, neighbors)
             })
             .collect();
+
+        // Sort the neighborhoods again based on index
         indexed_neighborhoods.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap());
         let neighborhoods: Vec<NeighborIndices> =
             indexed_neighborhoods.into_iter().map(|(_, n)| n).collect();
@@ -246,7 +228,6 @@ impl<'a> DaSilvaMechanismState<'a> {
         let query_point = [indexed_point.x, indexed_point.y, indexed_point.z];
         self.rtree
             .locate_within_distance(query_point, r * r)
-            .skip(1)
             .map(|elem| elem.index)
             .filter(|&index| index != indexed_point.index)
             .collect::<NeighborIndices>()
@@ -258,7 +239,6 @@ impl<'a> DaSilvaMechanismState<'a> {
         self.rtree
             .nearest_neighbor_iter(&query_point)
             .take(k + 1)
-            .skip(1)
             .map(|elem| elem.index)
             .filter(|&index| index != indexed_point.index)
             .collect::<NeighborIndices>()
@@ -286,13 +266,12 @@ impl<'a> DaSilvaMechanismState<'a> {
     // Given 2 points, calculate the contribution of each dimension to the distance.
     // corresponds to formula 1. lc_j = (p_j - r_j)^2 / ||p-r||^2 where j is the dim.
     fn calculate_distance_contribution(p: &PointN, r: &PointN) -> LocalContributions {
+        // ||p - r||^2
         let dist = p.sq_distance(r);
         p.iter()
             .zip(r)
-            .map(|(a, b)| {
-                let t = a - b;
-                (t * t) / dist
-            })
+            // (p_j - r_j)^2 / ||p - r||^2
+            .map(|(p_j, r_j)| (p_j - r_j).powi(2) / dist)
             .collect()
     }
 
@@ -324,7 +303,7 @@ impl<'a> DaSilvaMechanismState<'a> {
             })
             .iter()
             // For each dimension normalize using the neighborhood size.
-            .map(|&dim| dim / neighbor_indices.len() as f32)
+            .map(|&dim| dim / (neighbor_indices.len() as f32))
             .collect()
     }
 
@@ -357,12 +336,12 @@ impl<'a> DaSilvaMechanismState<'a> {
         let sum = local_contributions
             .iter()
             .zip(global_contributions)
-            .fold(0.0, |c: f32, (l, g)| c + (l / g));
+            .fold(0.0, |acc: f32, (lc_j, gc_j)| acc + (lc_j / gc_j));
         // Normalize each term
         local_contributions
             .iter()
             .zip(global_contributions)
-            .map(|(l, g)| (l / g) / sum)
+            .map(|(lc_j, gc_j)| (lc_j / gc_j) / sum)
             .collect()
     }
 
@@ -402,8 +381,6 @@ impl<'a> DaSilvaMechanismState<'a> {
     // From the sorted vector of local contributions and find the dimension than
     // contributes most. Read as: Find the lowest ranking given a the local
     // contribution.
-    // TODO this seems like a nasty hack. ASsumes we never encounter NaN (at least
-    // does not handle this correctly)
     pub fn calculate_top_ranking(local_contributions: LocalContributions) -> Ranking {
         local_contributions
             .iter()

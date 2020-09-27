@@ -276,7 +276,7 @@ fn explain_command(matches: &ArgMatches) {
     // Create a Da Silva explanation mechanism
     let da_silva_mechanism =
         exp::da_silva::DaSilvaMechanismState::new(clean_reduced_points, &original_points);
-    let da_silva_explanation = da_silva_mechanism.explain(neigborhoods_size, None);
+    let da_silva_explanation = da_silva_mechanism.explain(neigborhoods_size);
 
     // Write the annotations to file
     let annotations = da_silva_explanation

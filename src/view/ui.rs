@@ -129,7 +129,7 @@ impl UIState {
     /// Initialize the UI state
     pub fn new() -> Self {
         UIState {
-            neighborhood_type: NeighborhoodType::K,
+            neighborhood_type: NeighborhoodType::R,
             k: 30,
             r: 0.05,
         }
@@ -551,19 +551,20 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
                     .set(ids.slider_neighborhood, &mut ui)
                 {
                     queue.push(UIEvents::UpdateUINeighborhood(Neighborhood::R(
-                        radius_value
+                        radius_value,
                     )))
                 }
             }
             NeighborhoodType::K => {
                 // Hack: usize sliders are not supported, need to make the slider one for floats and cast to usize every time.
-                for neighborhood_size in widget::Slider::new(scene.ui_state.k as f32, 10.0f32, 50.0f32)
-                    .label(&scene.ui_state.get_neighborhood_text())
-                    .label_font_size(FONT_SIZE - 1)
-                    .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-                    .h_of(ids.slider_gamma)
-                    .up_from(ids.text_size_slider, 7.0f64)
-                    .set(ids.slider_neighborhood, &mut ui)
+                for neighborhood_size in
+                    widget::Slider::new(scene.ui_state.k as f32, 10.0f32, 80.0f32)
+                        .label(&scene.ui_state.get_neighborhood_text())
+                        .label_font_size(FONT_SIZE - 1)
+                        .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+                        .h_of(ids.slider_gamma)
+                        .up_from(ids.text_size_slider, 7.0f64)
+                        .set(ids.slider_neighborhood, &mut ui)
                 {
                     queue.push(UIEvents::UpdateUINeighborhood(Neighborhood::K(
                         neighborhood_size as usize,
