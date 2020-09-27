@@ -215,11 +215,8 @@ impl Distance for PointN {
     fn sq_distance(&self, other: &Self) -> f32 {
         self.iter()
             .zip(other)
-            .map(|(a, b)| {
-                let i = a - b;
-                i * i
-            })
-            .fold(0.0f32, |sum, v| sum + v)
+            .map(|(a, b)| (a - b).powi(2))
+            .sum::<f32>()
     }
 }
 

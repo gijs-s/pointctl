@@ -272,7 +272,7 @@ impl<'a> DaSilvaMechanismState<'a> {
             .zip(r)
             // (p_j - r_j)^2 / ||p - r||^2
             .map(|(p_j, r_j)| (p_j - r_j).powi(2) / dist)
-            .collect()
+            .collect::<LocalContributions>()
     }
 
     // Given a point index, the set of points and the indices of the neighbors calculate the
@@ -314,15 +314,15 @@ impl<'a> DaSilvaMechanismState<'a> {
             // Calculate the distance contribution between the centroid and all points.
             .map(|r| Self::calculate_distance_contribution(&centroid, r))
             // Fold to collect all the contributions into one single cumulative one.
-            .fold(vec![0.0f32; centroid.len()], |c, lc| {
-                c.iter()
+            .fold(vec![0.0f32; centroid.len()], |acc, lc| {
+                acc.iter()
                     .zip(lc)
-                    .map(|(&c, x)| c + x)
+                    .map(|(&acc_j, lc_j)| acc_j + lc_j)
                     .collect::<LocalContributions>()
             })
             .iter()
             // For each dimension normalize using the size of the points set.
-            .map(|&dim| dim / points.len() as f32)
+            .map(|&dim| dim / (points.len() as f32))
             .collect()
     }
 
