@@ -75,6 +75,10 @@ const BUTTON_WIDTH: f64 = 120.0f64;
 const BUTTON_HEIGHT: f64 = 18.0f64;
 const SLIDER_HEIGHT: f64 = 18.0f64;
 const COLOR_PREVIEW_SIZE: f64 = 18.0f64;
+const GAMMA_MIN_MAX: (f32, f32) = (1.0, 3.4);
+const NEIGHBORHOOD_R_MIN_MAX: (f32, f32) = (0.01, 1.1);
+const NEIGHBORHOOD_K_MIN_MAX: (usize, usize) = (10, 250);
+
 /// All the types of event that can happen in the UI.
 #[derive(Copy, Clone, Debug, PartialEq)]
 enum UIEvents {
@@ -114,7 +118,6 @@ impl ToString for NeighborhoodType {
         }
     }
 }
-
 // Struct that contains data about the UI state that are not relevant to the state itself
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct UIState {
@@ -427,7 +430,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     let mut text_slider_value = scene.get_gamma().to_string();
     text_slider_value.truncate(5);
 
-    for gamma in widget::Slider::new(scene.get_gamma(), 1.0, 3.4)
+    for gamma in widget::Slider::new(scene.get_gamma(), GAMMA_MIN_MAX.0, GAMMA_MIN_MAX.1)
         .label(&text_slider_value)
         .label_font_size(FONT_SIZE - 1)
         .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
@@ -546,7 +549,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         // Create the slider and metric switch button
         match scene.ui_state.neighborhood_type {
             NeighborhoodType::R => {
-                for radius_value in widget::Slider::new(scene.ui_state.r, 0.01, 1.10)
+                for radius_value in widget::Slider::new(scene.ui_state.r, NEIGHBORHOOD_R_MIN_MAX.0, NEIGHBORHOOD_R_MIN_MAX.1)
                     .label(&scene.ui_state.get_neighborhood_text())
                     .label_font_size(FONT_SIZE - 1)
                     .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
@@ -562,7 +565,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             NeighborhoodType::K => {
                 // Hack: usize sliders are not supported, need to make the slider one for floats and cast to usize every time.
                 for neighborhood_size in
-                    widget::Slider::new(scene.ui_state.k as f32, 10.0f32, 80.0f32)
+                    widget::Slider::new(scene.ui_state.k as f32, NEIGHBORHOOD_K_MIN_MAX.0 as f32, NEIGHBORHOOD_K_MIN_MAX.1 as f32)
                         .label(&scene.ui_state.get_neighborhood_text())
                         .label_font_size(FONT_SIZE - 1)
                         .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
