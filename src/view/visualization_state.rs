@@ -536,7 +536,9 @@ mod tests {
             );
         let expected = (4.0f32 + 3.0f32 + 2.0f32 + 1.0f32 + 1.0f32) / 5.0f32;
         let actual = VisualizationState2D::find_average_nearest_neighbor_distance(&tree);
-        assert_eq!(actual, expected);
+        // offset used to get a better starting point for the blob size
+        let offset_expected = (expected.powi(2) * 2.0).sqrt() * 5.0;
+        assert_relative_eq!(actual, offset_expected,  epsilon = 1.0e-4);
     }
 
     #[test]
@@ -590,7 +592,8 @@ mod tests {
         let expected =
             (32.0f32.sqrt() + 18.0f32.sqrt() + 13.0f32.sqrt() + 1.0f32 + 1.0f32) / 5.0f32;
         let actual = VisualizationState2D::find_average_nearest_neighbor_distance(&tree);
-        // Transform to int to work around floating point inaccuracies
-        assert_eq!((actual * 1000000f32) as i64, (expected * 1000000f32) as i64);
+        // offset used to get a better starting point for the blob size
+        let offset_expected = (expected.powi(2) * 2.0).sqrt() * 5.0;
+        assert_relative_eq!(actual, offset_expected,  epsilon = 1.0e-4);
     }
 }
