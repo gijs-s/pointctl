@@ -14,7 +14,7 @@ publish = false
 # Used for parsing CLI commands
 clap = "^2.33.1"
 # Used for visualization
-# kiss3d = { git = "https://github.com/G3ntIeMan/kiss3d", branch = "planar-renderer", features= ['conrod']}
+# kiss3d = { git = "https://github.com/gijs-s/kiss3d", branch = "master", features= ['conrod']}
 kiss3d = { path = '../kiss3d', features = ['conrod']}
 nalgebra = "0.21.1"
 gl = "0.14"
@@ -23,6 +23,9 @@ rand = "^0.7"
 rand_distr = "*"
 # A n-dimensional r*-tree implementation. Used for fast NN
 rstar = "*"
+# Used for better comparison for floating point numbers
+approx = "^0.3"
+
 # Used for calling CUDA FFI
 # rustacuda = "0.1"
 # rustacuda_core = "0.1"

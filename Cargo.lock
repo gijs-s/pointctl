@@ -1114,6 +1114,7 @@ dependencies = [
 name = "pointctl"
 version = "0.1.0"
 dependencies = [
+ "approx",
  "clap",
  "gl",
  "kiss3d",
