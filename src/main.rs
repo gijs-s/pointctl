@@ -256,7 +256,7 @@ fn explain_command(matches: &ArgMatches) {
         })
         .collect::<Vec<Point3<f32>>>();
 
-    let neigborhoods_size = match (
+    let neighborhoods_size = match (
         matches.value_of("neighborhood_size_r"),
         matches.value_of("neighborhood_size_k"),
     ) {
@@ -273,13 +273,8 @@ fn explain_command(matches: &ArgMatches) {
         }
     };
 
-    // Create a Da Silva explanation mechanism
-    let da_silva_mechanism =
-        exp::da_silva::DaSilvaMechanismState::new(clean_reduced_points, &original_points);
-    let da_silva_explanation = da_silva_mechanism.explain(neigborhoods_size);
-
-    // Temp for testing
-    let _ = exp::da_silva::DaSilvaExplanation::calculate_dimension_rankings(&da_silva_explanation);
+    // Run the da silva explanation
+    let da_silva_explanation = exp::run_da_silva_variance(clean_reduced_points, &original_points, neighborhoods_size);
 
     // Write the annotations to file
     let annotations = da_silva_explanation
@@ -361,11 +356,11 @@ fn view_command(matches: &ArgMatches) {
 
             let res = annotations
                 .iter()
-                .map(|v| exp::da_silva::DaSilvaExplanation {
+                .map(|v| exp::DaSilvaExplanation {
                     attribute_index: v[0] as usize,
                     confidence: v[1],
                 })
-                .collect::<Vec<exp::da_silva::DaSilvaExplanation>>();
+                .collect::<Vec<exp::DaSilvaExplanation>>();
             Some(res)
         }
     };
@@ -395,7 +390,7 @@ fn view_command(matches: &ArgMatches) {
         }
     };
 
-    let explanations_2d: Option<Vec<exp::da_silva::DaSilvaExplanation>> = {
+    let explanations_2d: Option<Vec<exp::DaSilvaExplanation>> = {
         if let Some(path) = matches.value_of("annotations_2d") {
             let (annotations, d, _) = read(Path::new(path));
             println!(
@@ -405,11 +400,11 @@ fn view_command(matches: &ArgMatches) {
             );
             let explanations = annotations
                 .iter()
-                .map(|v| exp::da_silva::DaSilvaExplanation {
+                .map(|v| exp::DaSilvaExplanation {
                     attribute_index: v[0] as usize,
                     confidence: v[1],
                 })
-                .collect::<Vec<exp::da_silva::DaSilvaExplanation>>();
+                .collect::<Vec<exp::DaSilvaExplanation>>();
             Some(explanations)
         } else {
             None

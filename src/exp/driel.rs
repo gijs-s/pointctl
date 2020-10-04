@@ -12,11 +12,17 @@
 use rstar::RTree;
 use nalgebra::Point3;
 
-use super::common::{Distance, IndexedPoint3D, RTreeParameters3D};
-
+use super::{
+    explanation::{NeighborIndices, LocalContributions, GlobalContribution},
+    explanation::{Explanation, NeighborhoodExplanationMechanism},
+    common::{Distance, IndexedPoint3D, RTreeParameters3D},
+    Neighborhood
+};
 use crate::util::types::PointN;
+
 use std::cmp::Ordering;
 
+/// Struct continaing the outcome of the Van Driel explanation for a single point
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct VanDrielExplanation {
     pub dimension: usize,
@@ -68,13 +74,50 @@ impl VanDrielExplanation {
     }
 }
 
-pub struct DrielState<'a> {
-    pub rtree: RTree<IndexedPoint3D, RTreeParameters3D>,
+enum VanDrielType { TotalVariance, MinimalVariance }
+
+/// Struct containing the state of the van driel explanation mechanism
+pub struct VanDrielState<'a> {
+    pub rtree: RTree<IndexedPoint3D>,
     pub original_points: &'a Vec<PointN>,
+    pub neighborhood_size: Neighborhood,
+    explanation_type: VanDrielType,
 }
 
-impl<'a> DrielState<'a> {
-    pub fn new(reduced_points: Vec<Point3<f32>>, original_points: &'a Vec<PointN>) -> DrielState<'a> {
+impl<'a> NeighborhoodExplanationMechanism for VanDrielState<'a> {
+    fn get_tree(&self) -> &RTree::<IndexedPoint3D> {
+        &self.rtree
+    }
+}
+
+impl<'a> Explanation<VanDrielExplanation> for VanDrielState<'a> {
+    /// Run the da silva explanation mechanism
+    #[allow(unused_variables)]
+    fn explain(&self, neighborhood_size: Neighborhood) -> Vec<VanDrielExplanation> {
+
+        // For each point get the indices of the neighbors
+        let neighborhoods = self.get_neighbor_indices(neighborhood_size);
+
+        // For each point and neighborhood calculate the da silva metric
+        let ranking_vectors: Vec<_> = (0..self.get_point_count())
+            .into_iter()
+            .zip(&neighborhoods)
+            .map(|(index, neighborhood)| {
+                // TODO expand this
+                let eigenvalues_sorted = self.get_eigen_values(neighborhood);
+            })
+            .collect();
+
+        // TODO: Implement
+        unimplemented!()
+    }
+}
+
+
+
+impl<'a> VanDrielState<'a> {
+    pub fn new(reduced_points: Vec<Point3<f32>>, original_points: &'a Vec<PointN>,
+        neighborhood_size: Neighborhood) -> VanDrielState<'a> {
         let indexed_points: Vec<IndexedPoint3D> = reduced_points
             .into_iter()
             .enumerate()
@@ -86,19 +129,17 @@ impl<'a> DrielState<'a> {
             })
             .collect();
         let rtree =
-            RTree::<IndexedPoint3D, RTreeParameters3D>::bulk_load_with_params(indexed_points);
-        DrielState {
+            RTree::<IndexedPoint3D>::bulk_load_with_params(indexed_points);
+        VanDrielState {
             rtree,
             original_points,
+            neighborhood_size,
+            explanation_type: VanDrielType::TotalVariance,
+
         }
     }
 
-    #[allow(unused_variables)]
-    pub fn explain(
-        &self,
-        neighborhood_size: f32,
-        neighborhood_bound: usize,
-    ) -> Vec<VanDrielExplanation> {
-        unimplemented!("Explanation method for van driel is not ready yet")
+    fn get_eigen_values(&self, _neighborhood: &NeighborIndices) -> Vec<f32> {
+        unimplemented!()
     }
 }

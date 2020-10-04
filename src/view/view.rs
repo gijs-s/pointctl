@@ -20,7 +20,7 @@ use rstar::{PointDistance, RTree};
 // First party
 use crate::{
     exp,
-    exp::da_silva::DaSilvaExplanation,
+    exp::DaSilvaExplanation,
     util::types::PointN,
     view::{
         color_map::ColorMap,

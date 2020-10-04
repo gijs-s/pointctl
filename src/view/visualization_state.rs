@@ -1,6 +1,8 @@
 extern crate kiss3d;
 extern crate nalgebra as na;
 
+use approx::assert_relative_eq;
+
 use crate::exp;
 use std::collections::HashMap;
 
@@ -19,11 +21,9 @@ use rstar::{PointDistance, RTree};
 // First party
 use crate::{
     exp::{
-        common::{
-            AnnotatedPoint, IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D,
-        },
-        da_silva::DaSilvaExplanation,
-        driel::VanDrielExplanation,
+        AnnotatedPoint, IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D,
+        DaSilvaExplanation,
+        VanDrielExplanation,
     },
     util::types::PointN,
     view::{
@@ -147,12 +147,7 @@ impl VisualizationState3D {
         match mode {
             ExplanationMode::DaSilva => {
                 let points = self.tree.iter().map(|ann| ann.point).collect();
-                let da_silva_mechanism =
-                    exp::da_silva::DaSilvaMechanismState::new_with_indexed_point(
-                        points,
-                        &original_points,
-                    );
-                let da_silva_explanation = da_silva_mechanism.explain(neighborhood_size);
+                let da_silva_explanation = exp::run_da_silva_variance_indexed(points,&original_points, neighborhood_size);
                 self.load(da_silva_explanation);
                 self.set_explanation_mode(mode);
             }
@@ -397,12 +392,12 @@ impl VisualizationState2D {
                     .iter()
                     .map(|ann| ann.point.into())
                     .collect::<Vec<IndexedPoint3D>>();
-                let da_silva_mechanism =
-                    exp::da_silva::DaSilvaMechanismState::new_with_indexed_point(
+                let da_silva_explanation =
+                    exp::run_da_silva_variance_indexed(
                         points,
                         &original_points,
+                        neighborhood_size
                     );
-                let da_silva_explanation = da_silva_mechanism.explain(neighborhood_size);
                 self.load(da_silva_explanation);
                 self.set_explanation_mode(mode);
             }

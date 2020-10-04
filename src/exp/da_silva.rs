@@ -11,22 +11,18 @@ use nalgebra::Point3;
 use rstar::RTree;
 
 use super::{
-    common::{Distance, IndexedPoint3D, RTreeParameters3D},
+    // Import types from the explanation module
+    explanation::{NeighborIndices, LocalContributions, GlobalContribution, Ranking},
+    // Import traits from the explanation module
+    explanation::{NeighborhoodExplanationMechanism, Explanation},
+    common::{Distance, IndexedPoint3D},
     Neighborhood,
 };
 use crate::util::types::PointN;
 
-use rand::{seq::SliceRandom, thread_rng};
 use std::cmp::Ordering;
 
-// Types to make the code more readable
-type NeighborIndices = Vec<usize>;
-type LocalContributions = Vec<f32>;
-type GlobalContribution = Vec<f32>;
-type Ranking = (usize, f32);
-
-pub enum DaSilvaType { Euclidean, Variance }
-
+// Struct containing the outcome of the da Silva explanation for a single point
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct DaSilvaExplanation {
     // Attribute index is the index of which dimension in nD is most important for this point
@@ -90,19 +86,70 @@ impl DaSilvaExplanation {
     }
 }
 
-pub struct DaSilvaMechanismState<'a> {
-    pub rtree: RTree<IndexedPoint3D, RTreeParameters3D>,
+// Enum for the types of explanation metrics used in the da silva paper, Variance is beter.
+enum DaSilvaType { Euclidean, Variance }
+
+// Struct containing the state of the da silva mechanism
+pub struct DaSilvaState<'a> {
+    pub rtree: RTree<IndexedPoint3D>,
     pub original_points: &'a Vec<PointN>,
-    pub ranking_method: DaSilvaType
-    // How large the total projection is. mesured by the two points furthest apart.
-    // pub projection_width: f32,
+    explanation_type: DaSilvaType,
 }
 
-impl<'a> DaSilvaMechanismState<'a> {
+/// Ensure the neighborhood calculations are available for the variance version of da silva
+impl<'a> NeighborhoodExplanationMechanism for DaSilvaState<'a> {
+    fn get_tree(&self) -> &RTree::<IndexedPoint3D> {
+        &self.rtree
+    }
+}
+
+/// Allow running the explanation mechanism
+impl<'a> Explanation<DaSilvaExplanation> for DaSilvaState<'a> {
+    /// Run the da silva explanation mechanism
+    fn explain(&self, neighborhood_size: Neighborhood) -> Vec<DaSilvaExplanation> {
+        // Calculate the global contribution of each point (centroid of the nD space and
+        //_every_ point in its neighborhood)
+        let global_contribution: GlobalContribution = match self.explanation_type {
+            DaSilvaType::Euclidean => Self::calculate_global_distance_contribution(&self.original_points),
+            DaSilvaType::Variance => Self::calculate_global_variance(&self.original_points)
+        };
+        // For each point get the indices of the neighbors
+        let neighborhoods = self.get_neighbor_indices(neighborhood_size);
+
+        let ranking_vectors: Vec<Ranking> = (0..self.get_point_count())
+            .into_iter()
+            .zip(&neighborhoods)
+            .map(|(index, neighborhood)| {
+                // Calculate the distance contribution / variance lc_j between each point p_i and all its neighbors
+                // v_i for every dimension j. Then average it for every dimension within the neighborhood
+                let lc: LocalContributions = match self.explanation_type {
+                    DaSilvaType::Euclidean => Self::calculate_local_distance_contributions(index, self.original_points, neighborhood),
+                    DaSilvaType::Variance => Self::calculate_local_variance(index, self.original_points, neighborhood)
+                };
+                // Normalize the local contribution by dividing by the global contribution (per dimension)
+                let nlc: LocalContributions = Self::normalize_rankings(lc, &global_contribution);
+                // Create a ranking vector from the normalized local contribution
+                Self::calculate_top_ranking(nlc)
+            })
+            .collect();
+
+        (0..self.get_point_count())
+            .into_iter()
+            .zip(&neighborhoods)
+            .map(|(index, neighborhood)| {
+                Self::calculate_annotation(index, &ranking_vectors, neighborhood)
+            })
+            .collect::<Vec<DaSilvaExplanation>>()
+    }
+}
+
+// Function uses for both metric types
+impl<'a> DaSilvaState<'a> {
+    /// Create a new mechanism
     pub fn new(
         reduced_points: Vec<Point3<f32>>,
         original_points: &'a Vec<PointN>,
-    ) -> DaSilvaMechanismState<'a> {
+    ) -> DaSilvaState<'a> {
         let indexed_points: Vec<IndexedPoint3D> = reduced_points
             .into_iter()
             .enumerate()
@@ -114,234 +161,59 @@ impl<'a> DaSilvaMechanismState<'a> {
             })
             .collect();
 
-        DaSilvaMechanismState::new_with_indexed_point(indexed_points, original_points)
+        DaSilvaState::new_with_indexed_point(indexed_points, original_points)
     }
 
     /// Initialize the mechanism with already indexed points
     pub fn new_with_indexed_point(
         indexed_points: Vec<IndexedPoint3D>,
         original_points: &'a Vec<PointN>,
-    ) -> DaSilvaMechanismState<'a> {
+    ) -> DaSilvaState<'a> {
         let rtree =
-            RTree::<IndexedPoint3D, RTreeParameters3D>::bulk_load_with_params(indexed_points);
-        DaSilvaMechanismState {
+            RTree::<IndexedPoint3D>::bulk_load_with_params(indexed_points);
+        DaSilvaState {
             rtree,
             original_points,
-            ranking_method: DaSilvaType::Variance
+            explanation_type:DaSilvaType::Variance
         }
     }
 
-    /// Use the euclidean metric, sadly this has proven to work quite poorly
-    /// so it is hidden behind a manual toggle
-    pub fn use_euclidean_metric(&mut self) {
-        self.ranking_method = DaSilvaType::Euclidean;
-    }
-
-    /// Run the da silva explanation mechanism
-    pub fn explain(&self, neighborhood_size: Neighborhood) -> Vec<DaSilvaExplanation> {
-        // Calculate the global contribution of each point (centroid of the nD space and
-        //_every_ point in its neighborhood)
-        let centroid: PointN = Self::find_centroid(&self.original_points);
-        let global_contribution: GlobalContribution = match self.ranking_method {
-            DaSilvaType::Euclidean => Self::calculate_global_contribution(centroid, &self.original_points),
-            DaSilvaType::Variance => Self::calculate_global_variance(&self.original_points)
-        };
-
-        // Find out what the projection width is based on the bounding box
-        // TODO: only do this when using radius based NN search
-        let projection_width = self.projection_width();
-
-        // Pre-compute all neighborhoods, each neighborhood consists of all points witing
-        // p v_i for point p_i in 3d. The nd neighborhood is {P(p) \in v_i}. Note that we
-        // do this for every (unorderd) element in the rtree so we sort after.
-        let mut indexed_neighborhoods: Vec<(usize, NeighborIndices)> = self
-            .rtree
-            .iter()
-            .map(|indexed_point| {
-                let neighbors = match neighborhood_size {
-                    Neighborhood::R(size) => {
-                        self.find_neighbors_r(projection_width * size, *indexed_point)
-                    }
-                    Neighborhood::K(size) => self.find_neighbors_k(size, *indexed_point),
-                };
-                (indexed_point.index, neighbors)
-            })
-            .collect();
-
-        // Sort the neighborhoods again based on index
-        indexed_neighborhoods.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap());
-        let neighborhoods: Vec<NeighborIndices> =
-            indexed_neighborhoods.into_iter().map(|(_, n)| n).collect();
-
-        let ranking_vectors: Vec<Ranking> = (0..self.original_points.len())
-            .into_iter()
-            .zip(&neighborhoods)
-            .map(|(index, neighborhood)| {
-                // Calculate the local contribution lc_j between each point p_i and all its neighbors
-                // v_i for every dimension j. Then average the contribution for every dimension within
-                // the neighborhood
-                let lc: LocalContributions = match self.ranking_method {
-                    DaSilvaType::Euclidean => Self::calculate_local_contributions(index, self.original_points, neighborhood),
-                    DaSilvaType::Variance => Self::calculate_local_variance(index, self.original_points, neighborhood)
-                };
-                // Normalize the local contribution by dividing by the global contribution (per dimension)
-                let nlc: LocalContributions = Self::normalize_rankings(lc, &global_contribution);
-                // Create a ranking vector from the normalized local contribution
-                Self::calculate_top_ranking(nlc)
-            })
-            .collect();
-
-        (0..self.original_points.len())
-            .into_iter()
-            .zip(&neighborhoods)
-            .map(|(index, neighborhood)| {
-                Self::calculate_annotation(index, &ranking_vectors, neighborhood)
-            })
-            .collect::<Vec<DaSilvaExplanation>>()
-    }
-
-    /// Retrieve the projection width based on the largest axis aligned bounding box distance
-    /// TODO: this is a temporary hack, using a convex hull would be nicer
-    fn projection_width(&self) -> f32 {
-        let (min, max) = self.axis_aligned_bounding_box();
-        let mut width = f32::NEG_INFINITY;
-        for (min_i, max_i) in min.iter().zip(max.iter()) {
-            if max_i - min_i > width {
-                width = max_i - min_i;
-            }
-        }
-        width
-    }
-
-    /// Get the axis aligned bounding box of all points.
-    fn axis_aligned_bounding_box(&self) -> (Point3<f32>, Point3<f32>) {
-        let mut min = Point3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
-        let mut max = Point3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
-        for point in self.rtree.iter() {
-            // Update the min and max values
-            if point.x < min.x {
-                min.x = point.x
-            } else if point.x > max.x {
-                max.x = point.x
-            }
-            if point.y < min.y {
-                min.y = point.y
-            } else if point.y > max.y {
-                max.y = point.y
-            }
-            if point.z < min.z {
-                min.z = point.z
-            } else if point.z > max.z {
-                max.z = point.z
-            }
-        }
-        (min, max)
-    }
-
-    /// Get a reference to all neighbors within a certain range. This used the rtree.
-    fn find_neighbors_r(&self, r: f32, indexed_point: IndexedPoint3D) -> NeighborIndices {
-        let query_point = [indexed_point.x, indexed_point.y, indexed_point.z];
-        self.rtree
-            .locate_within_distance(query_point, r * r)
-            .map(|elem| elem.index)
-            .filter(|&index| index != indexed_point.index)
-            .collect::<NeighborIndices>()
-    }
-
-    /// Get a reference to the k nearest neighbors.
-    fn find_neighbors_k(&self, k: usize, indexed_point: IndexedPoint3D) -> NeighborIndices {
-        let query_point = [indexed_point.x, indexed_point.y, indexed_point.z];
-        self.rtree
-            .nearest_neighbor_iter(&query_point)
-            .take(k + 1)
-            .map(|elem| elem.index)
-            .filter(|&index| index != indexed_point.index)
-            .collect::<NeighborIndices>()
-    }
-
-    // Used for the global explanation, just average the over all dimensions
-    pub fn find_centroid(points: &Vec<PointN>) -> PointN {
-        points
-            .iter()
-            // Calculate the sum of all points for each dimension separately
-            .fold(
-                // Vector containing only zeros as fold state start
-                vec![0.0f32; points[0].len()],
-                // Increment every dimension of the state using each dimension in the state
-                |v, p| v.iter().zip(p).map(|(a, b)| a + b).collect(),
-            )
-            // Iterate over the cumulative point
-            .iter()
-            // Normalize the point by dividing each dimension by the amount of points.
-            // This averages each dimension out.
-            .map(|x| x / points.len() as f32)
-            .collect::<PointN>()
-    }
-
-    // Given 2 points, calculate the contribution of distance for each dimension.
-    // corresponds to formula 1. lc_j = (p_j - r_j)^2 / ||p-r||^2 where j is the dim.
-    fn calculate_distance_contribution(p: &PointN, r: &PointN) -> LocalContributions {
-        // ||p - r||^2
-        let dist = p.sq_distance(r);
-        p.iter()
-            .zip(r)
-            // (p_j - r_j)^2 / ||p - r||^2
-            .map(|(p_j, r_j)| (p_j - r_j).powi(2) / dist)
-            .collect::<LocalContributions>()
-    }
-
-    // Calculate the distance contribution of all points from the centriod of the entire data set
-    fn calculate_global_contribution(centroid: PointN, points: &Vec<PointN>) -> GlobalContribution {
-        points
-            .iter()
-            // Calculate the distance contribution between the centroid and all points.
-            .map(|r| Self::calculate_distance_contribution(&centroid, r))
-            // Fold to collect all the contributions into one single cumulative one.
-            .fold(vec![0.0f32; centroid.len()], |acc, lc| {
-                acc.iter()
-                    .zip(lc)
-                    .map(|(&acc_j, lc_j)| acc_j + lc_j)
-                    .collect::<LocalContributions>()
-            })
-            .iter()
-            // For each dimension normalize using the size of the points set.
-            .map(|&dim| dim / (points.len() as f32))
-            .collect()
-    }
-
-
-    /// Given a point index, the set of points and the indices of the neighbors calculate the
-    /// average local contribution for each dimension over the neighborhood.
-    /// Corresponds to formula 2. lc_j = Sum over r in neighborhood of lc^j_p,r divided |neighborhood|
-    fn calculate_local_contributions(
+    /// Using the rankings and the neighborhood calculate the the confidence.
+    /// Here the confidence is how many in the neighborhood share the dimension
+    /// of the points ranking.
+    fn calculate_annotation(
         point_index: usize,
-        original_points: &Vec<PointN>,
-        neighbor_indices: &NeighborIndices,
-    ) -> LocalContributions {
-        // Retrieve a references to the point and neighbors
-        let p: &PointN = &original_points[point_index];
-        // Calculate the contribution of the distance between the point and all its neighbors
-        // The take the cumulative over each dimension. Then divide that by the neigbor size.
-        neighbor_indices
+        ranking_vectors: &Vec<Ranking>,
+        neighborhood: &NeighborIndices,
+    ) -> DaSilvaExplanation {
+        // Retrieve what dimension was chosen for a certain point
+        let (point_dim, _) = ranking_vectors[point_index];
+        let correct_count = neighborhood
             .iter()
-            // Calculate the distance contribution between the point and one of its neighbors
+            // Get the ranking vector for each neighbor and only keep the dimension
             .map(|&index| {
-                let r = &original_points[index];
-                Self::calculate_distance_contribution(p, r)
+                let (dim, _) = ranking_vectors[index];
+                dim
             })
-            // Fold to collect all the contributions into one single cumulative one.
-            .fold(vec![0.0f32; p.len()], |c, lc| {
-                c.iter()
-                    .zip(lc)
-                    .map(|(&c, x)| c + x)
-                    .collect::<LocalContributions>()
-            })
-            .iter()
-            // For each dimension normalize using the neighborhood size.
-            .map(|&dim| dim / (neighbor_indices.len() as f32))
-            .collect()
-    }
+            // Only keep the neighbors where the dimension is correct
+            .filter(|&dim| dim == point_dim)
+            // Count the amount of neighbors left
+            .count();
 
+        // TODO: Do we include self in the confidence score? assume no for now.
+        DaSilvaExplanation {
+            attribute_index: point_dim,
+            confidence: if neighborhood.len() > 0 {
+                correct_count as f32 / neighborhood.len() as f32
+            } else {
+                0.0f32
+            },
+        }
+    }
+}
+
+// Functions used for the variance type of explanation
+impl<'a> DaSilvaState<'a> {
     /// Calculate the variance over all point per dimension.
     /// TODO: This is horrible code please fix
     fn calculate_global_variance(points: &Vec<PointN>) -> GlobalContribution {
@@ -392,71 +264,6 @@ impl<'a> DaSilvaMechanismState<'a> {
             .collect()
     }
 
-    // Normalize a local contrib of a dimension using the global contrib of said dimension.
-    // this function lines up with formula 3 in the da silva paper
-    fn normalize_rankings(
-        local_contributions: LocalContributions,
-        global_contributions: &GlobalContribution,
-    ) -> LocalContributions {
-        // Sum of the local contributions per dimension
-        let sum = local_contributions
-            .iter()
-            .zip(global_contributions)
-            .fold(0.0, |acc: f32, (lc_j, gc_j)| acc + (lc_j / gc_j));
-        // Normalize each term
-        local_contributions
-            .iter()
-            .zip(global_contributions)
-            .map(|(lc_j, gc_j)| (lc_j / gc_j) / sum)
-            .collect()
-    }
-
-    // Using the rankings and the neighborhood calculate the the confidence.
-    // Here the confidence is how many in the neighborhood share the dimension
-    // of the points ranking.
-    fn calculate_annotation(
-        point_index: usize,
-        ranking_vectors: &Vec<Ranking>,
-        neighborhood: &NeighborIndices,
-    ) -> DaSilvaExplanation {
-        // Retrieve what dimension was chosen for a certain point
-        let (point_dim, _) = ranking_vectors[point_index];
-        let correct_count = neighborhood
-            .iter()
-            // Get the ranking vector for each neighbor and only keep the dimension
-            .map(|&index| {
-                let (dim, _) = ranking_vectors[index];
-                dim
-            })
-            // Only keep the neighbors where the dimension is correct
-            .filter(|&dim| dim == point_dim)
-            // Count the amount of neighbors left
-            .count();
-
-        // TODO: Do we include self in the confidence score? assume no for now.
-        DaSilvaExplanation {
-            attribute_index: point_dim,
-            confidence: if neighborhood.len() > 0 {
-                correct_count as f32 / neighborhood.len() as f32
-            } else {
-                0.0f32
-            },
-        }
-    }
-
-    // From the sorted vector of local contributions and find the dimension than
-    // contributes most. Read as: Find the lowest ranking given a the local
-    // contribution.
-    pub fn calculate_top_ranking(local_contributions: LocalContributions) -> Ranking {
-        local_contributions
-            .iter()
-            .enumerate()
-            .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
-            .map(|(index, &f)| (index, f))
-            .unwrap()
-    }
-
-
     /// Get the variance of a vector of floats
     pub fn get_variance(data: &Vec<f32>) -> Option<f32> {
         match (Self::get_mean(&data), data.len()) {
@@ -482,49 +289,97 @@ impl<'a> DaSilvaMechanismState<'a> {
     }
 }
 
+// Functions used by the distance based metric
+impl<'a> DaSilvaState<'a> {
+    /// Given 2 points, calculate the contribution of distance for each dimension.
+    /// corresponds to formula 1. lc_j = (p_j - r_j)^2 / ||p-r||^2 where j is the dim.
+    fn calculate_distance_contribution(p: &PointN, r: &PointN) -> LocalContributions {
+        // ||p - r||^2
+        let dist = p.sq_distance(r);
+        p.iter()
+            .zip(r)
+            // (p_j - r_j)^2 / ||p - r||^2
+            .map(|(p_j, r_j)| (p_j - r_j).powi(2) / dist)
+            .collect::<LocalContributions>()
+    }
+
+    /// Used for the global explanation, just average the over all dimensions
+    pub fn find_centroid(points: &Vec<PointN>) -> PointN {
+        points
+            .iter()
+            // Calculate the sum of all points for each dimension separately
+            .fold(
+                // Vector containing only zeros as fold state start
+                vec![0.0f32; points[0].len()],
+                // Increment every dimension of the state using each dimension in the state
+                |v, p| v.iter().zip(p).map(|(a, b)| a + b).collect(),
+            )
+            // Iterate over the cumulative point
+            .iter()
+            // Normalize the point by dividing each dimension by the amount of points.
+            // This averages each dimension out.
+            .map(|x| x / points.len() as f32)
+            .collect::<PointN>()
+    }
+
+    /// Calculate the distance contribution of all points from the centriod of the entire data set
+    fn calculate_global_distance_contribution(points: &Vec<PointN>) -> GlobalContribution {
+        let centroid: PointN = Self::find_centroid(&points);
+        points
+            .iter()
+            // Calculate the distance contribution between the centroid and all points.
+            .map(|r| Self::calculate_distance_contribution(&centroid, r))
+            // Fold to collect all the contributions into one single cumulative one.
+            .fold(vec![0.0f32; centroid.len()], |acc, lc| {
+                acc.iter()
+                    .zip(lc)
+                    .map(|(&acc_j, lc_j)| acc_j + lc_j)
+                    .collect::<LocalContributions>()
+            })
+            .iter()
+            // For each dimension normalize using the size of the points set.
+            .map(|&dim| dim / (points.len() as f32))
+            .collect()
+    }
+
+    /// Given a point index, the set of points and the indices of the neighbors calculate the
+    /// average local contribution for each dimension over the neighborhood.
+    /// Corresponds to formula 2. lc_j = Sum over r in neighborhood of lc^j_p,r divided |neighborhood|
+    fn calculate_local_distance_contributions(
+        point_index: usize,
+        original_points: &Vec<PointN>,
+        neighbor_indices: &NeighborIndices,
+    ) -> LocalContributions {
+        // Retrieve a references to the point and neighbors
+        let p: &PointN = &original_points[point_index];
+        // Calculate the contribution of the distance between the point and all its neighbors
+        // The take the cumulative over each dimension. Then divide that by the neigbor size.
+        neighbor_indices
+            .iter()
+            // Calculate the distance contribution between the point and one of its neighbors
+            .map(|&index| {
+                let r = &original_points[index];
+                Self::calculate_distance_contribution(p, r)
+            })
+            // Fold to collect all the contributions into one single cumulative one.
+            .fold(vec![0.0f32; p.len()], |c, lc| {
+                c.iter()
+                    .zip(lc)
+                    .map(|(&c, x)| c + x)
+                    .collect::<LocalContributions>()
+            })
+            .iter()
+            // For each dimension normalize using the neighborhood size.
+            .map(|&dim| dim / (neighbor_indices.len() as f32))
+            .collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::util::types::PointN;
     use nalgebra::Point3;
-
-    #[test]
-    fn calculates_correct_neighbors() {
-        let points_3 = vec![
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(1.0, 1.0, 1.0),
-            Point3::new(2.0, 2.0, 2.0),
-            Point3::new(10.0, 10.0, 10.0),
-        ];
-        let points_n = Vec::<PointN>::new();
-        let mechanism = DaSilvaMechanismState::new(points_3, &points_n);
-
-        // Check neighbors
-        assert_eq!(
-            mechanism.find_neighbors_r(
-                2.0,
-                IndexedPoint3D {
-                    index: 2,
-                    x: 2.0,
-                    y: 2.0,
-                    z: 2.0
-                }
-            ),
-            vec![1]
-        );
-        assert_eq!(
-            mechanism.find_neighbors_r(
-                4.0,
-                IndexedPoint3D {
-                    index: 2,
-                    x: 2.0,
-                    y: 2.0,
-                    z: 2.0
-                }
-            ),
-            vec![1, 0]
-        );
-    }
 
     #[test]
     fn calculates_correct_centroid() {
@@ -534,7 +389,7 @@ mod tests {
             vec![0.0, 2.0, 0.0],
         ];
         assert_eq!(
-            DaSilvaMechanismState::find_centroid(&original_data),
+            DaSilvaState::find_centroid(&original_data),
             vec![0.0, 1.0, 0.0]
         );
     }
@@ -542,15 +397,15 @@ mod tests {
     #[test]
     fn calculates_correct_top_ranking() {
         assert_eq!(
-            DaSilvaMechanismState::calculate_top_ranking(vec![0.8f32, 0.1, 0.3]),
+            DaSilvaState::calculate_top_ranking(vec![0.8f32, 0.1, 0.3]),
             (1, 0.1)
         );
         assert_eq!(
-            DaSilvaMechanismState::calculate_top_ranking(vec![0.0f32, 0.0, 0.3]),
+            DaSilvaState::calculate_top_ranking(vec![0.0f32, 0.0, 0.3]),
             (0, 0.0)
         );
         assert_eq!(
-            DaSilvaMechanismState::calculate_top_ranking(vec![0.3f32, 0.3, 0.0]),
+            DaSilvaState::calculate_top_ranking(vec![0.3f32, 0.3, 0.0]),
             (2, 0.0)
         );
     }
@@ -561,7 +416,7 @@ mod tests {
             vec![(2, 0.7), (1, 0.4), (1, 0.9), (1, 0.6), (1, 0.4), (3, 0.5)];
 
         assert_eq!(
-            DaSilvaMechanismState::calculate_annotation(0, &rankings, &vec![1, 2, 3, 4]),
+            DaSilvaState::calculate_annotation(0, &rankings, &vec![1, 2, 3, 4]),
             DaSilvaExplanation {
                 attribute_index: 2,
                 confidence: 0.0
@@ -569,7 +424,7 @@ mod tests {
         );
 
         assert_eq!(
-            DaSilvaMechanismState::calculate_annotation(1, &rankings, &vec![2, 3, 4]),
+            DaSilvaState::calculate_annotation(1, &rankings, &vec![2, 3, 4]),
             DaSilvaExplanation {
                 attribute_index: 1,
                 confidence: 1.0
@@ -577,7 +432,7 @@ mod tests {
         );
 
         assert_eq!(
-            DaSilvaMechanismState::calculate_annotation(1, &rankings, &vec![0, 2, 3, 4]),
+            DaSilvaState::calculate_annotation(1, &rankings, &vec![0, 2, 3, 4]),
             DaSilvaExplanation {
                 attribute_index: 1,
                 confidence: 0.75
@@ -585,7 +440,7 @@ mod tests {
         );
 
         assert_eq!(
-            DaSilvaMechanismState::calculate_annotation(1, &rankings, &vec![0, 2, 3, 5]),
+            DaSilvaState::calculate_annotation(1, &rankings, &vec![0, 2, 3, 5]),
             DaSilvaExplanation {
                 attribute_index: 1,
                 confidence: 0.50
