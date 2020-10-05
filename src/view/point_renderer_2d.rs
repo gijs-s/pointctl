@@ -1,7 +1,6 @@
 extern crate nalgebra as na;
 
 // Third party
-use gl;
 use kiss3d::{
     context::Context,
     planar_camera::PlanarCamera,

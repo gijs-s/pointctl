@@ -14,11 +14,9 @@ publish = false
 # Used for parsing CLI commands
 clap = "^2.33.1"
 # Used for visualization
-# kiss3d = { git = "https://github.com/gijs-s/kiss3d", branch = "master", features= ['conrod']}
-kiss3d = { path = '../kiss3d', features = ['conrod']}
+kiss3d = { git = "https://github.com/gijs-s/kiss3d", branch = "master", features= ['conrod']}
+# kiss3d = { path = '../kiss3d', features = ['conrod']}
 nalgebra = "0.21.1"
-# Raw open GL bindings
-gl = "0.14"
 # Used for generarting random points
 rand = "^0.7"
 rand_distr = "*"
