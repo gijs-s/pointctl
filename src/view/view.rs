@@ -23,12 +23,10 @@ use crate::{
     exp::DaSilvaExplanation,
     util::types::PointN,
     view::{
-        color_map::ColorMap,
-        point_renderer_2d::PointRenderer2D,
-        point_renderer_3d::PointRenderer3D,
         ui::{draw_overlay, WidgetId},
-        visualization_state::{Load, VisualizationState2D, VisualizationState3D},
-        DimensionalityMode, RenderMode,
+        visualization_state::Load,
+        ColorMap, DimensionalityMode, PointRenderer2D, PointRenderer3D, RenderMode,
+        VisualizationState2D, VisualizationState3D,
     },
 };
 

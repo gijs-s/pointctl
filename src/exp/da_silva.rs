@@ -171,7 +171,6 @@ impl<'a> DaSilvaState<'a> {
                 z: point.z,
             })
             .collect();
-
         DaSilvaState::new_with_indexed_point(indexed_points, original_points)
     }
 

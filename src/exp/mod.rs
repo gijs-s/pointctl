@@ -48,7 +48,8 @@ pub fn run_van_driel(
     original_points: &Vec<PointN>,
     neighborhood_size: Neighborhood,
 ) -> Vec<VanDrielExplanation> {
-    let van_driel_mechanism =
-        driel::VanDrielState::new(reduced_points, &original_points, neighborhood_size);
+    // TODO: Remove dummy value
+    let theta = 0.3f32;
+    let van_driel_mechanism = driel::VanDrielState::new(reduced_points, &original_points, theta);
     van_driel_mechanism.explain(neighborhood_size)
 }

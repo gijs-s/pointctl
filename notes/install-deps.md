@@ -14,7 +14,7 @@ For the rendering library you will also need `libxcb-xinput-dev` and `libxcb1-de
 
 ## Cuda
 
-For installing cuda I highly recommend using the prepacked version provided by the people over at System76. With this you are just one command away from installing cuda. To add the repository to apt use the following commands. More info on system76 can be found here: https://support.system76.com/articles/cuda/.
+For installing CUDA I highly recommend using the prepacked version provided by the people over at System76. With this you are just one command away from installing cuda. To add the repository to apt use the following commands. More info on system76 can be found here: https://support.system76.com/articles/cuda/.
 
 ``` sh
 sudo echo "deb http://apt.pop-os.org/proprietary bionic main" | sudo tee -a /etc/apt/sources.list.d/pop-proprietary.list

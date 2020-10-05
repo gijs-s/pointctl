@@ -1,12 +1,18 @@
-pub mod color_map;
-pub mod view;
+pub use self::{
+    color_map::ColorMap,
+    point_renderer_2d::PointRenderer2D,
+    point_renderer_3d::PointRenderer3D,
+    view::display,
+    visualization_state::{VisualizationState2D, VisualizationState3D},
+};
 
+mod color_map;
 mod marcos;
-
 mod point_renderer_2d;
 mod point_renderer_3d;
 mod texture_creation;
 mod ui;
+mod view;
 mod visualization_state;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]

@@ -18,7 +18,7 @@ use super::{
     explanation::{GlobalContribution, LocalContributions, NeighborIndices},
     Neighborhood,
 };
-use crate::util::types::PointN;
+use crate::util::{math, types::PointN};
 
 use std::cmp::Ordering;
 
@@ -83,7 +83,8 @@ enum VanDrielType {
 pub struct VanDrielState<'a> {
     pub rtree: RTree<IndexedPoint3D>,
     pub original_points: &'a Vec<PointN>,
-    pub neighborhood_size: Neighborhood,
+    // theta value uses in the calculation
+    pub theta: f32,
     explanation_type: VanDrielType,
 }
 
@@ -119,7 +120,7 @@ impl<'a> VanDrielState<'a> {
     pub fn new(
         reduced_points: Vec<Point3<f32>>,
         original_points: &'a Vec<PointN>,
-        neighborhood_size: Neighborhood,
+        theta: f32,
     ) -> VanDrielState<'a> {
         let indexed_points: Vec<IndexedPoint3D> = reduced_points
             .into_iter()
@@ -131,12 +132,20 @@ impl<'a> VanDrielState<'a> {
                 z: point.z,
             })
             .collect();
+        VanDrielState::new_with_indexed_point(indexed_points, original_points, theta)
+    }
+
+    pub fn new_with_indexed_point(
+        indexed_points: Vec<IndexedPoint3D>,
+        original_points: &'a Vec<PointN>,
+        theta: f32,
+    ) -> VanDrielState<'a> {
         let rtree = RTree::<IndexedPoint3D>::bulk_load_with_params(indexed_points);
         VanDrielState {
             rtree,
             original_points,
-            neighborhood_size,
             explanation_type: VanDrielType::TotalVariance,
+            theta,
         }
     }
 

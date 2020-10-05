@@ -3,17 +3,19 @@ extern crate pointctl as pc;
 // Build in imports
 use exp::Neighborhood;
 use nalgebra::{Point2, Point3};
-use std::path::Path;
-use std::process::exit;
+use std::{path::Path, process::exit};
 
 // Third party imports
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 
 // Local imports
-use pc::fs::prelude::{read, write};
-use pc::util::validator;
-use pc::view::view::display;
-use pc::{exp, generate};
+use pc::{
+    exp,
+    fs::prelude::{read, write},
+    generate,
+    util::validator,
+    view::display,
+};
 
 fn main() {
     // TODO: Move this entire mess to a yaml file. See https://docs.rs/clap/2.33.1/clap/
