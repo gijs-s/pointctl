@@ -102,7 +102,11 @@ impl PointRenderer3D {
 
     /// Insert a single point with a color
     pub fn push(&mut self, point: Point3<f32>, color: Point3<f32>) {
-        self.point_data.push(PointData { point: point, color: color, projected_z: 0.0f32});
+        self.point_data.push(PointData {
+            point: point,
+            color: color,
+            projected_z: 0.0f32,
+        });
     }
 
     /// Clear all the points and their colors
@@ -138,7 +142,7 @@ impl PointRenderer3D {
     }
 
     pub fn sort_point_if_needed(&mut self, camera: &dyn Camera) {
-        if self.last_transform == camera.transformation(){
+        if self.last_transform == camera.transformation() {
             return;
         }
         self.sort_z_buffer(camera);
@@ -167,9 +171,8 @@ impl PointRenderer3D {
         }
 
         // Sort the array using this new information
-        self.point_data.sort_by(|a, b| {
-             b.projected_z.partial_cmp(&a.projected_z).unwrap()
-        })
+        self.point_data
+            .sort_by(|a, b| b.projected_z.partial_cmp(&a.projected_z).unwrap())
     }
 
     fn get_projected_z_value(point: &Point3<f32>, camera: &dyn Camera) -> f32 {

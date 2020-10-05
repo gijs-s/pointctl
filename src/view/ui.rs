@@ -549,13 +549,17 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         // Create the slider and metric switch button
         match scene.ui_state.neighborhood_type {
             NeighborhoodType::R => {
-                for radius_value in widget::Slider::new(scene.ui_state.r, NEIGHBORHOOD_R_MIN_MAX.0, NEIGHBORHOOD_R_MIN_MAX.1)
-                    .label(&scene.ui_state.get_neighborhood_text())
-                    .label_font_size(FONT_SIZE - 1)
-                    .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-                    .h_of(ids.slider_gamma)
-                    .up_from(ids.text_size_slider, 7.0f64)
-                    .set(ids.slider_neighborhood, &mut ui)
+                for radius_value in widget::Slider::new(
+                    scene.ui_state.r,
+                    NEIGHBORHOOD_R_MIN_MAX.0,
+                    NEIGHBORHOOD_R_MIN_MAX.1,
+                )
+                .label(&scene.ui_state.get_neighborhood_text())
+                .label_font_size(FONT_SIZE - 1)
+                .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+                .h_of(ids.slider_gamma)
+                .up_from(ids.text_size_slider, 7.0f64)
+                .set(ids.slider_neighborhood, &mut ui)
                 {
                     queue.push(UIEvents::UpdateUINeighborhood(Neighborhood::R(
                         radius_value,
@@ -564,14 +568,17 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             }
             NeighborhoodType::K => {
                 // Hack: usize sliders are not supported, need to make the slider one for floats and cast to usize every time.
-                for neighborhood_size in
-                    widget::Slider::new(scene.ui_state.k as f32, NEIGHBORHOOD_K_MIN_MAX.0 as f32, NEIGHBORHOOD_K_MIN_MAX.1 as f32)
-                        .label(&scene.ui_state.get_neighborhood_text())
-                        .label_font_size(FONT_SIZE - 1)
-                        .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-                        .h_of(ids.slider_gamma)
-                        .up_from(ids.text_size_slider, 7.0f64)
-                        .set(ids.slider_neighborhood, &mut ui)
+                for neighborhood_size in widget::Slider::new(
+                    scene.ui_state.k as f32,
+                    NEIGHBORHOOD_K_MIN_MAX.0 as f32,
+                    NEIGHBORHOOD_K_MIN_MAX.1 as f32,
+                )
+                .label(&scene.ui_state.get_neighborhood_text())
+                .label_font_size(FONT_SIZE - 1)
+                .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+                .h_of(ids.slider_gamma)
+                .up_from(ids.text_size_slider, 7.0f64)
+                .set(ids.slider_neighborhood, &mut ui)
                 {
                     queue.push(UIEvents::UpdateUINeighborhood(Neighborhood::K(
                         neighborhood_size as usize,

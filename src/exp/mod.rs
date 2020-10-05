@@ -2,7 +2,9 @@
 // TODO: Add prelude?
 
 pub use self::{
-    common::{AnnotatedPoint, IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D},
+    common::{
+        AnnotatedPoint, IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D,
+    },
     da_silva::DaSilvaExplanation,
     driel::VanDrielExplanation,
 };
@@ -12,27 +14,41 @@ mod da_silva;
 mod driel;
 mod explanation;
 
-use nalgebra::{Point2, Point3};
 use crate::util::types::PointN;
 use explanation::Explanation;
+use nalgebra::{Point2, Point3};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Neighborhood {
     K(usize),
-    R(f32)
+    R(f32),
 }
 
-pub fn run_da_silva_variance(reduced_points: Vec<Point3<f32>>, original_points: &Vec<PointN>, neighborhood_size: Neighborhood) -> Vec<DaSilvaExplanation> {
+pub fn run_da_silva_variance(
+    reduced_points: Vec<Point3<f32>>,
+    original_points: &Vec<PointN>,
+    neighborhood_size: Neighborhood,
+) -> Vec<DaSilvaExplanation> {
     let da_silva_mechanism = da_silva::DaSilvaState::new(reduced_points, &original_points);
     da_silva_mechanism.explain(neighborhood_size)
 }
 
-pub fn run_da_silva_variance_indexed(indexed_points: Vec<IndexedPoint3D>, original_points: &Vec<PointN>, neighborhood_size: Neighborhood) -> Vec<DaSilvaExplanation>{
-    let da_silva_mechanism = da_silva::DaSilvaState::new_with_indexed_point(indexed_points, &original_points);
+pub fn run_da_silva_variance_indexed(
+    indexed_points: Vec<IndexedPoint3D>,
+    original_points: &Vec<PointN>,
+    neighborhood_size: Neighborhood,
+) -> Vec<DaSilvaExplanation> {
+    let da_silva_mechanism =
+        da_silva::DaSilvaState::new_with_indexed_point(indexed_points, &original_points);
     da_silva_mechanism.explain(neighborhood_size)
 }
 
-pub fn run_van_driel(reduced_points: Vec<Point3<f32>>, original_points: &Vec<PointN>, neighborhood_size: Neighborhood) -> Vec<VanDrielExplanation> {
-    let van_driel_mechanism = driel::VanDrielState::new(reduced_points,&original_points, neighborhood_size);
+pub fn run_van_driel(
+    reduced_points: Vec<Point3<f32>>,
+    original_points: &Vec<PointN>,
+    neighborhood_size: Neighborhood,
+) -> Vec<VanDrielExplanation> {
+    let van_driel_mechanism =
+        driel::VanDrielState::new(reduced_points, &original_points, neighborhood_size);
     van_driel_mechanism.explain(neighborhood_size)
 }

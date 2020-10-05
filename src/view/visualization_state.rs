@@ -19,9 +19,8 @@ use rstar::{PointDistance, RTree};
 // First party
 use crate::{
     exp::{
-        AnnotatedPoint, IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D,
-        DaSilvaExplanation,
-        VanDrielExplanation,
+        AnnotatedPoint, DaSilvaExplanation, IndexedPoint2D, IndexedPoint3D, RTreeParameters2D,
+        RTreeParameters3D, VanDrielExplanation,
     },
     util::types::PointN,
     view::{
@@ -145,7 +144,8 @@ impl VisualizationState3D {
         match mode {
             ExplanationMode::DaSilva => {
                 let points = self.tree.iter().map(|ann| ann.point).collect();
-                let da_silva_explanation = exp::run_da_silva_variance_indexed(points,&original_points, neighborhood_size);
+                let da_silva_explanation =
+                    exp::run_da_silva_variance_indexed(points, &original_points, neighborhood_size);
                 self.load(da_silva_explanation);
                 self.set_explanation_mode(mode);
             }
@@ -391,11 +391,7 @@ impl VisualizationState2D {
                     .map(|ann| ann.point.into())
                     .collect::<Vec<IndexedPoint3D>>();
                 let da_silva_explanation =
-                    exp::run_da_silva_variance_indexed(
-                        points,
-                        &original_points,
-                        neighborhood_size
-                    );
+                    exp::run_da_silva_variance_indexed(points, &original_points, neighborhood_size);
                 self.load(da_silva_explanation);
                 self.set_explanation_mode(mode);
             }
@@ -537,7 +533,7 @@ mod tests {
         let actual = VisualizationState2D::find_average_nearest_neighbor_distance(&tree);
         // offset used to get a better starting point for the blob size
         let offset_expected = (expected.powi(2) * 2.0).sqrt() * 5.0;
-        assert_relative_eq!(actual, offset_expected,  epsilon = 1.0e-4);
+        assert_relative_eq!(actual, offset_expected, epsilon = 1.0e-4);
     }
 
     #[test]
@@ -593,6 +589,6 @@ mod tests {
         let actual = VisualizationState2D::find_average_nearest_neighbor_distance(&tree);
         // offset used to get a better starting point for the blob size
         let offset_expected = (expected.powi(2) * 2.0).sqrt() * 5.0;
-        assert_relative_eq!(actual, offset_expected,  epsilon = 1.0e-4);
+        assert_relative_eq!(actual, offset_expected, epsilon = 1.0e-4);
     }
 }

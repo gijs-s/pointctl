@@ -10,18 +10,21 @@ pub fn mean(data: &Vec<f32>) -> Option<f32> {
     }
 }
 
-
 /// Get the variance of a vector of floats
 pub fn variance(data: &Vec<f32>) -> Option<f32> {
     match (mean(&data), data.len()) {
         (Some(mean), count) if count > 0 => {
-            let variance = data.iter().map(|value| {
-                let diff = mean - (*value as f32);
-                diff * diff
-            }).sum::<f32>() / count as f32;
+            let variance = data
+                .iter()
+                .map(|value| {
+                    let diff = mean - (*value as f32);
+                    diff * diff
+                })
+                .sum::<f32>()
+                / count as f32;
             Some(variance)
-        },
-        _ => None
+        }
+        _ => None,
     }
 }
 
@@ -31,53 +34,55 @@ pub fn covariance(x: &Vec<f32>, y: &Vec<f32>) -> Option<f32> {
         // If the length of both vectors are equal and more than 0
         (Some(x_bar), Some(y_bar), true) => {
             let count = x.len();
-            let covariance = x.iter().zip(y).map(|(x_i, y_i)| {
-                (*x_i - x_bar) * (*y_i - y_bar)
-            }).sum::<f32>() / count as f32;
+            let covariance = x
+                .iter()
+                .zip(y)
+                .map(|(x_i, y_i)| (*x_i - x_bar) * (*y_i - y_bar))
+                .sum::<f32>()
+                / count as f32;
             Some(covariance)
-        },
+        }
         _ => None,
     }
 }
 
-fn transpose(data: &Vec<Vec<f32>>) -> Option<Vec<Vec<f32>>>  {
+/// Transpose a list of nd points into n vectors with ||points|| entries
+fn transpose(data: &Vec<Vec<f32>>) -> Option<Vec<Vec<f32>>> {
     // If there are no points we can not create a covariance matrix
     if data.len() == 0 {
-        return None
+        return None;
     };
 
     // Get the dimension count n. Unwrap is safe because of the 0 check earlier
     let n = data.first().unwrap().len();
     // If any of the points have a different dimensionality we can not compute the covariance matrix
     if data.iter().any(|point| point.len() != n) {
-        return None
+        return None;
     }
     // Transpose the points
-    let accumulator: Vec<Vec<f32>>  = (0..n).into_iter().map(|_| Vec::<f32>::new()).collect();
+    let accumulator: Vec<Vec<f32>> = (0..n).into_iter().map(|_| Vec::<f32>::new()).collect();
     let transposed_data = data.iter().fold(accumulator, |mut acc, point| {
         for (acc_j, &p_j) in acc.iter_mut().zip(point) {
             acc_j.push(p_j)
-        };
+        }
         acc
     });
     Some(transposed_data)
 }
-
-
 
 /// For a set of nD points calculate the NxN covariance matrix.
 pub fn covariance_matrix(data: &Vec<Vec<f32>>) -> Option<Vec<Vec<f32>>> {
     // transpose the points
     let transposed_data = match transpose(&data) {
         Some(v) => v,
-        None => return None
+        None => return None,
     };
 
     // Find the dimensionality of the points
     let n = transposed_data.len();
 
     // Create the actual covariance matrix
-    let mut matrix: Vec<Vec<f32>> = Vec::<Vec::<f32>>::new();
+    let mut matrix: Vec<Vec<f32>> = Vec::<Vec<f32>>::new();
 
     // Fill it with values one row at the time
     for i in 0..n {
@@ -85,10 +90,10 @@ pub fn covariance_matrix(data: &Vec<Vec<f32>>) -> Option<Vec<Vec<f32>>> {
         for j in 0..n {
             match match i == j {
                 true => variance(&transposed_data[i]),
-                false  => covariance(&transposed_data[i], &transposed_data[j])
+                false => covariance(&transposed_data[i], &transposed_data[j]),
             } {
                 Some(v) => row.push(v),
-                None => return None
+                None => return None,
             }
         }
         matrix.push(row);
@@ -102,7 +107,7 @@ pub fn variance_per_dimension(data: &Vec<Vec<f32>>) -> Option<Vec<f32>> {
     // transpose the points
     let transposed_data = match transpose(&data) {
         Some(v) => v,
-        None => return None
+        None => return None,
     };
 
     // find the variance per dimension
@@ -156,14 +161,10 @@ mod tests {
 
     #[test]
     fn correct_covariance_matrix() {
-        let data = vec![
-            vec![1.0f32, 1.0],
-            vec![3.0f32, 0.0],
-            vec![-1.0f32, -1.0]
-        ];
+        let data = vec![vec![1.0f32, 1.0], vec![3.0f32, 0.0], vec![-1.0f32, -1.0]];
         let expected = vec![
             vec![8f32 / 3f32, 2f32 / 3f32],
-            vec![2f32 / 3f32, 2f32 / 3f32]
+            vec![2f32 / 3f32, 2f32 / 3f32],
         ];
         let actual = covariance_matrix(&data).unwrap();
         for x in 0..2 {

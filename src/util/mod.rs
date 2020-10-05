@@ -1,5 +1,5 @@
 // Collection of utils
 
-pub mod types;
 pub mod math;
+pub mod types;
 pub mod validator;

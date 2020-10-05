@@ -274,7 +274,8 @@ fn explain_command(matches: &ArgMatches) {
     };
 
     // Run the da silva explanation
-    let da_silva_explanation = exp::run_da_silva_variance(clean_reduced_points, &original_points, neighborhoods_size);
+    let da_silva_explanation =
+        exp::run_da_silva_variance(clean_reduced_points, &original_points, neighborhoods_size);
 
     // Write the annotations to file
     let annotations = da_silva_explanation

@@ -1,4 +1,3 @@
-
 /// An abstraction that handles the search of neighborhoods for you.
 use nalgebra::Point3;
 use rstar::RTree;
@@ -53,7 +52,7 @@ pub trait Explanation<T> {
 }
 
 pub trait NeighborhoodExplanationMechanism {
-    fn get_tree(&self) -> &RTree::<IndexedPoint3D>;
+    fn get_tree(&self) -> &RTree<IndexedPoint3D>;
 
     fn get_point_count(&self) -> usize {
         self.get_tree().size()
@@ -165,12 +164,16 @@ mod tests {
                     z: point.z,
                 })
                 .collect();
-            DummyExplanationState { rtree: RTree::<IndexedPoint3D>::bulk_load_with_params(indexed_points)}
+            DummyExplanationState {
+                rtree: RTree::<IndexedPoint3D>::bulk_load_with_params(indexed_points),
+            }
         }
     }
 
     impl NeighborhoodExplanationMechanism for DummyExplanationState {
-        fn get_tree(&self) -> &RTree::<IndexedPoint3D> { &self.rtree }
+        fn get_tree(&self) -> &RTree<IndexedPoint3D> {
+            &self.rtree
+        }
     }
 
     #[test]

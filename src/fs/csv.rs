@@ -16,7 +16,7 @@ pub fn write(file_path: &Path, points: Vec<PointN>) -> std::io::Result<()> {
     // File does not have a header
     // let header = format!();
     // buffer.write_all(header.as_bytes())?;
-        writeln!(buffer, "x;y;z")?;
+    writeln!(buffer, "x;y;z")?;
 
     // For all the generated points write them to file.
     for (i, p) in points.iter().enumerate() {
@@ -36,19 +36,23 @@ pub fn write(file_path: &Path, points: Vec<PointN>) -> std::io::Result<()> {
 pub fn read(file_path: &Path) -> std::io::Result<(Vec<PointN>, usize, Vec<String>)> {
     let buffer = BufReader::new(File::open(file_path)?);
 
-    let mut raw_lines = buffer
-        .lines()
-        .into_iter();
+    let mut raw_lines = buffer.lines().into_iter();
 
     let header = match raw_lines.next() {
-        None =>  {eprintln!("File passed was empty"); exit(12)}
+        None => {
+            eprintln!("File passed was empty");
+            exit(12)
+        }
         Some(res) => match res {
-            Ok(line) => line.split(';').map(|s| s.to_string()).collect::<Vec<String>>(),
+            Ok(line) => line
+                .split(';')
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>(),
             Err(e) => {
                 eprintln!("Error reading line from csv: {:?}", e);
                 exit(12)
             }
-        }
+        },
     };
 
     let points = raw_lines
@@ -71,7 +75,7 @@ pub fn read(file_path: &Path) -> std::io::Result<(Vec<PointN>, usize, Vec<String
                         exit(11)
                     }
                 }
-            },
+            }
             Err(e) => {
                 eprintln!("Error reading line from csv: {:?}", e);
                 exit(12)

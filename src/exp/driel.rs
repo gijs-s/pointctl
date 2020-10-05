@@ -9,14 +9,14 @@
 // which is efficient to compute, scales well visually for large and dense MP scatterplots, and can handle any projection technique.
 // We demonstrate our approach using several datasets.
 
-use rstar::RTree;
 use nalgebra::Point3;
+use rstar::RTree;
 
 use super::{
-    explanation::{NeighborIndices, LocalContributions, GlobalContribution},
-    explanation::{Explanation, NeighborhoodExplanationMechanism},
     common::{Distance, IndexedPoint3D, RTreeParameters3D},
-    Neighborhood
+    explanation::{Explanation, NeighborhoodExplanationMechanism},
+    explanation::{GlobalContribution, LocalContributions, NeighborIndices},
+    Neighborhood,
 };
 use crate::util::types::PointN;
 
@@ -74,7 +74,10 @@ impl VanDrielExplanation {
     }
 }
 
-enum VanDrielType { TotalVariance, MinimalVariance }
+enum VanDrielType {
+    TotalVariance,
+    MinimalVariance,
+}
 
 /// Struct containing the state of the van driel explanation mechanism
 pub struct VanDrielState<'a> {
@@ -85,7 +88,7 @@ pub struct VanDrielState<'a> {
 }
 
 impl<'a> NeighborhoodExplanationMechanism for VanDrielState<'a> {
-    fn get_tree(&self) -> &RTree::<IndexedPoint3D> {
+    fn get_tree(&self) -> &RTree<IndexedPoint3D> {
         &self.rtree
     }
 }
@@ -94,7 +97,6 @@ impl<'a> Explanation<VanDrielExplanation> for VanDrielState<'a> {
     /// Run the da silva explanation mechanism
     #[allow(unused_variables)]
     fn explain(&self, neighborhood_size: Neighborhood) -> Vec<VanDrielExplanation> {
-
         // For each point get the indices of the neighbors
         let neighborhoods = self.get_neighbor_indices(neighborhood_size);
 
@@ -113,11 +115,12 @@ impl<'a> Explanation<VanDrielExplanation> for VanDrielState<'a> {
     }
 }
 
-
-
 impl<'a> VanDrielState<'a> {
-    pub fn new(reduced_points: Vec<Point3<f32>>, original_points: &'a Vec<PointN>,
-        neighborhood_size: Neighborhood) -> VanDrielState<'a> {
+    pub fn new(
+        reduced_points: Vec<Point3<f32>>,
+        original_points: &'a Vec<PointN>,
+        neighborhood_size: Neighborhood,
+    ) -> VanDrielState<'a> {
         let indexed_points: Vec<IndexedPoint3D> = reduced_points
             .into_iter()
             .enumerate()
@@ -128,14 +131,12 @@ impl<'a> VanDrielState<'a> {
                 z: point.z,
             })
             .collect();
-        let rtree =
-            RTree::<IndexedPoint3D>::bulk_load_with_params(indexed_points);
+        let rtree = RTree::<IndexedPoint3D>::bulk_load_with_params(indexed_points);
         VanDrielState {
             rtree,
             original_points,
             neighborhood_size,
             explanation_type: VanDrielType::TotalVariance,
-
         }
     }
 

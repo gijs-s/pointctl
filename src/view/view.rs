@@ -32,7 +32,7 @@ use crate::{
     },
 };
 
-use super::{ExplanationMode, ui::UIState};
+use super::{ui::UIState, ExplanationMode};
 
 // Easy access to buttons
 mod buttons {
@@ -71,7 +71,11 @@ pub struct Scene {
 
 impl Scene {
     // Create a new 3D visualization without a initializing the 2D view
-    pub fn new(original_points: Vec<PointN>, dimension_names: Vec<String>, conrod_ids: WidgetId) -> Scene {
+    pub fn new(
+        original_points: Vec<PointN>,
+        dimension_names: Vec<String>,
+        conrod_ids: WidgetId,
+    ) -> Scene {
         Scene {
             dimensionality_mode: DimensionalityMode::ThreeD,
             state_2d: None,
@@ -124,7 +128,7 @@ impl Scene {
     pub fn dimension_switch_available(&self) -> bool {
         match self.dimensionality_mode {
             DimensionalityMode::TwoD => self.state_3d.is_some(),
-            DimensionalityMode::ThreeD => self.state_2d.is_some()
+            DimensionalityMode::ThreeD => self.state_2d.is_some(),
         }
     }
 
@@ -221,22 +225,26 @@ impl Scene {
                 }
             },
         };
-        if !success{
+        if !success {
             println!("Switching to rendering mode failed")
         };
     }
 
     pub fn run_explanation_mode(&mut self, mode: ExplanationMode, neighborhood: exp::Neighborhood) {
-         match self.dimensionality_mode {
+        match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &mut self.state_2d {
-                Some(state) => state.run_explanation_mode(mode, &self.original_points, neighborhood),
+                Some(state) => {
+                    state.run_explanation_mode(mode, &self.original_points, neighborhood)
+                }
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
                 }
             },
             DimensionalityMode::ThreeD => match &mut self.state_3d {
-                Some(state) => state.run_explanation_mode(mode, &self.original_points, neighborhood),
+                Some(state) => {
+                    state.run_explanation_mode(mode, &self.original_points, neighborhood)
+                }
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
