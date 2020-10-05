@@ -12,6 +12,7 @@ numpy = "*"
 seaborn = "*"
 click = "*"
 nbstripout = "*"
+open3d = "*"
 
 [dev-packages]
 

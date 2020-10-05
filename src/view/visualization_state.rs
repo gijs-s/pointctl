@@ -1,8 +1,6 @@
 extern crate kiss3d;
 extern crate nalgebra as na;
 
-use approx::assert_relative_eq;
-
 use crate::exp;
 use std::collections::HashMap;
 
@@ -485,6 +483,7 @@ impl Load<Vec<VanDrielExplanation>> for VisualizationState2D {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::assert_relative_eq;
 
     #[test]
     // Here we will calculate the average distance to the first nearest neighbor

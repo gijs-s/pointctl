@@ -18,7 +18,7 @@ use super::{
     common::{Distance, IndexedPoint3D},
     Neighborhood,
 };
-use crate::util::types::PointN;
+use crate::util::{math, types::PointN};
 
 use std::cmp::Ordering;
 
@@ -230,7 +230,7 @@ impl<'a> DaSilvaState<'a> {
             })
             .iter()
             // Get the variance per dimension
-            .map(|acc_j| Self::get_variance(acc_j).unwrap())
+            .map(|acc_j| math::variance(acc_j).unwrap())
             .collect()
     }
 
@@ -260,32 +260,8 @@ impl<'a> DaSilvaState<'a> {
                 acc
             })
             .iter()
-            .map(|acc_j| Self::get_variance(acc_j).unwrap())
+            .map(|acc_j| math::variance(acc_j).unwrap())
             .collect()
-    }
-
-    /// Get the variance of a vector of floats
-    pub fn get_variance(data: &Vec<f32>) -> Option<f32> {
-        match (Self::get_mean(&data), data.len()) {
-            (Some(mean), count) if count > 0 => {
-                let variance = data.iter().map(|value| {
-                    let diff = mean - (*value as f32);
-                    diff * diff
-                }).sum::<f32>() / count as f32;
-                Some(variance)
-            },
-            _ => None
-        }
-    }
-
-    /// Get the mean of a vector of floats
-    pub fn get_mean(data: &Vec<f32>) -> Option<f32> {
-        let sum = data.iter().sum::<f32>();
-        let count = data.len();
-        match count {
-            positive if positive > 0 => Some(sum / count as f32),
-            _ => None,
-        }
     }
 }
 
