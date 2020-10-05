@@ -13,7 +13,7 @@ use nalgebra::Point3;
 use rstar::RTree;
 
 use super::{
-    common::{Distance, IndexedPoint3D, RTreeParameters3D},
+    common::{Distance, IndexedPoint3D},
     explanation::{Explanation, NeighborhoodExplanationMechanism},
     explanation::{GlobalContribution, LocalContributions, NeighborIndices},
     Neighborhood,

@@ -3,11 +3,10 @@ extern crate nalgebra as na;
 
 // Third party
 use kiss3d::light::Light;
-use kiss3d::window::{State, Window};
+use kiss3d::window::Window;
 
 // Conrod
-use kiss3d::conrod::{widget, widget_ids, Color, Colorable, Positionable, Sizeable, Widget};
-use na::{Point2, Point3};
+use kiss3d::conrod::{widget, widget_ids, Color, Colorable, Widget};
 
 // Generate a unique `WidgetId` for each widget.
 widget_ids! {

@@ -2,9 +2,6 @@
 extern crate kiss3d;
 extern crate nalgebra as na;
 
-#[allow(unused_imports)]
-use kiss3d::conrod::color::{Color, Colorable};
-
 use kiss3d::conrod;
 use kiss3d::light::Light;
 use kiss3d::window::{State, Window};

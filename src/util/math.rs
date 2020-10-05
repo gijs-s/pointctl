@@ -1,4 +1,6 @@
-/// Module containing basic pure rust math utils.
+/// Module containing basic rust math utils, eigen values use lapack + openblas
+extern crate lapack;
+extern crate openblas_src;
 
 /// Get the mean of a vector of floats
 pub fn mean(data: &Vec<f32>) -> Option<f32> {
@@ -70,6 +72,14 @@ fn transpose(data: &Vec<Vec<f32>>) -> Option<Vec<Vec<f32>>> {
     Some(transposed_data)
 }
 
+/// Calculate the eigenvalues given a series of nd points.
+pub fn eigen_values_from_points(data: &Vec<Vec<f32>>) -> Option<Vec<f64>> {
+    match covariance_matrix(&data) {
+        Some(v) => eigen_values(&v),
+        None => None
+    }
+}
+
 /// For a set of nD points calculate the NxN covariance matrix.
 pub fn covariance_matrix(data: &Vec<Vec<f32>>) -> Option<Vec<Vec<f32>>> {
     // transpose the points
@@ -112,6 +122,59 @@ pub fn variance_per_dimension(data: &Vec<Vec<f32>>) -> Option<Vec<f32>> {
 
     // find the variance per dimension
     transposed_data.iter().map(|dim| variance(dim)).collect()
+}
+
+use lapack::dsyev;
+
+/// Retrieve the eigen values from the covariance matrix using lapack dsyev
+///
+/// The routine computes all eigenvalues and, optionally, eigenvectors of an
+/// n-by-n real symmetric matrix A. The eigenvector v(j) of A satisfies
+///
+/// A*v(j) = lambda(j)*v(j)
+///
+/// where lambda(j) is its eigenvalue. The computed eigenvectors are orthonormal.
+/// https://software.intel.com/sites/products/documentation/doclib/mkl_sa/11/mkl_lapack_examples/dsyev_ex.c.htm
+fn eigen_values(covariance_matrix: &Vec<Vec<f32>>) -> Option<Vec<f64>> {
+    // If there are no points we can not create a covariance matrix
+    if covariance_matrix.len() == 0 {
+        return None;
+    };
+
+    // Get the dimension count n. Unwrap is safe because of the 0 check earlier
+    let n = covariance_matrix.first().unwrap().len();
+    // If any of the points have a different dimensionality we can not compute the covariance matrix
+    if covariance_matrix.iter().any(|row| row.len() != n) {
+        return None;
+    }
+
+    let mut a = Vec::<f64>::new();
+    for (i, row) in covariance_matrix.iter().enumerate() {
+        for (j, entry) in row.iter().enumerate() {
+            match j > i {
+                true => a.push(0.0f64),
+                false => a.push(*entry as f64)
+            }
+        }
+    }
+
+    let mut w = vec![0.0; n];
+    let mut work = vec![0.0; 4 * n];
+    let lwork = 4 * n as i32;
+    let mut info = 0;
+
+    unsafe {
+        dsyev(
+            b'V', b'U', n as i32, &mut a, n as i32, &mut w, &mut work, lwork, &mut info,
+        );
+    }
+
+    if info != 0 {
+        eprintln!("FFI call to lapack failed with code {:?}", info);
+        return None;
+    }
+
+    Some(w)
 }
 
 #[cfg(test)]
@@ -171,6 +234,63 @@ mod tests {
             for y in 0..2 {
                 assert_relative_eq!(actual[x][y], expected[x][y], epsilon = 1.0e-5);
             }
+        }
+    }
+
+    #[test]
+    fn correct_eigen_values() {
+        let input = vec![
+            vec![8f32 / 3f32, 2f32 / 3f32],
+            vec![2f32 / 3f32, 2f32 / 3f32],
+        ];
+        let expected = vec![0.464816255364607f64, 2.868517177309801];
+        let actual = eigen_values(&input).unwrap();
+        for (e, a) in expected.iter().zip(actual) {
+            assert_relative_eq!(*e, a, epsilon = 1.0e-5);
+        }
+    }
+
+    #[test]
+    fn correct_eigen_values_2() {
+        let input = vec![
+            vec![1.96, 0.0, 0.0, 0.0, 0.0],
+            vec![-6.49, 3.80, 0.0, 0.0, 0.0],
+            vec![-0.47, -6.39, 4.17, 0.0, 0.0],
+            vec![-7.20, 1.50, -1.51, 5.70, 0.0],
+            vec![-0.65, -6.34, 2.67, 1.80, -7.10],
+        ];
+        let expected = vec![
+            -11.065575232626278f64,
+            -6.228746693721885,
+            0.8640280302358604,
+            8.865457026577943,
+            16.094836840924128,
+        ];
+        let actual = eigen_values(&input).unwrap();
+        for (e, a) in expected.iter().zip(actual) {
+            assert_relative_eq!(*e, a, epsilon = 1.0e-5);
+        }
+    }
+
+    #[test]
+    fn correct_eigen_values_3() {
+        let input = vec![
+            vec![1.96, -6.49, -0.47, -7.20, -0.65],
+            vec![-6.49, 3.80, -6.39, 1.50, -6.34],
+            vec![-0.47, -6.39, 4.17, 1.51, 2.67],
+            vec![-7.20, 1.50, -1.51, 5.70, 1.80],
+            vec![-0.65, -6.34, 2.67, 1.80, -7.10],
+        ];
+        let expected = vec![
+            -11.065575232626278f64,
+            -6.228746693721885,
+            0.8640280302358604,
+            8.865457026577943,
+            16.094836840924128,
+        ];
+        let actual = eigen_values(&input).unwrap();
+        for (e, a) in expected.iter().zip(actual) {
+            assert_relative_eq!(*e, a, epsilon = 1.0e-5);
         }
     }
 }
