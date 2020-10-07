@@ -583,9 +583,9 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.16"
+version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c30f6d0bc6b00693347368a67d41b58f2fb851215ff1da49e90fe2c5c667151"
+checksum = "5aca5565f760fb5b220e499d72710ed156fdb74e631659e99377d9ebfbd13ae8"
 dependencies = [
  "libc",
 ]
@@ -835,7 +835,7 @@ dependencies = [
  "num-rational",
  "num-traits",
  "rand 0.7.3",
- "rand_distr",
+ "rand_distr 0.2.2",
  "simba",
  "typenum",
 ]
@@ -1168,7 +1168,7 @@ dependencies = [
  "nalgebra",
  "openblas-src",
  "rand 0.7.3",
- "rand_distr",
+ "rand_distr 0.3.0",
  "rstar",
 ]
 
@@ -1302,6 +1302,16 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96977acbdd3a6576fb1d27391900035bf3863d4a16422973a409b488cf29ffb2"
 dependencies = [
+ "rand 0.7.3",
+]
+
+[[package]]
+name = "rand_distr"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9e9532ada3929fb8b2e9dbe28d1e06c9b2cc65813f074fcb6bd5fbefeff9d56"
+dependencies = [
+ "num-traits",
  "rand 0.7.3",
 ]
 

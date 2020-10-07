@@ -16,7 +16,7 @@ pub enum SupportedFileFormat {
 
 // Generic function to write a collection of points to disk.
 // File format will be decided upon by extension, defaulting to CSV.
-pub fn write(file_path: &Path, points: Vec<PointN>) -> () {
+pub fn write(file_path: &Path, points: Vec<PointN>) {
     let res = match get_file_extension(file_path) {
         SupportedFileFormat::CSV => csv::write(file_path, points),
         SupportedFileFormat::PLY => ply::write(file_path, points),

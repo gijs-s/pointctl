@@ -3,7 +3,7 @@ extern crate lapack;
 extern crate openblas_src;
 
 /// Get the mean of a vector of floats
-pub fn mean(data: &Vec<f32>) -> Option<f32> {
+pub fn mean(data: &[f32]) -> Option<f32> {
     let sum = data.iter().sum::<f32>();
     let count = data.len();
     match count {
@@ -13,7 +13,7 @@ pub fn mean(data: &Vec<f32>) -> Option<f32> {
 }
 
 /// Get the variance of a vector of floats
-pub fn variance(data: &Vec<f32>) -> Option<f32> {
+pub fn variance(data: &[f32]) -> Option<f32> {
     match (mean(&data), data.len()) {
         (Some(mean), count) if count > 0 => {
             let variance = data
@@ -31,7 +31,7 @@ pub fn variance(data: &Vec<f32>) -> Option<f32> {
 }
 
 /// Get the covariance between 2nd points
-pub fn covariance(x: &Vec<f32>, y: &Vec<f32>) -> Option<f32> {
+pub fn covariance(x: &[f32], y: &[f32]) -> Option<f32> {
     match (mean(x), mean(y), x.len() == y.len()) {
         // If the length of both vectors are equal and more than 0
         (Some(x_bar), Some(y_bar), true) => {
@@ -49,9 +49,9 @@ pub fn covariance(x: &Vec<f32>, y: &Vec<f32>) -> Option<f32> {
 }
 
 /// Transpose a list of nd points into n vectors with ||points|| entries
-fn transpose(data: &Vec<Vec<f32>>) -> Option<Vec<Vec<f32>>> {
+fn transpose(data: &[Vec<f32>]) -> Option<Vec<Vec<f32>>> {
     // If there are no points we can not create a covariance matrix
-    if data.len() == 0 {
+    if data.is_empty() {
         return None;
     };
 
@@ -62,7 +62,7 @@ fn transpose(data: &Vec<Vec<f32>>) -> Option<Vec<Vec<f32>>> {
         return None;
     }
     // Transpose the points
-    let accumulator: Vec<Vec<f32>> = (0..n).into_iter().map(|_| Vec::<f32>::new()).collect();
+    let accumulator: Vec<Vec<f32>> = (0..n).map(|_| Vec::<f32>::new()).collect();
     let transposed_data = data.iter().fold(accumulator, |mut acc, point| {
         for (acc_j, &p_j) in acc.iter_mut().zip(point) {
             acc_j.push(p_j)
@@ -73,8 +73,8 @@ fn transpose(data: &Vec<Vec<f32>>) -> Option<Vec<Vec<f32>>> {
 }
 
 /// Calculate the eigenvalues given a series of nd points.
-pub fn eigen_values_from_points(data: &Vec<Vec<f32>>) -> Option<Vec<f32>> {
-    match covariance_matrix(&data) {
+pub fn eigen_values_from_points(data: &[Vec<f32>]) -> Option<Vec<f32>> {
+    match covariance_matrix(data) {
         Some(v) => match eigen_values(&v) {
             Some((value, _)) => Some(value),
             None => None,
@@ -84,7 +84,7 @@ pub fn eigen_values_from_points(data: &Vec<Vec<f32>>) -> Option<Vec<f32>> {
 }
 
 /// For a set of nD points calculate the NxN covariance matrix.
-fn covariance_matrix(data: &Vec<Vec<f32>>) -> Option<Vec<Vec<f32>>> {
+fn covariance_matrix(data: &[Vec<f32>]) -> Option<Vec<Vec<f32>>> {
     // transpose the points
     let transposed_data = match transpose(&data) {
         Some(v) => v,
@@ -116,9 +116,9 @@ fn covariance_matrix(data: &Vec<Vec<f32>>) -> Option<Vec<Vec<f32>>> {
 }
 
 /// For a set of nD point calculate the variance within each dimension.
-pub fn variance_per_dimension(data: &Vec<Vec<f32>>) -> Option<Vec<f32>> {
+pub fn variance_per_dimension(data: &[Vec<f32>]) -> Option<Vec<f32>> {
     // transpose the points
-    let transposed_data = match transpose(&data) {
+    let transposed_data = match transpose(data) {
         Some(v) => v,
         None => return None,
     };
@@ -137,9 +137,9 @@ pub fn variance_per_dimension(data: &Vec<Vec<f32>>) -> Option<Vec<f32>> {
 ///
 /// where lambda(j) is its eigenvalue. The computed eigenvectors are orthonormal.
 /// https://software.intel.com/sites/products/documentation/doclib/mkl_sa/11/mkl_lapack_examples/dsyev_ex.c.htm
-fn eigen_values(covariance_matrix: &Vec<Vec<f32>>) -> Option<(Vec<f32>, Vec<Vec<f32>>)> {
+fn eigen_values(covariance_matrix: &[Vec<f32>]) -> Option<(Vec<f32>, Vec<Vec<f32>>)> {
     // If there are no points we can not create a covariance matrix
-    if covariance_matrix.len() == 0 {
+    if covariance_matrix.is_empty() {
         return None;
     };
 
@@ -173,8 +173,8 @@ fn eigen_values(covariance_matrix: &Vec<Vec<f32>>) -> Option<(Vec<f32>, Vec<Vec<
         );
     }
 
-    if info != 0 {
-        eprintln!("FFI call to lapack failed with code {:?}", info);
+    if info > 0 {
+        eprintln!("FFI dsyev call to lapack failed with code {:?}", info);
         return None;
     }
 
@@ -266,9 +266,9 @@ mod tests {
         let input = vec![
             vec![3.0, 2.0, 4.0],
             vec![2.0, 0.0, 2.0],
-            vec![4.0, 2.0, 3.0]
+            vec![4.0, 2.0, 3.0],
         ];
-        let expected_values = vec![-1.0, -1.0,  8.0];
+        let expected_values = vec![-1.0, -1.0, 8.0];
 
         // Run the calculation
         let (actual_values, _) = eigen_values(&input).unwrap();

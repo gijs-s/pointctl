@@ -26,30 +26,30 @@ pub enum Neighborhood {
 
 pub fn run_da_silva_variance(
     reduced_points: Vec<Point3<f32>>,
-    original_points: &Vec<PointN>,
+    original_points: &[PointN],
     neighborhood_size: Neighborhood,
 ) -> Vec<DaSilvaExplanation> {
-    let da_silva_mechanism = da_silva::DaSilvaState::new(reduced_points, &original_points);
+    let da_silva_mechanism = da_silva::DaSilvaState::new(reduced_points, original_points);
     da_silva_mechanism.explain(neighborhood_size)
 }
 
 pub fn run_da_silva_variance_indexed(
     indexed_points: Vec<IndexedPoint3D>,
-    original_points: &Vec<PointN>,
+    original_points: &[PointN],
     neighborhood_size: Neighborhood,
 ) -> Vec<DaSilvaExplanation> {
     let da_silva_mechanism =
-        da_silva::DaSilvaState::new_with_indexed_point(indexed_points, &original_points);
+        da_silva::DaSilvaState::new_with_indexed_point(indexed_points, original_points);
     da_silva_mechanism.explain(neighborhood_size)
 }
 
 pub fn run_van_driel(
     reduced_points: Vec<Point3<f32>>,
-    original_points: &Vec<PointN>,
+    original_points: &[PointN],
     neighborhood_size: Neighborhood,
 ) -> Vec<VanDrielExplanation> {
     // TODO: Remove dummy value
     let theta = 0.3f32;
-    let van_driel_mechanism = driel::VanDrielState::new(reduced_points, &original_points, theta);
+    let van_driel_mechanism = driel::VanDrielState::new(reduced_points, original_points, theta);
     van_driel_mechanism.explain(neighborhood_size)
 }

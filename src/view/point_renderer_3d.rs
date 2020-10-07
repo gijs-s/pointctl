@@ -102,8 +102,8 @@ impl PointRenderer3D {
     /// Insert a single point with a color
     pub fn push(&mut self, point: Point3<f32>, color: Point3<f32>) {
         self.point_data.push(PointData {
-            point: point,
-            color: color,
+            point,
+            color,
             projected_z: 0.0f32,
         });
     }
@@ -339,7 +339,7 @@ impl Renderer for PointRenderer3D {
 /// The continous rendering needs work. The points are being drawn in an arbirary order, this causes trouble when blending.
 
 /// Vertex shader used by the point renderer
-const VERTEX_SHADER_SRC_3D: &'static str = "#version 460
+const VERTEX_SHADER_SRC_3D: &str = "#version 460
     // Input to this shader
     layout (location = 0) in vec3 position;
     layout (location = 1) in vec3 color;
@@ -431,7 +431,7 @@ const VERTEX_SHADER_SRC_3D: &'static str = "#version 460
     }";
 
 /// Fragment shader used by the point renderer
-const FRAGMENT_SHADER_SRC_3D: &'static str = "#version 460
+const FRAGMENT_SHADER_SRC_3D: &str = "#version 460
 #ifdef GL_FRAGMENT_PRECISION_HIGH
    precision highp float;
 #else

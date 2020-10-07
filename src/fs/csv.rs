@@ -36,7 +36,7 @@ pub fn write(file_path: &Path, points: Vec<PointN>) -> std::io::Result<()> {
 pub fn read(file_path: &Path) -> std::io::Result<(Vec<PointN>, usize, Vec<String>)> {
     let buffer = BufReader::new(File::open(file_path)?);
 
-    let mut raw_lines = buffer.lines().into_iter();
+    let mut raw_lines = buffer.lines();
 
     let header = match raw_lines.next() {
         None => {

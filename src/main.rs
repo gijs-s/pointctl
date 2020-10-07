@@ -228,21 +228,21 @@ fn explain_command(matches: &ArgMatches) {
     // Retrieve the points from the original dataset
     let original_data_path = matches.value_of("original_data").unwrap();
     let original_data = Path::new(original_data_path);
-    let (original_points, n, _) = read(original_data);
+    let (original_points, dimension_count, _) = read(original_data);
     println!(
         "Original data loaded. Consists of {} points with {} dimensions",
         original_points.len(),
-        n
+        dimension_count
     );
 
     // Retrieve the points from the reduced dataset
     let reduced_data_path = matches.value_of("reduced_data").unwrap();
     let reduced_data = Path::new(reduced_data_path);
-    let (reduced_points, r, _) = read(reduced_data);
+    let (reduced_points, dimension_count, _) = read(reduced_data);
     println!(
         "Reduced data loaded. Consists of {} points with {} dimensions",
         reduced_points.len(),
-        r
+        dimension_count
     );
 
     // Convert reduced data to 3D nalgebra points with optional zero padding
@@ -321,11 +321,11 @@ fn view_command(matches: &ArgMatches) {
     let reduced_points_3d = match matches.value_of("reduced_data_3d") {
         None => None,
         Some(reduced_data_path) => {
-            let (reduced_data, r, _) = read(Path::new(reduced_data_path));
+            let (reduced_data, dimension_count, _) = read(Path::new(reduced_data_path));
             println!(
                 "Reduced 3D data loaded. Consists of {} points with {} dimensions",
                 reduced_data.len(),
-                r
+                dimension_count
             );
 
             // Convert reduced data to 3D nalgebra points with optional zero padding

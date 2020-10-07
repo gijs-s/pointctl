@@ -2,7 +2,6 @@
 extern crate nalgebra as na;
 
 use na::{Point2, Point3};
-use rstar;
 use rstar::{Envelope, PointDistance, RStarInsertionStrategy, RTree, RTreeObject, RTreeParams};
 
 use super::{da_silva::DaSilvaExplanation, driel::VanDrielExplanation};
@@ -108,7 +107,8 @@ impl rstar::PointDistance for IndexedPoint2D {
     }
 
     fn contains_point(&self, point: &[f32; 2]) -> bool {
-        self.x == point[0] && self.y == point[1]
+        let error = 1.0e-6;
+        (self.x - point[0]) < error && (self.y - point[1]) < error
     }
 
     fn distance_2_if_less_or_equal(&self, point: &[f32; 2], max_distance_2: f32) -> Option<f32> {
@@ -123,13 +123,11 @@ impl rstar::PointDistance for IndexedPoint2D {
 
 impl rstar::PointDistance for AnnotatedPoint<IndexedPoint2D> {
     fn distance_2(&self, point: &[f32; 2]) -> f32 {
-        let x: f32 = point[0] - self.point.x;
-        let y: f32 = point[1] - self.point.y;
-        x.powi(2) + y.powi(2)
+        self.point.distance_2(point)
     }
 
     fn contains_point(&self, point: &[f32; 2]) -> bool {
-        self.point.x == point[0] && self.point.y == point[1]
+        self.point.contains_point(point)
     }
 
     fn distance_2_if_less_or_equal(&self, point: &[f32; 2], max_distance_2: f32) -> Option<f32> {
@@ -145,13 +143,14 @@ impl rstar::PointDistance for AnnotatedPoint<IndexedPoint2D> {
 impl rstar::PointDistance for IndexedPoint3D {
     fn distance_2(&self, point: &[f32; 3]) -> f32 {
         let x = point[0] - self.x;
-        let y: f32 = point[1] - self.y;
+        let y = point[1] - self.y;
         let z = point[2] - self.z;
         x.powi(2) + y.powi(2) + z.powi(2)
     }
 
     fn contains_point(&self, point: &[f32; 3]) -> bool {
-        self.x == point[0] && self.y == point[1] && self.z == point[2]
+        let error = 1.0e-6;
+        (self.x - point[0]) < error && (self.y - point[1]) < error && (self.z - point[2]) < error
     }
 
     fn distance_2_if_less_or_equal(&self, point: &[f32; 3], max_distance_2: f32) -> Option<f32> {
@@ -166,14 +165,11 @@ impl rstar::PointDistance for IndexedPoint3D {
 
 impl rstar::PointDistance for AnnotatedPoint<IndexedPoint3D> {
     fn distance_2(&self, point: &[f32; 3]) -> f32 {
-        let x = point[0] - self.point.x;
-        let y: f32 = point[1] - self.point.y;
-        let z = point[2] - self.point.z;
-        x.powi(2) + y.powi(2) + z.powi(2)
+        self.point.distance_2(point)
     }
 
     fn contains_point(&self, point: &[f32; 3]) -> bool {
-        self.point.x == point[0] && self.point.y == point[1] && self.point.z == point[2]
+        self.point.contains_point(point)
     }
 
     fn distance_2_if_less_or_equal(&self, point: &[f32; 3], max_distance_2: f32) -> Option<f32> {
@@ -200,14 +196,14 @@ impl Distance for Point3<f32> {
     }
 
     fn sq_distance(&self, other: &Self) -> f32 {
-        let x: f32 = &self.x - &other.x;
-        let y: f32 = &self.y - &other.y;
-        let z: f32 = &self.z - &other.z;
+        let x: f32 = self.x - other.x;
+        let y: f32 = self.y - other.y;
+        let z: f32 = self.z - other.z;
         x * x + y * y + z * z
     }
 }
 
-impl Distance for PointN {
+impl Distance for [f32] {
     fn distance(&self, other: &Self) -> f32 {
         self.sq_distance(other).sqrt()
     }

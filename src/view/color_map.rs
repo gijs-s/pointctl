@@ -127,7 +127,7 @@ impl ColorMap {
         // TODO: Is the brightness scale correct?
         // TODO: Make this scaling changeable
         let brightness = color.z * scale;
-        return Point3::new(color.x, color.y, brightness);
+        Point3::new(color.x, color.y, brightness)
     }
 
     /// Convert a color to one that can be used by the conrod ui

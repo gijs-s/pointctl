@@ -31,7 +31,7 @@ pub struct VanDrielExplanation {
 
 impl VanDrielExplanation {
     /// Rank the dimensions on how many times they occur
-    pub fn calculate_dimension_rankings(explanations: &Vec<VanDrielExplanation>) -> Vec<usize> {
+    pub fn calculate_dimension_rankings(explanations: &[VanDrielExplanation]) -> Vec<usize> {
         if explanations.is_empty() {
             return Vec::<usize>::new();
         }
@@ -58,7 +58,7 @@ impl VanDrielExplanation {
             .collect::<Vec<usize>>()
     }
 
-    pub fn confidence_bounds(explanations: &Vec<VanDrielExplanation>) -> (f32, f32) {
+    pub fn confidence_bounds(explanations: &[VanDrielExplanation]) -> (f32, f32) {
         let min = explanations
             .iter()
             .map(|v| v.confidence)
@@ -82,7 +82,7 @@ enum VanDrielType {
 /// Struct containing the state of the van driel explanation mechanism
 pub struct VanDrielState<'a> {
     pub rtree: RTree<IndexedPoint3D>,
-    pub original_points: &'a Vec<PointN>,
+    pub original_points: &'a [PointN],
     // theta value uses in the calculation
     pub theta: f32,
     explanation_type: VanDrielType,
@@ -103,7 +103,6 @@ impl<'a> Explanation<VanDrielExplanation> for VanDrielState<'a> {
 
         // For each point and neighborhood calculate the da silva metric
         let ranking_vectors: Vec<_> = (0..self.get_point_count())
-            .into_iter()
             .zip(&neighborhoods)
             .map(|(index, neighborhood)| {
                 // TODO expand this
@@ -119,7 +118,7 @@ impl<'a> Explanation<VanDrielExplanation> for VanDrielState<'a> {
 impl<'a> VanDrielState<'a> {
     pub fn new(
         reduced_points: Vec<Point3<f32>>,
-        original_points: &'a Vec<PointN>,
+        original_points: &'a [PointN],
         theta: f32,
     ) -> VanDrielState<'a> {
         let indexed_points: Vec<IndexedPoint3D> = reduced_points
@@ -137,7 +136,7 @@ impl<'a> VanDrielState<'a> {
 
     pub fn new_with_indexed_point(
         indexed_points: Vec<IndexedPoint3D>,
-        original_points: &'a Vec<PointN>,
+        original_points: &'a [PointN],
         theta: f32,
     ) -> VanDrielState<'a> {
         let rtree = RTree::<IndexedPoint3D>::bulk_load_with_params(indexed_points);
@@ -149,7 +148,16 @@ impl<'a> VanDrielState<'a> {
         }
     }
 
-    fn get_eigen_values(&self, _neighborhood: &NeighborIndices) -> Vec<f32> {
-        unimplemented!()
+    fn get_eigen_values(&self, neighborhood_indices: &[usize]) -> Vec<f32> {
+        // TODO: Clone is bad mkay
+        let neighbor_points: Vec<Vec<f32>> = neighborhood_indices
+            .iter()
+            .map(|index| self.original_points[*index].clone())
+            .collect();
+        // Get eigen values sorted asc
+        let mut eigen_values = math::eigen_values_from_points(&neighbor_points).unwrap();
+        // Reverse the order to get the largest eigenvalue first.
+        eigen_values.reverse();
+        eigen_values
     }
 }

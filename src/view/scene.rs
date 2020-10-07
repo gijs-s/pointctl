@@ -78,7 +78,7 @@ impl Scene {
             dimensionality_mode: DimensionalityMode::ThreeD,
             state_2d: None,
             state_3d: None,
-            original_points: original_points,
+            original_points,
             dimension_names,
             conrod_ids,
             ui_state: UIState::new(),
@@ -252,17 +252,17 @@ impl Scene {
     }
 
     /// Retrieve the current rendering mode for interaction.
-    pub fn current_render_mode(&self) -> Box<&dyn PointRendererInteraction> {
+    pub fn current_render_mode(&self) -> &dyn PointRendererInteraction {
         match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &self.state_2d {
-                Some(state) => Box::new(&state.renderer),
+                Some(state) => &state.renderer,
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
                 }
             },
             DimensionalityMode::ThreeD => match &self.state_3d {
-                Some(state) => Box::new(&state.renderer),
+                Some(state) => &state.renderer,
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
@@ -272,17 +272,17 @@ impl Scene {
     }
 
     /// Retrieve the current rendering mode for interaction.
-    pub fn current_render_mode_mut(&mut self) -> Box<&mut dyn PointRendererInteraction> {
+    pub fn current_render_mode_mut(&mut self) -> &mut dyn PointRendererInteraction {
         match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &mut self.state_2d {
-                Some(state) => Box::new(&mut state.renderer),
+                Some(state) => &mut state.renderer,
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
                 }
             },
             DimensionalityMode::ThreeD => match &mut self.state_3d {
-                Some(state) => Box::new(&mut state.renderer),
+                Some(state) => &mut state.renderer,
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
@@ -431,6 +431,7 @@ impl Scene {
 impl ExtendedState for Scene {
     // Return the required custom renderer that will be called at each
     // render loop.
+    #[allow(clippy::type_complexity)]
     fn cameras_and_effect_and_renderers(
         &mut self,
     ) -> (
@@ -485,20 +486,18 @@ pub fn display(
     let mut scene = Scene::new(original_points, dimension_names, conrod_ids);
 
     // Add the 2D points if they were provided
-    if points_2d.is_some() {
-        scene.load_2d(points_2d.unwrap());
-
-        if explanations_2d.is_some() {
-            scene.load_da_silva_2d(explanations_2d.unwrap());
+    if let Some(points) = points_2d {
+        scene.load_2d(points);
+        if let Some(explanations) = explanations_2d {
+            scene.load_da_silva_2d(explanations);
         }
     }
 
     // Add the 3D points if they were provided
-    if points_3d.is_some() {
-        scene.load_3d(points_3d.unwrap());
-
-        if explanations_3d.is_some() {
-            scene.load_da_silva_3d(explanations_3d.unwrap());
+    if let Some(points) = points_3d {
+        scene.load_3d(points);
+        if let Some(explanations) = explanations_3d {
+            scene.load_da_silva_3d(explanations);
         }
     }
 

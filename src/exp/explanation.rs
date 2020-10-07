@@ -21,6 +21,7 @@ pub trait Explanation<T> {
 
     // Normalize a local contrib of a dimension using the global contrib of said dimension.
     // this function lines up with formula 3 in the da silva paper
+    #[allow(clippy::useless_conversion, clippy::ptr_arg)]
     fn normalize_rankings(
         local_contributions: LocalContributions,
         global_contributions: &GlobalContribution,

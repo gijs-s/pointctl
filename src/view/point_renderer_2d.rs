@@ -287,7 +287,7 @@ impl PlanarRenderer for PointRenderer2D {
     }
 }
 
-const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
+const VERTEX_SHADER_SRC_2D: &str = "#version 460
     // Input to this shader
     layout (location = 0) in vec2 position;
     layout (location = 1) in vec3 color;
@@ -386,7 +386,7 @@ const VERTEX_SHADER_SRC_2D: &'static str = "#version 460
     }";
 
 /// Fragment shader used by the point renderer
-const FRAGMENT_SHADER_SRC_2D: &'static str = "#version 460
+const FRAGMENT_SHADER_SRC_2D: &str = "#version 460
 #ifdef GL_FRAGMENT_PRECISION_HIGH
    precision highp float;
 #else

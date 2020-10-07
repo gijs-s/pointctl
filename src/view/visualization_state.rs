@@ -92,7 +92,7 @@ impl VisualizationState3D {
             camera: VisualizationState3D::get_default_camera(),
             tree: rtree,
             renderer: point_renderer,
-            color_maps: color_maps,
+            color_maps,
             explanation: ExplanationMode::None,
         }
     }
@@ -133,7 +133,7 @@ impl VisualizationState3D {
     pub fn run_explanation_mode(
         &mut self,
         mode: ExplanationMode,
-        original_points: &Vec<PointN>,
+        original_points: &[PointN],
         neighborhood_size: exp::Neighborhood,
     ) {
         // render mode is already loaded, first remove it
@@ -145,7 +145,7 @@ impl VisualizationState3D {
             ExplanationMode::DaSilva => {
                 let points = self.tree.iter().map(|ann| ann.point).collect();
                 let da_silva_explanation =
-                    exp::run_da_silva_variance_indexed(points, &original_points, neighborhood_size);
+                    exp::run_da_silva_variance_indexed(points, original_points, neighborhood_size);
                 self.load(da_silva_explanation);
                 self.set_explanation_mode(mode);
             }
@@ -283,7 +283,7 @@ impl VisualizationState2D {
                     y: point.y,
                 };
                 AnnotatedPoint::<IndexedPoint2D> {
-                    point: point,
+                    point,
                     da_silva: None,
                     van_driel: None,
                 }
@@ -312,7 +312,7 @@ impl VisualizationState2D {
             camera: VisualizationState2D::get_default_camera(),
             tree: rtree,
             renderer: point_renderer,
-            color_maps: color_maps,
+            color_maps,
             explanation: ExplanationMode::None,
         }
     }
@@ -375,7 +375,7 @@ impl VisualizationState2D {
     pub fn run_explanation_mode(
         &mut self,
         mode: ExplanationMode,
-        original_points: &Vec<PointN>,
+        original_points: &[PointN],
         neighborhood_size: exp::Neighborhood,
     ) {
         // render mode is already loaded, first remove it
@@ -391,7 +391,7 @@ impl VisualizationState2D {
                     .map(|ann| ann.point.into())
                     .collect::<Vec<IndexedPoint3D>>();
                 let da_silva_explanation =
-                    exp::run_da_silva_variance_indexed(points, &original_points, neighborhood_size);
+                    exp::run_da_silva_variance_indexed(points, original_points, neighborhood_size);
                 self.load(da_silva_explanation);
                 self.set_explanation_mode(mode);
             }

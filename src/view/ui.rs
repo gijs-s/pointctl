@@ -8,12 +8,11 @@ use kiss3d::{
 };
 
 // Internal imports
+use super::scene::Scene;
 use crate::{
     exp::Neighborhood,
-    view::{color_map::ColorMap, view::Scene, DimensionalityMode},
+    view::{ColorMap, DimensionalityMode, ExplanationMode, RenderMode},
 };
-
-use super::{ExplanationMode, RenderMode};
 
 // Generate a unique `WidgetId` for each widget.
 widget_ids! {
@@ -430,7 +429,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     let mut text_slider_value = scene.get_gamma().to_string();
     text_slider_value.truncate(5);
 
-    for gamma in widget::Slider::new(scene.get_gamma(), GAMMA_MIN_MAX.0, GAMMA_MIN_MAX.1)
+    if let Some(gamma) = widget::Slider::new(scene.get_gamma(), GAMMA_MIN_MAX.0, GAMMA_MIN_MAX.1)
         .label(&text_slider_value)
         .label_font_size(FONT_SIZE - 1)
         .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
@@ -468,7 +467,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             let mut text_slider_value = scene.get_point_size().to_string();
             text_slider_value.truncate(5);
 
-            for point_size in widget::Slider::new(
+            if let Some(point_size) = widget::Slider::new(
                 scene.get_point_size(),
                 scene.get_default_point_size() / 4f32,
                 scene.get_default_point_size() * 4f32,
@@ -507,7 +506,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             let mut text_slider_value = scene.get_blob_size().to_string();
             text_slider_value.truncate(5);
 
-            for blob_size in widget::Slider::new(
+            if let Some(blob_size) = widget::Slider::new(
                 scene.get_blob_size(),
                 scene.get_default_blob_size() / 4f32,
                 scene.get_default_blob_size() * 4f32,
@@ -549,7 +548,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         // Create the slider and metric switch button
         match scene.ui_state.neighborhood_type {
             NeighborhoodType::R => {
-                for radius_value in widget::Slider::new(
+                if let Some(radius_value) = widget::Slider::new(
                     scene.ui_state.r,
                     NEIGHBORHOOD_R_MIN_MAX.0,
                     NEIGHBORHOOD_R_MIN_MAX.1,
@@ -568,7 +567,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             }
             NeighborhoodType::K => {
                 // Hack: usize sliders are not supported, need to make the slider one for floats and cast to usize every time.
-                for neighborhood_size in widget::Slider::new(
+                if let Some(neighborhood_size) = widget::Slider::new(
                     scene.ui_state.k as f32,
                     NEIGHBORHOOD_K_MIN_MAX.0 as f32,
                     NEIGHBORHOOD_K_MIN_MAX.1 as f32,
