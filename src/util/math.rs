@@ -127,7 +127,8 @@ pub fn variance_per_dimension(data: &Vec<Vec<f32>>) -> Option<Vec<f32>> {
     transposed_data.iter().map(|dim| variance(dim)).collect()
 }
 
-/// Retrieve the eigen values from the covariance matrix using lapack dsyev
+/// Retrieve the eigen values from the covariance matrix using lapack dsyev.
+/// It will return the eigen values asc with the vectors in the same order.
 ///
 /// The routine computes all eigenvalues and, optionally, eigenvectors of an
 /// n-by-n real symmetric matrix A. The eigenvector v(j) of A satisfies
@@ -164,6 +165,8 @@ fn eigen_values(covariance_matrix: &Vec<Vec<f32>>) -> Option<(Vec<f32>, Vec<Vec<
     let lwork = 4 * n as i32;
     let mut info = 0;
 
+    // Numpy uses the slower more general ?geev versions, we do not need this because the covariance matrix
+    // is symmetric and this is _much_ faster.
     unsafe {
         lapack::dsyev(
             b'V', b'U', n as i32, &mut a, n as i32, &mut w, &mut work, lwork, &mut info,
@@ -180,6 +183,7 @@ fn eigen_values(covariance_matrix: &Vec<Vec<f32>>) -> Option<(Vec<f32>, Vec<Vec<
     for (index, x) in a.into_iter().enumerate() {
         eigen_vectors[index % n].push(x as f32);
     }
+
     Some((eigen_values, eigen_vectors))
 }
 
@@ -258,6 +262,25 @@ mod tests {
 
     #[test]
     fn correct_eigen_values_2() {
+        // based on https://stackoverflow.com/questions/32327760/how-to-use-dsyev-routine-to-calculate-eigenvalues
+        let input = vec![
+            vec![3.0, 2.0, 4.0],
+            vec![2.0, 0.0, 2.0],
+            vec![4.0, 2.0, 3.0]
+        ];
+        let expected_values = vec![-1.0, -1.0,  8.0];
+
+        // Run the calculation
+        let (actual_values, _) = eigen_values(&input).unwrap();
+
+        // Check the eigen values
+        for (e, a) in expected_values.iter().zip(actual_values) {
+            assert_relative_eq!(*e, a, epsilon = 1.0e-5);
+        }
+    }
+
+    #[test]
+    fn correct_eigen_values_3() {
         let input = vec![
             vec![1.96, 0.0, 0.0, 0.0, 0.0],
             vec![-6.49, 3.80, 0.0, 0.0, 0.0],
@@ -300,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn correct_eigen_values_3() {
+    fn correct_eigen_values_4() {
         let input = vec![
             vec![1.96, -6.49, -0.47, -7.20, -0.65],
             vec![-6.49, 3.80, -6.39, 1.50, -6.34],
