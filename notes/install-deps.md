@@ -10,7 +10,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 If you do not feel comfortable piping a website into shell I completely understand, read up about how to do manual installs here: https://www.rust-lang.org/tools/install
 
-For the rendering library you will also need `libxcb-xinput-dev` and `libxcb1-dev` if you are running on linux. For the math section I use `lapack` which relies on `openblas`, this requires `gfortran` to be compiled in the background.
+For the rendering library you will also need `libxcb-xinput-dev` and `libxcb1-dev` if you are running on linux. For the math section I use `lapack` which relies on `openblas`, this requires `gfortran` and `libgfortran-{7,8,9}-dev` to be compiled in the background.
 
 ## Cuda
 
