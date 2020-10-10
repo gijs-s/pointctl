@@ -148,6 +148,7 @@ impl<'a> VanDrielState<'a> {
         }
     }
 
+    /// Get the min/max normalized eigen vectors of the neighborhood sorted desc
     fn get_eigen_values(&self, neighborhood_indices: &[usize]) -> Vec<f32> {
         // TODO: Clone is bad mkay
         let neighbor_points: Vec<Vec<f32>> = neighborhood_indices
@@ -158,6 +159,10 @@ impl<'a> VanDrielState<'a> {
         let mut eigen_values = math::eigen_values_from_points(&neighbor_points).unwrap();
         // Reverse the order to get the largest eigenvalue first.
         eigen_values.reverse();
-        eigen_values
+
+        // min max normalization
+        let min = eigen_values.iter().fold(f32::INFINITY, |a, &b| a.min(b));
+        let max = eigen_values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+        eigen_values.into_iter().map(|v| (v - min) / (max - min)).collect()
     }
 }
