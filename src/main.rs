@@ -11,7 +11,7 @@ use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 // Local imports
 use pc::{
     exp,
-    fs::prelude::{read, write},
+    filesystem::{read, write},
     generate,
     util::validator,
     view::display,
