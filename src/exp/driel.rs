@@ -101,17 +101,19 @@ impl<'a> Explanation<VanDrielExplanation> for VanDrielState<'a> {
         // For each point get the indices of the neighbors
         let neighborhoods = self.get_neighbor_indices(neighborhood_size);
 
-        // For each point and neighborhood calculate the da silva metric
-        let ranking_vectors: Vec<_> = (0..self.get_point_count())
+        (0..self.get_point_count())
             .zip(&neighborhoods)
             .map(|(index, neighborhood)| {
                 // TODO expand this
                 let eigenvalues_sorted = self.get_eigen_values(neighborhood);
+                // total variance calculation from table 1
+                let dimensionality = self.get_dimensionality(&eigenvalues_sorted);
+                VanDrielExplanation {
+                    dimension: dimensionality,
+                    confidence: self.get_confidence(&eigenvalues_sorted, dimensionality),
+                }
             })
-            .collect();
-
-        // TODO: Implement
-        unimplemented!()
+            .collect::<Vec<VanDrielExplanation>>()
     }
 }
 
@@ -156,6 +158,37 @@ impl<'a> VanDrielState<'a> {
             .map(|index| self.original_points[*index].clone())
             .collect();
         // Get eigen values
-        math::eigen_values_from_points(&neighbor_points).unwrap()
+        let eigenvalues = math::eigen_values_from_points(&neighbor_points).unwrap();
+        // Get the absolute eigen values
+        let mut abs_eigenvalues: Vec<f32> = eigenvalues.into_iter().map(|v| v.abs()).collect();
+        // Sort in descending order
+        abs_eigenvalues.sort_by(|a, b| b.partial_cmp(&a).unwrap_or(Ordering::Equal));
+        abs_eigenvalues
+    }
+
+    /// Get the dimensionality from the eigenvalues
+    fn get_dimensionality(&self, eigenvalues: &Vec<f32>) -> usize {
+        let sum_eigen_value = eigenvalues.iter().sum::<f32>();
+        // Check how many dimensions are needed to exceed theta
+        for i in 1..eigenvalues.len() {
+            if (eigenvalues.iter().take(i).sum::<f32>() / sum_eigen_value) >= self.theta {
+                return i;
+            }
+        }
+        // fallback, we need all dimension
+        eigenvalues.len()
+    }
+
+    /// Get the confidence from the eigenvalues
+    fn get_confidence(&self, eigenvalues: &Vec<f32>, dimensionality: usize) -> f32 {
+        let sum_eigen_value = eigenvalues.iter().sum::<f32>();
+        let average_eigen_value = sum_eigen_value / eigenvalues.len() as f32;
+        1.0f32
+            - (eigenvalues
+                .iter()
+                .take(dimensionality)
+                .map(|v| v - average_eigen_value)
+                .sum::<f32>()
+                / sum_eigen_value)
     }
 }
