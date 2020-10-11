@@ -49,7 +49,7 @@ pub fn run_van_driel(
     neighborhood_size: Neighborhood,
 ) -> Vec<VanDrielExplanation> {
     // TODO: Remove dummy value
-    let theta = 0.3f32;
+    let theta = 0.5f32;
     let van_driel_mechanism = driel::VanDrielState::new(reduced_points, original_points, theta);
     van_driel_mechanism.explain(neighborhood_size)
 }
@@ -60,7 +60,7 @@ pub fn run_van_driel_indexed(
     neighborhood_size: Neighborhood,
 ) -> Vec<VanDrielExplanation> {
     // TODO: Remove dummy value
-    let theta = 0.3f32;
+    let theta = 0.5f32;
     let van_driel_mechanism = driel::VanDrielState::new_with_indexed_point(indexed_points, original_points, theta);
     van_driel_mechanism.explain(neighborhood_size)
 }

@@ -36,7 +36,7 @@ impl VanDrielExplanation {
             return Vec::<usize>::new();
         }
 
-        let max_dimension_index = explanations.iter().map(|exp| exp.dimension).max().unwrap();
+        let max_dimension_index = explanations.iter().map(|exp| exp.dimension).max().unwrap() + 1;
         let mut ranking_counts = explanations
             .iter()
             .map(|exp| exp.dimension)
@@ -104,14 +104,20 @@ impl<'a> Explanation<VanDrielExplanation> for VanDrielState<'a> {
         (0..self.get_point_count())
             .zip(&neighborhoods)
             .map(|(index, neighborhood)| {
-                // TODO expand this
-                let eigenvalues_sorted = self.get_eigen_values(neighborhood);
-                // total variance calculation from table 1
-                let dimensionality = self.get_dimensionality(&eigenvalues_sorted);
-                VanDrielExplanation {
-                    dimension: dimensionality,
-                    confidence: self.get_confidence(&eigenvalues_sorted, dimensionality),
+                match neighborhood.len() {
+                    0usize => VanDrielExplanation { dimension: 1, confidence: 0.0f32},
+                    _ => {
+                        // Get the eigen values
+                        let eigenvalues_sorted = self.get_eigen_values(neighborhood);
+                        // total variance calculation from table 1
+                        let dimensionality = self.get_dimensionality(&eigenvalues_sorted);
+                        VanDrielExplanation {
+                            dimension: dimensionality,
+                            confidence: self.get_confidence(&eigenvalues_sorted, dimensionality),
+                        }
+                    }
                 }
+
             })
             .collect::<Vec<VanDrielExplanation>>()
     }
@@ -160,10 +166,10 @@ impl<'a> VanDrielState<'a> {
         // Get eigen values
         let eigenvalues = math::eigen_values_from_points(&neighbor_points).unwrap();
         // Get the absolute eigen values
-        let mut abs_eigenvalues: Vec<f32> = eigenvalues.into_iter().map(|v| v.abs()).collect();
+        let mut eigenvalues: Vec<f32> = eigenvalues.into_iter().map(|v| v.abs()).collect();
         // Sort in descending order
-        abs_eigenvalues.sort_by(|a, b| b.partial_cmp(&a).unwrap_or(Ordering::Equal));
-        abs_eigenvalues
+        eigenvalues.sort_by(|a, b| b.partial_cmp(&a).unwrap_or(Ordering::Equal));
+        eigenvalues
     }
 
     /// Get the dimensionality from the eigenvalues

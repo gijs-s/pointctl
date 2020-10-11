@@ -311,8 +311,12 @@ impl Scene {
         }
     }
 
-    pub fn get_dimension_name(&self, index: &usize) -> Option<&String> {
-        self.dimension_names.get(*index)
+    pub fn get_dimension_name(&self, index: &usize) -> Option<String> {
+        match self.get_explanation_mode() {
+            ExplanationMode::DaSilva => self.dimension_names.get(*index).and_then(|v| Some(v.clone())),
+            ExplanationMode::VanDriel => Some(format!("{} Dimension(s)", (index + 1))),
+            ExplanationMode::None => None,
+        }
     }
 
     /// Switch between rendering the continous and discreet point cloud representation
