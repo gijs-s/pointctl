@@ -24,9 +24,6 @@ rand_distr = "*"
 rstar = "*"
 # Used for better comparison for floating point numbers
 approx = "^0.3"
-# Fortan based linear algebra library.
-lapack = "0.16.0"
-openblas-src = "0.9"
 
 # Used for calling CUDA FFI
 # rustacuda = "0.1"

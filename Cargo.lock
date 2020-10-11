@@ -682,26 +682,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lapack"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46e1a9738b713f1f07481e8f5999ce1e4f7e076938364c69ae00465d0feffa3d"
-dependencies = [
- "lapack-sys",
- "libc",
- "num-complex",
-]
-
-[[package]]
-name = "lapack-sys"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1d3a8a9f07310243de6c6226f039f14bce8d2f4c96b5d30ddbcfa31eb4e94ad"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1007,12 +987,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ab52be62400ca80aa00285d25253d7f7c437b7375c4de678f5405d3afe82ca5"
 
 [[package]]
-name = "openblas-src"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84629d1d4f9f40d3f9e4756dae33c6af50d3c2fcc186558dac65bf55141ade6b"
-
-[[package]]
 name = "ordered-float"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1164,9 +1138,7 @@ dependencies = [
  "approx",
  "clap",
  "kiss3d",
- "lapack",
  "nalgebra",
- "openblas-src",
  "rand 0.7.3",
  "rand_distr 0.3.0",
  "rstar",

@@ -2,7 +2,6 @@ extern crate nalgebra as na;
 
 use std::rc::Rc;
 
-
 use rstar::RTree;
 
 use crate::exp::{DaSilvaExplanation, VanDrielExplanation};

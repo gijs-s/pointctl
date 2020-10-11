@@ -155,14 +155,7 @@ impl<'a> VanDrielState<'a> {
             .iter()
             .map(|index| self.original_points[*index].clone())
             .collect();
-        // Get eigen values sorted asc
-        let mut eigen_values = math::eigen_values_from_points(&neighbor_points).unwrap();
-        // Reverse the order to get the largest eigenvalue first.
-        eigen_values.reverse();
-
-        // min max normalization
-        let min = eigen_values.iter().fold(f32::INFINITY, |a, &b| a.min(b));
-        let max = eigen_values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-        eigen_values.into_iter().map(|v| (v - min) / (max - min)).collect()
+        // Get eigen values
+        math::eigen_values_from_points(&neighbor_points).unwrap()
     }
 }
