@@ -15,6 +15,9 @@ pub struct ColorMap {
     // TODO: store dimension name instead
     inverse_map: HashMap<usize, usize>,
     // Min max values for the confidence, used for normalization
+    static_normalization_bounds: (f32, f32),
+    // Min max values actually used to render the images, this can be set to
+    // 'focus' in on a certain confidence range.
     normalization_bounds: (f32, f32),
 }
 
@@ -47,6 +50,7 @@ impl Default for ColorMap {
             map: HashMap::<usize, usize>::new(),
             inverse_map: HashMap::<usize, usize>::new(),
             normalization_bounds: (0.0, 1.0),
+            static_normalization_bounds: (0.0, 1.0),
         }
     }
 }
@@ -69,6 +73,7 @@ impl ColorMap {
             map,
             inverse_map,
             normalization_bounds: (min_confidence, max_confidence),
+            static_normalization_bounds: (min_confidence, max_confidence),
         }
     }
 
@@ -111,6 +116,9 @@ impl ColorMap {
         // normalize the confidence
         let normalized_conf = (confidence - self.normalization_bounds.0)
             / (self.normalization_bounds.1 - self.normalization_bounds.0);
+
+        // The user can override the normalization_bounds so we need to clamp it
+        let normalized_conf = normalized_conf.max(0.0).min(1.0);
 
         // Retrieve the color that used for that dimension
         // First we get the rank of that dimennsion, than we convert that rank to a color.
@@ -160,5 +168,19 @@ impl ColorMap {
     // Return a gray point
     pub fn default_color() -> Point3<f32> {
         Point3::new(0.00000, 0.00000, 0.60000)
+    }
+
+    pub fn get_static_confidence_bounds(&self) -> (f32, f32) {
+        self.static_normalization_bounds
+    }
+
+    pub fn get_actual_confidence_bounds(&self) -> (f32, f32) {
+        self.normalization_bounds
+    }
+
+    pub fn set_actual_confidence_bounds(&mut self, min: f32, max: f32) {
+        let lower = min.max(self.static_normalization_bounds.0);
+        let upper = max.min(self.static_normalization_bounds.1);
+        self.normalization_bounds = (lower, upper);
     }
 }

@@ -295,14 +295,34 @@ impl Scene {
     pub fn get_current_color_map(&self) -> &ColorMap {
         match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &self.state_2d {
-                Some(state) => &state.get_colour_map(),
+                Some(state) => &state.get_color_map(),
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
                 }
             },
             DimensionalityMode::ThreeD => match &self.state_3d {
-                Some(state) => &state.get_colour_map(),
+                Some(state) => &state.get_color_map(),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+        }
+    }
+
+    /// Set the confidence bounds on the current color map
+    pub fn set_color_map_confidence_bounds(&mut self, min: f32, max: f32) {
+        match self.dimensionality_mode {
+            DimensionalityMode::TwoD => match &mut self.state_2d {
+                Some(state) => state.set_color_confidence_bounds(min, max),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+            DimensionalityMode::ThreeD => match &mut self.state_3d {
+                Some(state) => state.set_color_confidence_bounds(min, max),
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);

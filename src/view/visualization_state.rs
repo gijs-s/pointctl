@@ -76,7 +76,7 @@ impl VisualizationState3D {
                 annotated_points,
             );
 
-        // Create the colour map
+        // Create the color map
         let mut color_maps = HashMap::<ExplanationMode, ColorMap>::new();
         color_maps.insert(ExplanationMode::None, ColorMap::default());
 
@@ -98,7 +98,7 @@ impl VisualizationState3D {
     }
 
     /// Get a reference to the color map that is currently being displayed
-    pub fn get_colour_map(&self) -> &ColorMap {
+    pub fn get_color_map(&self) -> &ColorMap {
         let map: Option<&ColorMap> = self.color_maps.get(&self.explanation);
         match map {
             Some(m) => m,
@@ -106,6 +106,13 @@ impl VisualizationState3D {
                 "There is no color map for the current explanation mode, this should never happen"
             ),
         }
+    }
+
+    pub fn set_color_confidence_bounds(&mut self, min: f32, max: f32) {
+        if let Some(map) = self.color_maps.get_mut(&self.get_explanation_mode()) {
+            map.set_actual_confidence_bounds(min, max);
+        };
+        self.reload_renderer_colors();
     }
 
     /// Check if this render has an explanation mode available
@@ -169,7 +176,7 @@ impl VisualizationState3D {
         // Clear all points and colors from the render
         self.renderer.clear();
         // Get the current color map
-        let color_map = self.get_colour_map();
+        let color_map = self.get_color_map();
         // Add every point back to the renderer with the correct data.
         let points_x_colors = self
             .tree
@@ -234,7 +241,7 @@ impl VisualizationState3D {
 
 impl Load<Vec<DaSilvaExplanation>> for VisualizationState3D {
     fn load(&mut self, explanations: Vec<DaSilvaExplanation>) {
-        // Create the colour map
+        // Create the color map
         let color_map = ColorMap::from(&explanations);
         self.color_maps.insert(ExplanationMode::DaSilva, color_map);
 
@@ -252,7 +259,7 @@ impl Load<Vec<DaSilvaExplanation>> for VisualizationState3D {
 
 impl Load<Vec<VanDrielExplanation>> for VisualizationState3D {
     fn load(&mut self, explanations: Vec<VanDrielExplanation>) {
-        // Create the colour map
+        // Create the color map
         let color_map = ColorMap::from(&explanations);
         self.color_maps.insert(ExplanationMode::VanDriel, color_map);
 
@@ -306,7 +313,7 @@ impl VisualizationState2D {
                 annotated_points,
             );
 
-        // Create the colour map
+        // Create the color map
         let mut color_maps = HashMap::<ExplanationMode, ColorMap>::new();
         color_maps.insert(ExplanationMode::None, ColorMap::default());
 
@@ -350,7 +357,7 @@ impl VisualizationState2D {
     }
 
     /// Get a reference to the color map that is currently being displayed
-    pub fn get_colour_map(&self) -> &ColorMap {
+    pub fn get_color_map(&self) -> &ColorMap {
         let map: Option<&ColorMap> = self.color_maps.get(&self.explanation);
         match map {
             Some(m) => m,
@@ -358,6 +365,13 @@ impl VisualizationState2D {
                 "There is no color map for the current explanation mode, this should never happen"
             ),
         }
+    }
+
+    pub fn set_color_confidence_bounds(&mut self, min: f32, max: f32) {
+        if let Some(map) = self.color_maps.get_mut(&self.get_explanation_mode()) {
+            map.set_actual_confidence_bounds(min, max);
+        };
+        self.reload_renderer_colors();
     }
 
     /// Check if this render has an explanation mode available
@@ -425,7 +439,7 @@ impl VisualizationState2D {
         // Clear all points and colors from the render
         self.renderer.clear();
         // Get the current color map
-        let color_map = self.get_colour_map();
+        let color_map = self.get_color_map();
         // Add every point back to the renderer with the correct data.
         let points_x_colors = self
             .tree
@@ -462,7 +476,7 @@ impl VisualizationState2D {
 
 impl Load<Vec<DaSilvaExplanation>> for VisualizationState2D {
     fn load(&mut self, explanations: Vec<DaSilvaExplanation>) {
-        // Create the colour map
+        // Create the color map
         let color_map = ColorMap::from(&explanations);
         self.color_maps.insert(ExplanationMode::DaSilva, color_map);
 
@@ -480,7 +494,7 @@ impl Load<Vec<DaSilvaExplanation>> for VisualizationState2D {
 
 impl Load<Vec<VanDrielExplanation>> for VisualizationState2D {
     fn load(&mut self, explanations: Vec<VanDrielExplanation>) {
-        // Create the colour map
+        // Create the color map
         let color_map = ColorMap::from(&explanations);
         self.color_maps.insert(ExplanationMode::VanDriel, color_map);
 
