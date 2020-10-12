@@ -1,8 +1,6 @@
-### A review of all possible exit codes,
+### A review of all possible exit codes.
 
 In an ideal world the program never panics and always returns a exit code.
-
-
 
 | Exit code | Explaination |
 | -- | -- |
