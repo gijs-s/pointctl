@@ -3,7 +3,7 @@ pub use self::{
     point_renderer_2d::PointRenderer2D,
     point_renderer_3d::PointRenderer3D,
     scene::display,
-    visualization_state::{VisualizationState2D, VisualizationState3D},
+    visualization_state::{VisualizationState2D, VisualizationState3D, Load},
 };
 
 mod color_map;

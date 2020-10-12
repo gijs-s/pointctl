@@ -60,8 +60,6 @@ impl DaSilvaExplanation {
             .enumerate()
             .collect::<Vec<(usize, usize)>>();
 
-        println!("Dimension rank: {:?}", ranking_counts);
-
         // Sort desc
         ranking_counts.sort_by(|(_, a), (_, b)| b.cmp(a));
         ranking_counts

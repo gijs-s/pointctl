@@ -7,12 +7,14 @@ pub use self::{
     },
     da_silva::DaSilvaExplanation,
     driel::VanDrielExplanation,
+    normal::NormalExplanation,
 };
 
 mod common;
 mod da_silva;
 mod driel;
 mod explanation;
+mod normal;
 
 use crate::util::types::PointN;
 use explanation::Explanation;

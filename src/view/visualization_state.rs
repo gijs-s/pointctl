@@ -149,7 +149,17 @@ impl VisualizationState3D {
                 self.load(da_silva_explanation);
                 self.set_explanation_mode(mode);
             }
-            ExplanationMode::VanDriel => eprint!("Van Driel is not supported yet supported"),
+            ExplanationMode::VanDriel => {
+                let points = self
+                    .tree
+                    .iter()
+                    .map(|ann| ann.point)
+                    .collect::<Vec<IndexedPoint3D>>();
+                let van_driel_explanation =
+                    exp::run_van_driel_indexed(points, original_points, neighborhood_size);
+                self.load(van_driel_explanation);
+                self.set_explanation_mode(mode);
+            }
             ExplanationMode::None => (),
         }
     }
@@ -395,16 +405,17 @@ impl VisualizationState2D {
                 self.load(da_silva_explanation);
                 self.set_explanation_mode(mode);
             }
-            ExplanationMode::VanDriel =>  {
+            ExplanationMode::VanDriel => {
                 let points = self
                     .tree
                     .iter()
                     .map(|ann| ann.point.into())
                     .collect::<Vec<IndexedPoint3D>>();
-                let van_driel_explanation = exp::run_van_driel_indexed(points, original_points, neighborhood_size);
+                let van_driel_explanation =
+                    exp::run_van_driel_indexed(points, original_points, neighborhood_size);
                 self.load(van_driel_explanation);
                 self.set_explanation_mode(mode);
-            },
+            }
             ExplanationMode::None => (),
         }
     }
