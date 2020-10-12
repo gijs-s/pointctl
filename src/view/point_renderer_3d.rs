@@ -39,8 +39,10 @@ pub struct PointRenderer3D {
     blob_size: (f32, f32),
     visible: bool,
     pub render_mode: RenderMode,
-    // last transform
+    // last transform and dirty bool. Used to determine
+    // if the points needs to be resorted on the z axis
     last_transform: Matrix4<f32>,
+    dirty: bool
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -96,6 +98,7 @@ impl PointRenderer3D {
             alpha_texture: load_texture(),
             render_mode: RenderMode::Discreet,
             last_transform: Matrix4::identity(),
+            dirty: false,
         }
     }
 
@@ -106,6 +109,7 @@ impl PointRenderer3D {
             color,
             projected_z: 0.0f32,
         });
+        self.dirty = true;
     }
 
     /// Clear all the points and their colors
@@ -141,11 +145,12 @@ impl PointRenderer3D {
     }
 
     pub fn sort_point_if_needed(&mut self, camera: &dyn Camera) {
-        if self.last_transform == camera.transformation() {
+        if self.last_transform == camera.transformation() && !self.dirty {
             return;
         }
         self.sort_z_buffer(camera);
         self.sync_gpu_vector();
+        self.dirty = false;
     }
 
     /// Sync the gpu vector back up with the data contained in `point_data`
