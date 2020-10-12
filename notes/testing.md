@@ -1,4 +1,6 @@
-# The repl loop I used
+# The testing loop I used most commonly
+
+note: This is very outdated
 
 ``` sh
 cargo run -- explain -i data/winequality/winequality.csv -r data/winequality/winequality-tsne-3d.csv data/winequality/annotations-3d.csv

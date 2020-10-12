@@ -13,6 +13,9 @@ pointctl --help
 
 # alternatively you can run the dev version without installing. Note that the explanation mechanisms will be very slow.
 cargo run -- --help
+
+# Example call with included dataset
+cargo run --release -- view -i data/winequality/winequality-src-both.csv --r3d data/winequality/winequality-tsne-3d.csv  --r2d data/winequality/winequality-lamp-both-2d.csv
 ```
 
 # <a name="deps"></a> System dependencies

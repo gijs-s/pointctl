@@ -1,4 +1,4 @@
-projection-explainer.tar.xz filter=lfs diff=lfs merge=lfs -text
 us_countires/original/ filter=lfs diff=lfs merge=lfs -text
 software/original/ filter=lfs diff=lfs merge=lfs -text
 winequality/original/ filter=lfs diff=lfs merge=lfs -text
+*.csv -text
