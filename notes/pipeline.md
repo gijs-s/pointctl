@@ -13,14 +13,3 @@ Finally we have the visualization, this will take as input the annotated points 
 ## First revision goal.
 
 The key goal of the first revision is to create a tool that can calculate the single attribute approach from da silva. This means we annotate each point with a category and a confidence [0.0..1.0].
-
-# TODO
-
-There will always be more to do but lets summarize this here.
-
-- Build a visualization module using kiss3d
-- Add da silva's explanation to the ex module
-- Build bindings for [bhtsne](https://github.com/lvdmaaten/bhtsne/) in a separate crate and then use this crate in my main program.
-
-
-What about the da silva explanation neighborhood size? Same in nd and 3d?

@@ -14,10 +14,10 @@
        - [x] Switch between neighborhood mode
        - [x] Recompute button
  - [x] 3D continous with billboarding in vertex shader
- - [ ] Van Driel explanation
+ - [x] Van Driel explanation
     - [x] Basic data definition
-    - [ ] Algorithm outline
-    - [ ] Algorithm implementation
+    - [x] Algorithm outline
+    - [x] Algorithm implementation
     - [ ] Algorithm tests
  - [x] CLI improvements
     - [x] Allow starting the program with sparser data -> Add calc button in UI
@@ -27,4 +27,4 @@
  - [x] Z buffer sorting to fix opacity blending in 3D
  - [x] Make r proportional to the projection width
  - [ ] Handle jumping color schemes between recomputation?
- - [ ] Cleanup the Da silva variance based computation
+ - [x] Cleanup the Da silva variance based computation

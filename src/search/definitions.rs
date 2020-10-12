@@ -59,4 +59,5 @@ macro_rules! dimension_data_definition(
 
 dimension_data_definition!(U4, 4; U5, 5; U6, 6; U7, 7; U8, 8; U9, 9);
 
-// TODO: Implement the rtree::Point for U10 up to U35
+// TODO: Implement the rstar::Point for U10 up to U35
+// TODO: Extend the rstar::RTreeObject trait from U10 up to U35
