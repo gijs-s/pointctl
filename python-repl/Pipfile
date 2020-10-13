@@ -12,9 +12,7 @@ numpy = "*"
 seaborn = "*"
 click = "*"
 nbstripout = "*"
-open3d = "*"
-
-[dev-packages]
+open3d = "==0.10.0"
 
 [requires]
 python_version = "3.8"
