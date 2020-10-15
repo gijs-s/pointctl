@@ -1,7 +1,7 @@
 /// File containing the entire interface with the search structure.
 
 // build in imports
-use std::{fmt::Debug, path::Path, process::exit, rc::Rc};
+use std::{fmt::Debug, path::Path, process::exit};
 
 // Third party imports
 use rstar::RTree;
@@ -9,10 +9,10 @@ use vpsearch::Tree as VPTree;
 
 // First party imports
 use super::definitions::{
-    Indexed, IndexedPoint, PointContainer2D, PointContainer3D, PointData2D, PointData3D,
+    Indexed, IndexedPoint, PointContainer2D, PointContainer3D,
 };
 use crate::{
-    exp::{DaSilvaExplanation, NormalExplanation, VanDrielExplanation, Neighborhood},
+    exp::Neighborhood,
     filesystem,
 };
 

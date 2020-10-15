@@ -2,7 +2,7 @@
 
 // First party imports
 use super::definitions::{PointContainer2D, PointContainer3D};
-use crate::exp::{DaSilvaExplanation, NormalExplanation, VanDrielExplanation};
+use crate::exp::{DaSilvaExplanation, VanDrielExplanation};
 
 /// TODO is this even needed? Mutation could be done while running the calculation.
 pub trait Load<T> {
