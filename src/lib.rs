@@ -1,5 +1,7 @@
 #![allow(dead_code, unused_imports)]
 
+extern crate nalgebra as na;
+
 pub mod exp;
 pub mod filesystem;
 pub mod generate;

@@ -25,7 +25,8 @@ rstar = "0.8.2"
 # Used for better comparison for floating point numbers
 approx = "^0.3"
 
-typenum = "^1.12"
+vpsearch = { git = "https://github.com/gijs-s/vpsearch", branch = "rust"}
+
 
 # Used for calling CUDA FFI
 # rustacuda = "0.1"

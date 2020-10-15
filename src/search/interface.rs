@@ -1,63 +1,26 @@
-extern crate nalgebra as na;
+/// File containing the entire interface with the search structure.
 
-// Move this load trait out of the view state
-use crate::view::Load;
+// build in imports
+use std::{path::Path, process::exit, rc::Rc};
+
+// Third party imports
+use rstar::RTree;
+use vpsearch::Tree as VPTree;
+
+// First party imports
 use crate::{
+    // Move this load trait out of the view state
+    view::Load,
     exp::{DaSilvaExplanation, NormalExplanation, VanDrielExplanation},
     filesystem,
 };
+use super::definitions::data::{AnnotatedPoint, PointData, PointContainer2D, PointContainer3D};
 
-use rstar::RTree;
-use std::{marker::PhantomData, path::Path, process::exit, rc::Rc};
+/// Functions that are supported by both 2 and 3 dimensional point containers
+pub trait PointContainer {
+    const DIMENSIONS: usize;
 
-use super::definitions::{HDPoint, LDPoint, PointData, LD};
-use typenum::{Unsigned, U8};
-
-/// Data structure used to store the data about all the points,
-/// it has build in support for quickly finding all the neighbors
-/// in 2D (todo: make this generic to 3D and ND).
-pub struct _PointContainer<Low: LD>
-where
-    LDPoint<Low>: rstar::RTreeObject,
-{
-    // Used for finding low dimensional neighbors
-    tree_low: RTree<LDPoint<Low>>,
-    // Used for finding high dimensional neighbors.
-    // TODO: Move away from the static dimensionality
-    tree_high: RTree<HDPoint<U8>>,
-    // Original dimension names
-    dimension_names: Vec<String>,
-    // Used when quickly iterating over all the points in order of index
-    points: Vec<Rc<PointData>>,
-}
-
-pub trait PointContainer<Low: LD>
-where
-    LDPoint<Low>: rstar::RTreeObject,
-{
-    const LD: usize = <Low as Unsigned>::USIZE;
-    /// Create a new point container from 2 files
-    fn new(original_points_path: &Path, reduced_points_path: &Path) -> _PointContainer<Low> {
-        let (original_points_raw, reduced_points_raw, dimension_names) =
-            Self::read_points(original_points_path, reduced_points_path);
-
-        let rc_points = Self::create_reference_points(&original_points_raw, &reduced_points_raw);
-
-        let ref_points = reduced_points_raw
-            .iter()
-            .zip(&rc_points)
-            .map(|(raw, rc)| LDPoint::<Low>::new(raw, rc.clone()))
-            .collect::<Vec<LDPoint<Low>>>();
-
-        let tree_low = RTree::<LDPoint<Low>>::bulk_load(ref_points);
-        _PointContainer::<Low> {
-            tree_low,
-            tree_high: RTree::<HDPoint<U8>>::new(),
-            dimension_names,
-            points: rc_points,
-        }
-    }
-
+    /// Read the points from the files and check the dimensionality
     fn read_points(
         original_points_path: &Path,
         reduced_points_path: &Path,
@@ -80,7 +43,7 @@ where
         }
 
         // We only support points reduced to 2 or 3D
-        if dimension_count_low != Self::LD {
+        if dimension_count_low != Self::DIMENSIONS {
             eprintln!(
                 "Expected data reduced to 2D but got {} dimensions instead",
                 dimension_count_low
@@ -97,6 +60,7 @@ where
         (original_points_raw, reduced_points_raw, dimension_names)
     }
 
+    /// Create new version of the PointData objects wrapped in a reference counter
     fn create_reference_points(
         original_points_raw: &Vec<Vec<f32>>,
         reduced_points_raw: &Vec<Vec<f32>>,
@@ -121,32 +85,44 @@ where
     }
 }
 
-impl<Low> Load<Vec<DaSilvaExplanation>> for _PointContainer<Low>
-where
-    Low: LD,
-    LDPoint<Low>: rstar::RTreeObject,
-{
-    fn load(&mut self, _explanations: Vec<DaSilvaExplanation>) {
-        unimplemented!()
-    }
+impl PointContainer for PointContainer2D {
+    const DIMENSIONS: usize = 2;
 }
 
-impl<Low> Load<Vec<VanDrielExplanation>> for _PointContainer<Low>
-where
-    Low: LD,
-    LDPoint<Low>: rstar::RTreeObject,
-{
-    fn load(&mut self, _explanations: Vec<VanDrielExplanation>) {
-        unimplemented!()
-    }
-}
+impl PointContainer2D {
+    /// Create a new point container from 2 files
+    fn new(original_points_path: &Path, reduced_points_path: &Path) -> PointContainer2D {
+        let (original_points_raw, reduced_points_raw, dimension_names) =
+            Self::read_points(original_points_path, reduced_points_path);
 
-impl<Low> Load<Vec<NormalExplanation>> for _PointContainer<Low>
-where
-    Low: LD,
-    LDPoint<Low>: rstar::RTreeObject,
-{
-    fn load(&mut self, _explanations: Vec<NormalExplanation>) {
-        unimplemented!()
+        let rc_points = Self::create_reference_points(&original_points_raw, &reduced_points_raw);
+
+        let ref_points_ld = reduced_points_raw
+            .iter()
+            .zip(&rc_points)
+            .map(|(raw, rc)| {
+                let point = match raw[..] {
+                    [x, y] => na::Point2::<f32>::new(x,y),
+                    _ => exit(14),
+                };
+                AnnotatedPoint::<na::Point2<f32>>::new(point, rc.clone())
+            })
+            .collect::<Vec<AnnotatedPoint<na::Point2<f32>>>>();
+
+        let ref_point_hd = original_points_raw
+            .into_iter()
+            .zip(&rc_points)
+            .map(|(raw, rc)| AnnotatedPoint::<Vec<f32>>::new(raw, rc.clone()))
+            .collect::<Vec<AnnotatedPoint::<Vec<f32>>>>();
+
+        let tree_low = RTree::<AnnotatedPoint<na::Point2<f32>>>::bulk_load(ref_points_ld);
+        let tree_high = VPTree::new(&ref_point_hd);
+
+        PointContainer2D {
+            tree_low,
+            tree_high,
+            dimension_names,
+            points: rc_points,
+        }
     }
 }
