@@ -1,5 +1,4 @@
 /// Contains a generic distance calculation trait.
-extern crate nalgebra as na;
 
 // Distance calculation
 pub trait Distance {

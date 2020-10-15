@@ -1,7 +1,7 @@
 /// File containing the entire interface with the search structure.
 
 // build in imports
-use std::{path::Path, process::exit, rc::Rc};
+use std::{path::Path, process::exit, rc::Rc, fmt::Debug};
 
 // Third party imports
 use rstar::RTree;
@@ -14,11 +14,21 @@ use crate::{
     exp::{DaSilvaExplanation, NormalExplanation, VanDrielExplanation},
     filesystem,
 };
-use super::definitions::data::{AnnotatedPoint, PointData, PointContainer2D, PointContainer3D};
+use super::definitions::{IndexedPoint, PointData, PointContainer2D, PointContainer3D};
 
 /// Functions that are supported by both 2 and 3 dimensional point containers
 pub trait PointContainer {
     const DIMENSIONS: usize;
+    type LDPoint : rstar::RTreeObject + Clone + Debug;
+
+
+    /// Get a reference to the low dimension search tree for searching
+    /// neighbors
+    fn get_tree_low(&self) -> &RTree<Self::LDPoint>;
+
+    /// Get a reference to the high dimension search tree for searching
+    /// neighbors
+    fn get_tree_high(&self) -> &VPTree<IndexedPoint<Vec<f32>>>;
 
     /// Read the points from the files and check the dimensionality
     fn read_points(
@@ -45,7 +55,8 @@ pub trait PointContainer {
         // We only support points reduced to 2 or 3D
         if dimension_count_low != Self::DIMENSIONS {
             eprintln!(
-                "Expected data reduced to 2D but got {} dimensions instead",
+                "Expected data reduced to {}D but got {} dimensions instead",
+                Self::DIMENSIONS,
                 dimension_count_low
             );
             exit(15)
@@ -61,17 +72,17 @@ pub trait PointContainer {
     }
 
     /// Create new version of the PointData objects wrapped in a reference counter
-    fn create_reference_points(
+    fn create_data_points(
         original_points_raw: &Vec<Vec<f32>>,
         reduced_points_raw: &Vec<Vec<f32>>,
-    ) -> Vec<Rc<PointData>> {
+    ) -> Vec<PointData> {
         let dimension_count = original_points_raw.first().unwrap().len();
         original_points_raw
             .iter()
             .zip(reduced_points_raw)
             .enumerate()
             .map(|(index, (high, low))| {
-                Rc::new(PointData {
+                PointData {
                     index,
                     dimensionality: dimension_count,
                     low: low.to_vec(),
@@ -79,14 +90,23 @@ pub trait PointContainer {
                     normal: None,
                     driel: None,
                     silva: None,
-                })
+                }
             })
-            .collect::<Vec<Rc<PointData>>>()
+            .collect::<Vec<PointData>>()
     }
 }
 
 impl PointContainer for PointContainer2D {
     const DIMENSIONS: usize = 2;
+    type LDPoint = IndexedPoint<na::Point2<f32>>;
+
+    fn get_tree_low(&self) -> &RTree<Self::LDPoint> {
+        &self.tree_low
+    }
+
+    fn get_tree_high(&self) -> &VPTree<IndexedPoint<Vec<f32>>> {
+        &self.tree_high
+    }
 }
 
 impl PointContainer2D {
@@ -95,40 +115,49 @@ impl PointContainer2D {
         let (original_points_raw, reduced_points_raw, dimension_names) =
             Self::read_points(original_points_path, reduced_points_path);
 
-        let rc_points = Self::create_reference_points(&original_points_raw, &reduced_points_raw);
+        let data_points = Self::create_data_points(&original_points_raw, &reduced_points_raw);
 
         let ref_points_ld = reduced_points_raw
             .iter()
-            .zip(&rc_points)
-            .map(|(raw, rc)| {
-                let point = match raw[..] {
+            .enumerate()
+            .map(|(index, raw_point)| {
+                let point = match raw_point[..] {
                     [x, y] => na::Point2::<f32>::new(x,y),
                     _ => exit(14),
                 };
-                AnnotatedPoint::<na::Point2<f32>>::new(point, rc.clone())
+                IndexedPoint::<na::Point2<f32>>::new(point, index)
             })
-            .collect::<Vec<AnnotatedPoint<na::Point2<f32>>>>();
+            .collect::<Vec<IndexedPoint<na::Point2<f32>>>>();
 
         let ref_point_hd = original_points_raw
             .into_iter()
-            .zip(&rc_points)
-            .map(|(raw, rc)| AnnotatedPoint::<Vec<f32>>::new(raw, rc.clone()))
-            .collect::<Vec<AnnotatedPoint::<Vec<f32>>>>();
+            .enumerate()
+            .map(|(index, raw_point)| IndexedPoint::<Vec<f32>>::new(raw_point, index))
+            .collect::<Vec<IndexedPoint::<Vec<f32>>>>();
 
-        let tree_low = RTree::<AnnotatedPoint<na::Point2<f32>>>::bulk_load(ref_points_ld);
+        let tree_low = RTree::<IndexedPoint<na::Point2<f32>>>::bulk_load(ref_points_ld);
         let tree_high = VPTree::new(&ref_point_hd);
 
         PointContainer2D {
             tree_low,
             tree_high,
             dimension_names,
-            points: rc_points,
+            point_data: data_points,
         }
     }
 }
 
 impl PointContainer for PointContainer3D {
     const DIMENSIONS: usize = 3;
+    type LDPoint = IndexedPoint<na::Point3<f32>>;
+
+    fn get_tree_low(&self) -> &RTree<Self::LDPoint> {
+        &self.tree_low
+    }
+
+    fn get_tree_high(&self) -> &VPTree<IndexedPoint<Vec<f32>>> {
+        &self.tree_high
+    }
 }
 
 impl PointContainer3D {
@@ -137,34 +166,34 @@ impl PointContainer3D {
         let (original_points_raw, reduced_points_raw, dimension_names) =
             Self::read_points(original_points_path, reduced_points_path);
 
-        let rc_points = Self::create_reference_points(&original_points_raw, &reduced_points_raw);
+        let data_points = Self::create_data_points(&original_points_raw, &reduced_points_raw);
 
         let ref_points_ld = reduced_points_raw
             .iter()
-            .zip(&rc_points)
-            .map(|(raw, rc)| {
-                let point = match raw[..] {
+            .enumerate()
+            .map(|(index, raw_point)| {
+                let point = match raw_point[..] {
                     [x, y, z] => na::Point3::<f32>::new(x,y,z),
                     _ => exit(14),
                 };
-                AnnotatedPoint::<na::Point3<f32>>::new(point, rc.clone())
+                IndexedPoint::<na::Point3<f32>>::new(point, index)
             })
-            .collect::<Vec<AnnotatedPoint<na::Point3<f32>>>>();
+            .collect::<Vec<IndexedPoint<na::Point3<f32>>>>();
 
         let ref_point_hd = original_points_raw
             .into_iter()
-            .zip(&rc_points)
-            .map(|(raw, rc)| AnnotatedPoint::<Vec<f32>>::new(raw, rc.clone()))
-            .collect::<Vec<AnnotatedPoint::<Vec<f32>>>>();
+            .enumerate()
+            .map(|(index, raw_point)| IndexedPoint::<Vec<f32>>::new(raw_point, index))
+            .collect::<Vec<IndexedPoint::<Vec<f32>>>>();
 
-        let tree_low = RTree::<AnnotatedPoint<na::Point3<f32>>>::bulk_load(ref_points_ld);
+        let tree_low = RTree::<IndexedPoint<na::Point3<f32>>>::bulk_load(ref_points_ld);
         let tree_high = VPTree::new(&ref_point_hd);
 
         PointContainer3D {
             tree_low,
             tree_high,
             dimension_names,
-            points: rc_points,
+            point_data: data_points,
         }
     }
 }
