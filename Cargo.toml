@@ -22,10 +22,12 @@ rand = "^0.7"
 rand_distr = "*"
 # A n-dimensional r*-tree implementation. Used for fast nearest neighbors
 rstar = "0.8.2"
+# A fast vantage point tree implementation used for fast nearest neighbors
+vpsearch = { git = "https://github.com/gijs-s/vpsearch", branch = "rust"}
 # Used for better comparison for floating point numbers
 approx = "^0.3"
-
-vpsearch = { git = "https://github.com/gijs-s/vpsearch", branch = "rust"}
+# Used for easily getting some numeric values based on the types
+num-traits = "*"
 
 
 # Used for calling CUDA FFI

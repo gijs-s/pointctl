@@ -1,23 +1,21 @@
-// Module containing the explanation mechanisms used for the visualization.
-
-pub use self::{
-    common::{
-        AnnotatedPoint, IndexedPoint2D, IndexedPoint3D, RTreeParameters2D, RTreeParameters3D,
-    },
-    da_silva::DaSilvaExplanation,
-    driel::VanDrielExplanation,
-    normal::NormalExplanation,
-};
-
-mod common;
+/// Module containing the explanation mechanisms used for the visualization.
+// Sub modules
 mod da_silva;
 mod driel;
-mod explanation;
 mod normal;
+mod explanation;
 
-use crate::util::types::PointN;
-use explanation::Explanation;
+// Re-export the public facing parts of this module
+pub use self::{
+    da_silva::DaSilvaExplanation, driel::VanDrielExplanation, normal::NormalExplanation,
+};
+
+// Third party imports
+use crate::search::{PointContainer2D, PointContainer3D};
 use na::{Point2, Point3};
+
+// First party imports
+use explanation::Explanation;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Neighborhood {
@@ -25,43 +23,40 @@ pub enum Neighborhood {
     R(f32),
 }
 
-pub fn run_da_silva_variance(
-    reduced_points: Vec<Point3<f32>>,
-    original_points: &[PointN],
-    neighborhood_size: Neighborhood,
-) -> Vec<DaSilvaExplanation> {
-    let da_silva_mechanism = da_silva::DaSilvaState::new(reduced_points, original_points);
-    da_silva_mechanism.explain(neighborhood_size)
-}
-
-pub fn run_da_silva_variance_indexed(
-    indexed_points: Vec<IndexedPoint3D>,
-    original_points: &[PointN],
+pub fn run_da_silva_variance_2d<'a>(
+    point_container_2d: &'a PointContainer2D,
     neighborhood_size: Neighborhood,
 ) -> Vec<DaSilvaExplanation> {
     let da_silva_mechanism =
-        da_silva::DaSilvaState::new_with_indexed_point(indexed_points, original_points);
+        da_silva::DaSilvaState::<'a, PointContainer2D>::new(point_container_2d);
     da_silva_mechanism.explain(neighborhood_size)
 }
 
-pub fn run_van_driel(
-    reduced_points: Vec<Point3<f32>>,
-    original_points: &[PointN],
+pub fn run_da_silva_variance_3d<'a>(
+    point_container_3d: &'a PointContainer3D,
+    neighborhood_size: Neighborhood,
+) -> Vec<DaSilvaExplanation> {
+    let da_silva_mechanism =
+        da_silva::DaSilvaState::<'a, PointContainer3D>::new(point_container_3d);
+    da_silva_mechanism.explain(neighborhood_size)
+}
+
+pub fn run_van_driel_2d<'a>(
+    point_container_2d: &'a PointContainer2D,
     neighborhood_size: Neighborhood,
 ) -> Vec<VanDrielExplanation> {
     // TODO: Remove dummy value
     let theta = 0.95f32;
-    let van_driel_mechanism = driel::VanDrielState::new(reduced_points, original_points, theta);
+    let van_driel_mechanism = driel::VanDrielState::<PointContainer2D>::new(point_container_2d, theta);
     van_driel_mechanism.explain(neighborhood_size)
 }
 
-pub fn run_van_driel_indexed(
-    indexed_points: Vec<IndexedPoint3D>,
-    original_points: &[PointN],
+pub fn run_van_driel_3d<'a>(
+    point_container_3d: &'a PointContainer3D,
     neighborhood_size: Neighborhood,
 ) -> Vec<VanDrielExplanation> {
     // TODO: Remove dummy value
     let theta = 0.95f32;
-    let van_driel_mechanism = driel::VanDrielState::new_with_indexed_point(indexed_points, original_points, theta);
+    let van_driel_mechanism = driel::VanDrielState::<PointContainer3D>::new(point_container_3d, theta);
     van_driel_mechanism.explain(neighborhood_size)
 }

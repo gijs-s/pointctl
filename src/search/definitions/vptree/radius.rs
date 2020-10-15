@@ -57,7 +57,6 @@ impl<Item: MetricSpace<Impl> + Clone, Impl> BestCandidate<Item, Impl>
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -92,7 +91,7 @@ mod tests {
 
     /// Get the tree definition used in testing
     fn get_test_tree() -> Tree<PointN> {
-            let points = vec![
+        let points = vec![
             PointN::new(&vec![2.0, 3.0]),
             PointN::new(&vec![0.0, 1.0]),
             PointN::new(&vec![4.0, 5.0]),

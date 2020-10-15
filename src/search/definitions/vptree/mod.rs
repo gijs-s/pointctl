@@ -1,13 +1,13 @@
+mod count;
 /// Module containing the code for finding neighbors using vantage point trees
 /// in ND. Vantage point trees only store the distances between points so it
 /// seems suited well to my needs.
 
 /// Sub modules
 mod radius;
-mod count;
 
 /// Structs that should be reexported from this module.
-pub use self::{radius::RadiusBasedNeighborhood, count::CountBasedNeighborhood};
+pub use self::{count::CountBasedNeighborhood, radius::RadiusBasedNeighborhood};
 
 /// Third party imports
 use vpsearch::{BestCandidate, MetricSpace};

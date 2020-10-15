@@ -95,7 +95,6 @@ enum UIEvents {
     RunExplanationMode(ExplanationMode, Neighborhood),
     UpdateUINeighborhood(Neighborhood),
     UpdateUISwitchNeighborhood,
-
 }
 
 // Small enum used to denote which neighborhood type is currently being used.
@@ -219,7 +218,8 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         .set(ids.text_dimensionality, &mut ui);
 
     // Display the amount of points
-    let num_points_text = format!("Point count: {}", scene.original_points.len());
+    // TODO get point count function in the scene
+    let num_points_text = format!("Point count: {}", scene.get_point_count());
     widget::Text::new(&num_points_text)
         .font_size(FONT_SIZE)
         .down_from(ids.text_dimensionality, 5.0f64)
@@ -634,19 +634,28 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         let mut max_text = current_max.to_string();
         min_text.truncate(5);
         max_text.truncate(5);
-        for (edge, value) in widget::RangeSlider::new(current_min, current_max, static_min - static_max * 0.05, static_max + static_max * 0.05)
-            .label(format!("{} - {}", min_text, max_text).as_str())
-            .label_font_size(FONT_SIZE - 1)
-            .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-            .up_from(ids.text_recompute, 7.0f64)
-            .h(SLIDER_HEIGHT)
-            .set(ids.slider_color_normalization, &mut ui)
-            {
-                match edge {
-                    widget::range_slider::Edge::Start => queue.push(UIEvents::SetColorBound(value, current_max)),
-                    widget::range_slider::Edge::End => queue.push(UIEvents::SetColorBound(current_min, value)),
+        for (edge, value) in widget::RangeSlider::new(
+            current_min,
+            current_max,
+            static_min - static_max * 0.05,
+            static_max + static_max * 0.05,
+        )
+        .label(format!("{} - {}", min_text, max_text).as_str())
+        .label_font_size(FONT_SIZE - 1)
+        .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+        .up_from(ids.text_recompute, 7.0f64)
+        .h(SLIDER_HEIGHT)
+        .set(ids.slider_color_normalization, &mut ui)
+        {
+            match edge {
+                widget::range_slider::Edge::Start => {
+                    queue.push(UIEvents::SetColorBound(value, current_max))
+                }
+                widget::range_slider::Edge::End => {
+                    queue.push(UIEvents::SetColorBound(current_min, value))
                 }
             }
+        }
 
         // Recompute text
         widget::Text::new("Confidence bounds:")
@@ -654,7 +663,6 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             .up_from(ids.slider_color_normalization, 3.0f64)
             .w_of(ids.button_size_reset)
             .set(ids.text_color_normalization_bounds, &mut ui);
-
     }
 
     // Handle all the enqueued events in order.

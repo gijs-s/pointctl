@@ -42,7 +42,7 @@ pub struct PointRenderer3D {
     // last transform and dirty bool. Used to determine
     // if the points needs to be resorted on the z axis
     last_transform: Matrix4<f32>,
-    dirty: bool
+    dirty: bool,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
