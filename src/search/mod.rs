@@ -3,6 +3,7 @@
 /// contain index, explanations and normals. The search structure will
 /// use rtree's in 2/3d and vantage point trees in higher dimensions
 /// to quickly find neighbors and accompanying data.
+
 // Sub modules
 mod definitions;
 mod interface;

@@ -3,15 +3,11 @@
 // Build in imports
 use std::cmp::Ordering;
 
-// Third party imports
-use rstar::RTree;
-
 // First party imports
 use super::Neighborhood;
 
 
 // Types to make the code more readable
-pub type NeighborIndices = Vec<usize>;
 pub type LocalContributions = Vec<f32>;
 pub type GlobalContribution = Vec<f32>;
 pub type Ranking = (usize, f32);

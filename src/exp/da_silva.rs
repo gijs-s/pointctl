@@ -10,15 +10,12 @@
 // Build in imports
 use std::cmp::Ordering;
 
-// Third party imports
-use rstar::RTree;
-
 // First party import
 use super::{
     // Import traits from the explanation module
     explanation::Explanation,
     // Import types from the explanation module
-    explanation::{GlobalContribution, LocalContributions, NeighborIndices, Ranking},
+    explanation::{GlobalContribution, LocalContributions, Ranking},
     Neighborhood,
 };
 use crate::{
@@ -90,6 +87,7 @@ impl DaSilvaExplanation {
 }
 
 // Enum for the types of explanation metrics used in the da silva paper, Variance is beter.
+#[allow(dead_code)]
 enum DaSilvaType {
     Euclidean,
     Variance,
@@ -347,7 +345,7 @@ mod tests {
     use vpsearch::Tree as VPTree;
     use rstar::RTree;
 
-    use crate::search::{IndexedPoint, Distance, PointContainer, PointContainer2D, PointContainer3D, PointData2D, PointData3D};
+    use crate::search::{IndexedPoint, PointContainer2D, PointContainer3D, PointData3D};
     use super::*;
 
     #[test]
