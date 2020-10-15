@@ -18,6 +18,7 @@ pub struct RadiusBasedNeighborhood<Item: MetricSpace<Impl>, Impl> {
 impl<Item: MetricSpace<Impl>, Impl> RadiusBasedNeighborhood<Item, Impl> {
     /// Helper function for creating the RadiusBasedNeighborhood struct.
     /// Here `max_distance` is an exclusive upper bound to the euclidean distance.
+    #[allow(dead_code)]
     fn new(max_distance: Item::Distance) -> Self {
         RadiusBasedNeighborhood {
             max_distance,
