@@ -10,11 +10,10 @@ use kiss3d::{
         AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform, Texture,
     },
 };
-use na::{Matrix3, Matrix4, Point2, Point3};
+use na::{Matrix4, Point3};
 
 // Internal
-use super::{marcos, texture_creation::load_texture, PointRendererInteraction, RenderMode};
-use crate::view::color_map::ColorMap;
+use super::{texture_creation::load_texture, PointRendererInteraction, RenderMode};
 pub struct PointRenderer3D {
     // The shader itself
     shader: Effect,

@@ -11,7 +11,7 @@ use kiss3d::{
 use super::scene::Scene;
 use crate::{
     exp::Neighborhood,
-    view::{ColorMap, DimensionalityMode, ExplanationMode, RenderMode},
+    view::{ExplanationMode, RenderMode},
 };
 
 // Generate a unique `WidgetId` for each widget.

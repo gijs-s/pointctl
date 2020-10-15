@@ -10,10 +10,9 @@ use kiss3d::{
     },
 };
 use na::{Matrix3, Point2, Point3};
-use std::path::Path;
 
 // Internal
-use super::{marcos, texture_creation::load_texture, PointRendererInteraction, RenderMode};
+use super::{texture_creation::load_texture, PointRendererInteraction, RenderMode};
 
 pub struct PointRenderer2D {
     shader: Effect,

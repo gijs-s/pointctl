@@ -5,25 +5,22 @@ use std::process::exit;
 
 // Third party imports
 use kiss3d::{
-    camera::{ArcBall, Camera},
+    camera::Camera,
     event::{Action, WindowEvent},
     light::Light,
-    planar_camera::{PlanarCamera, Sidescroll},
+    planar_camera::PlanarCamera,
     post_processing::PostProcessingEffect,
     renderer::{PlanarRenderer, Renderer},
     window::{CustomWindow, ExtendedState, RenderMode as WindowRenderMode},
 };
-use na::{Point2, Point3};
-use rstar::{PointDistance, RTree};
 
 // First party imports
 use crate::{
     exp,
     search::{PointContainer, PointContainer2D, PointContainer3D},
-    util::types::PointN,
     view::{
         ui::{draw_overlay, WidgetId},
-        ColorMap, DimensionalityMode, PointRenderer2D, PointRenderer3D, PointRendererInteraction,
+        ColorMap, DimensionalityMode, PointRendererInteraction,
         RenderMode, VisualizationState2D, VisualizationState3D,
     },
 };
