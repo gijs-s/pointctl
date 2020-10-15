@@ -125,7 +125,7 @@ pub fn variance_per_dimension(data: &[Vec<f32>]) -> Option<Vec<f32>> {
     transposed_data.iter().map(|dim| variance(dim)).collect()
 }
 
-/// Retrieve the eigen values from the covariance matrix using lapack dsyev.
+/// Retrieve the eigen values from the covariance matrix using lapack ssyev.
 /// It will return the eigen values asc with the vectors in the same order.
 ///
 /// The routine computes all eigenvalues and, optionally, eigenvectors of an
@@ -134,7 +134,7 @@ pub fn variance_per_dimension(data: &[Vec<f32>]) -> Option<Vec<f32>> {
 /// A*v(j) = lambda(j)*v(j)
 ///
 /// where lambda(j) is its eigenvalue. The computed eigenvectors are orthonormal.
-/// https://software.intel.com/sites/products/documentation/doclib/mkl_sa/11/mkl_lapack_examples/dsyev_ex.c.htm
+/// https://software.intel.com/sites/products/documentation/doclib/mkl_sa/11/mkl_lapack_examples/ssyev_ex.c.htm
 fn eigen_values(covariance_matrix: na::DMatrix<f32>) -> Option<(Vec<f32>, na::DMatrix<f32>)> {
     // If there are no points we can not create a covariance matrix
     if covariance_matrix.is_empty() {

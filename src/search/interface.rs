@@ -27,7 +27,7 @@ pub trait PointContainer {
     fn get_tree_low(&self) -> &RTree<Self::LDPoint>;
 
     /// Get a reference to the high dimension search tree for searching
-    /// neighbors
+    /// neighbors. Will not be used for now.
     fn get_tree_high(&self) -> &VPTree<IndexedPoint<Vec<f32>>>;
 
     /// Read the points from the files and check the dimensionality

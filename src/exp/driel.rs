@@ -176,25 +176,25 @@ impl<'a> VanDrielState<'a> {
     fn get_dimensionality(&self, eigenvalues: &Vec<f32>) -> usize {
         let sum_eigen_value = eigenvalues.iter().sum::<f32>();
         // Check how many dimensions are needed to exceed theta
-        for i in 1..eigenvalues.len() {
+        for i in 1..=eigenvalues.len() {
             if (eigenvalues.iter().take(i).sum::<f32>() / sum_eigen_value) >= self.theta {
-                return i;
+                return i - 1;
             }
         }
-        // fallback, we need all dimension
-        eigenvalues.len()
+        // fallback, we need all dimension, in practice this case is never hit.
+        eigenvalues.len() - 1
     }
 
     /// Get the confidence from the eigenvalues
     fn get_confidence(&self, eigenvalues: &Vec<f32>, dimensionality: usize) -> f32 {
         let sum_eigen_value = eigenvalues.iter().sum::<f32>();
         let average_eigen_value = sum_eigen_value / eigenvalues.len() as f32;
-        1.0f32
-            - (eigenvalues
-                .iter()
-                .take(dimensionality)
-                .map(|v| v - average_eigen_value)
-                .sum::<f32>()
-                / sum_eigen_value)
+        let sum_eigen_value_diff_from_mean = eigenvalues
+            .iter()
+            .take(dimensionality + 1)
+            .map(|v| (v - average_eigen_value).abs())
+            .sum::<f32>();
+
+        1.0f32 - (sum_eigen_value_diff_from_mean / sum_eigen_value)
     }
 }
