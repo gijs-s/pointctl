@@ -1,11 +1,8 @@
 /// Trait / implementation of for loading in explanations into the data structure
 
-/// Build in imports
-use std::rc::Rc;
-
 // First party imports
-use crate::exp::{DaSilvaExplanation, VanDrielExplanation, NormalExplanation};
-use super::definitions::{PointContainer2D, PointContainer3D, PointData};
+use super::definitions::{PointContainer2D, PointContainer3D};
+use crate::exp::{DaSilvaExplanation, NormalExplanation, VanDrielExplanation};
 
 /// TODO is this even needed? Mutation could be done while running the calculation.
 pub trait Load<T> {
@@ -19,7 +16,7 @@ impl Load<Vec<DaSilvaExplanation>> for PointContainer2D {
         // TODO: This assert is just for testing, this should be caught earlier
         // on and have a documented exit code
         assert!(self.point_data.len() == explanations.len());
-        for (point_data, exp) in self.point_data.iter_mut().zip(explanations.into_iter()){
+        for (point_data, exp) in self.point_data.iter_mut().zip(explanations.into_iter()) {
             point_data.silva = Some(exp);
         }
     }
@@ -31,7 +28,7 @@ impl Load<Vec<VanDrielExplanation>> for PointContainer2D {
         // TODO: This assert is just for testing, this should be caught earlier
         // on and have a documented exit code
         assert!(self.point_data.len() == explanations.len());
-        for (point_data, exp) in self.point_data.iter_mut().zip(explanations.into_iter()){
+        for (point_data, exp) in self.point_data.iter_mut().zip(explanations.into_iter()) {
             point_data.driel = Some(exp);
         }
     }
@@ -43,7 +40,7 @@ impl Load<Vec<DaSilvaExplanation>> for PointContainer3D {
         // TODO: This assert is just for testing, this should be caught earlier
         // on and have a documented exit code
         assert!(self.point_data.len() == explanations.len());
-        for (point_data, exp) in self.point_data.iter_mut().zip(explanations.into_iter()){
+        for (point_data, exp) in self.point_data.iter_mut().zip(explanations.into_iter()) {
             point_data.silva = Some(exp);
         }
     }
@@ -55,7 +52,7 @@ impl Load<Vec<VanDrielExplanation>> for PointContainer3D {
         // TODO: This assert is just for testing, this should be caught earlier
         // on and have a documented exit code
         assert!(self.point_data.len() == explanations.len());
-        for (point_data, exp) in self.point_data.iter_mut().zip(explanations.into_iter()){
+        for (point_data, exp) in self.point_data.iter_mut().zip(explanations.into_iter()) {
             point_data.driel = Some(exp);
         }
     }

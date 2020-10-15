@@ -61,7 +61,9 @@ impl rstar::PointDistance for IndexedPoint<na::Point3<f32>> {
         // Exact floating point comparisons can cause trouble
         // so I introduce a small margin of error
         let error = 1.0e-6;
-        (self.point.x - point[0]) < error && (self.point.y - point[1]) < error && (self.point.z - point[2]) < error
+        (self.point.x - point[0]) < error
+            && (self.point.y - point[1]) < error
+            && (self.point.z - point[2]) < error
     }
 
     fn distance_2_if_less_or_equal(&self, point: &[f32; 3], max_distance_2: f32) -> Option<f32> {

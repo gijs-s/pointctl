@@ -1,8 +1,9 @@
 extern crate pointctl as pc;
+extern crate nalgebra as na;
 
 // Build in imports
 use exp::Neighborhood;
-use nalgebra::{Point2, Point3};
+use pc::search::{PointContainer2D, PointContainer3D};
 use std::{path::Path, process::exit};
 
 // Third party imports
@@ -14,7 +15,7 @@ use pc::{
     filesystem::{read, write},
     generate,
     util::validator,
-    view::display,
+    view,
 };
 
 fn main() {
@@ -225,70 +226,70 @@ fn generate_command(matches: &ArgMatches) {
 
 // Explain a dataset
 fn explain_command(matches: &ArgMatches) {
-    // Retrieve the points from the original dataset
-    let original_data_path = matches.value_of("original_data").unwrap();
-    let original_data = Path::new(original_data_path);
-    let (original_points, dimension_count, _) = read(original_data);
-    println!(
-        "Original data loaded. Consists of {} points with {} dimensions",
-        original_points.len(),
-        dimension_count
-    );
+    // // Retrieve the points from the original dataset
+    // let original_data_path = matches.value_of("original_data").unwrap();
+    // let original_data = Path::new(original_data_path);
+    // let (original_points, dimension_count, _) = read(original_data);
+    // println!(
+    //     "Original data loaded. Consists of {} points with {} dimensions",
+    //     original_points.len(),
+    //     dimension_count
+    // );
 
-    // Retrieve the points from the reduced dataset
-    let reduced_data_path = matches.value_of("reduced_data").unwrap();
-    let reduced_data = Path::new(reduced_data_path);
-    let (reduced_points, dimension_count, _) = read(reduced_data);
-    println!(
-        "Reduced data loaded. Consists of {} points with {} dimensions",
-        reduced_points.len(),
-        dimension_count
-    );
+    // // Retrieve the points from the reduced dataset
+    // let reduced_data_path = matches.value_of("reduced_data").unwrap();
+    // let reduced_data = Path::new(reduced_data_path);
+    // let (reduced_points, dimension_count, _) = read(reduced_data);
+    // println!(
+    //     "Reduced data loaded. Consists of {} points with {} dimensions",
+    //     reduced_points.len(),
+    //     dimension_count
+    // );
 
-    // Convert reduced data to 3D nalgebra points with optional zero padding
-    let clean_reduced_points = reduced_points
-        .iter()
-        .map(|vec| match vec[..] {
-            [x, y, z] => Point3::<f32>::new(x, y, z),
-            [x, y] => Point3::<f32>::new(x, y, 0.0),
-            _ => {
-                eprint!("Points with {} dimensions is not supported yet", vec.len());
-                exit(15)
-            }
-        })
-        .collect::<Vec<Point3<f32>>>();
+    // // Convert reduced data to 3D nalgebra points with optional zero padding
+    // let clean_reduced_points = reduced_points
+    //     .iter()
+    //     .map(|vec| match vec[..] {
+    //         [x, y, z] => Point3::<f32>::new(x, y, z),
+    //         [x, y] => Point3::<f32>::new(x, y, 0.0),
+    //         _ => {
+    //             eprint!("Points with {} dimensions is not supported yet", vec.len());
+    //             exit(15)
+    //         }
+    //     })
+    //     .collect::<Vec<na::Point3<f32>>>();
 
-    let neighborhoods_size = match (
-        matches.value_of("neighborhood_size_r"),
-        matches.value_of("neighborhood_size_k"),
-    ) {
-        (None, None) => {
-            eprint!("No neighborhood size was choses");
-            exit(17);
-        }
-        // Safe because this was already checked by the validator in the CLI
-        (Some(r_str), None) => Neighborhood::R(r_str.parse::<f32>().unwrap()),
-        (None, Some(k_str)) => Neighborhood::K(k_str.parse::<usize>().unwrap()),
-        (Some(_), Some(_)) => {
-            eprint!("Two types of neighborhood size were chosen, please select only one");
-            exit(17);
-        }
-    };
+    // let neighborhoods_size = match (
+    //     matches.value_of("neighborhood_size_r"),
+    //     matches.value_of("neighborhood_size_k"),
+    // ) {
+    //     (None, None) => {
+    //         eprint!("No neighborhood size was choses");
+    //         exit(17);
+    //     }
+    //     // Safe because this was already checked by the validator in the CLI
+    //     (Some(r_str), None) => Neighborhood::R(r_str.parse::<f32>().unwrap()),
+    //     (None, Some(k_str)) => Neighborhood::K(k_str.parse::<usize>().unwrap()),
+    //     (Some(_), Some(_)) => {
+    //         eprint!("Two types of neighborhood size were chosen, please select only one");
+    //         exit(17);
+    //     }
+    // };
 
-    // Run the da silva explanation
-    let da_silva_explanation =
-        exp::run_da_silva_variance(clean_reduced_points, &original_points, neighborhoods_size);
+    // // Run the da silva explanation
+    // let da_silva_explanation =
+    //     exp::run_da_silva_variance(clean_reduced_points, &original_points, neighborhoods_size);
 
-    // Write the annotations to file
-    let annotations = da_silva_explanation
-        .iter()
-        .map(|exp| vec![exp.attribute_index as f32, exp.confidence])
-        .collect();
-    let output_file_path = matches.value_of("OUTPUT_FILE").unwrap();
-    let output_file = Path::new(output_file_path);
+    // // Write the annotations to file
+    // let annotations = da_silva_explanation
+    //     .iter()
+    //     .map(|exp| vec![exp.attribute_index as f32, exp.confidence])
+    //     .collect();
+    // let output_file_path = matches.value_of("OUTPUT_FILE").unwrap();
+    // let output_file = Path::new(output_file_path);
 
-    // Write these annotated points to file
-    write(output_file, annotations);
+    // // Write these annotated points to file
+    // write(output_file, annotations);
 }
 
 // Command used to reduce datasets
@@ -310,116 +311,22 @@ fn view_command(matches: &ArgMatches) {
     // Retrieve the points from the original dataset
     let original_data_path = matches.value_of("original_data").unwrap();
     let original_data = Path::new(original_data_path);
-    let (original_points, n, dimension_names) = read(original_data);
-    println!(
-        "Original data loaded. Consists of {} points with {} dimensions",
-        original_points.len(),
-        n
-    );
 
-    // Retrieve the points from the reduced dataset
-    let reduced_points_3d = match matches.value_of("reduced_data_3d") {
-        None => None,
-        Some(reduced_data_path) => {
-            let (reduced_data, dimension_count, _) = read(Path::new(reduced_data_path));
-            println!(
-                "Reduced 3D data loaded. Consists of {} points with {} dimensions",
-                reduced_data.len(),
-                dimension_count
-            );
+    // If a path to the 3D points was given we load it into the point container
+    let point_container_3d = matches
+        .value_of("reduced_data_3d")
+        .and_then(|reduced_data_path| {
+            let reduced_path = Path::new(reduced_data_path);
+            Some(PointContainer3D::new(original_data, reduced_path))
+        });
 
-            // Convert reduced data to 3D nalgebra points with optional zero padding
-            // TODO create abstraction for this!
-            let reduced_points = reduced_data
-                .iter()
-                .map(|vec| match vec[..] {
-                    [x, y, z] => Point3::<f32>::new(x, y, z),
-                    [x, y] => Point3::<f32>::new(x, y, 0.0),
-                    _ => {
-                        eprint!("Points with {} dimensions is not supported yet", vec.len());
-                        exit(15)
-                    }
-                })
-                .collect::<Vec<Point3<f32>>>();
-            Some(reduced_points)
-        }
-    };
+    // If a path to the 2D points was given we load it into the point container
+    let point_container_2d = matches
+        .value_of("reduced_data_2d")
+        .and_then(|reduced_data_path| {
+            let reduced_path = Path::new(reduced_data_path);
+            Some(PointContainer2D::new(original_data, reduced_path))
+        });
 
-    // Retrieve the points from the reduced dataset
-    let explanations_3d = match matches.value_of("annotations_3d") {
-        None => None,
-        Some(annotations_path) => {
-            let annotations_data = Path::new(annotations_path);
-            let (annotations, d, _) = read(annotations_data);
-            println!(
-                "Da Silva annotations for 3D loaded. Consists of {} points with {} dimensions",
-                annotations.len(),
-                d
-            );
-
-            let res = annotations
-                .iter()
-                .map(|v| exp::DaSilvaExplanation {
-                    attribute_index: v[0] as usize,
-                    confidence: v[1],
-                })
-                .collect::<Vec<exp::DaSilvaExplanation>>();
-            Some(res)
-        }
-    };
-
-    // Parse the 2D points if the reduced data is provided
-    let reduced_points_2d: Option<Vec<Point2<f32>>> = {
-        if let Some(path) = matches.value_of("reduced_data_2d") {
-            let (reduced_data, d, _) = read(Path::new(path));
-            println!(
-                "Reduced 2D data loaded. Consists of {} points with {} dimensions",
-                reduced_data.len(),
-                d
-            );
-            let reduced_points = reduced_data
-                .iter()
-                .map(|vec| match vec[..] {
-                    [x, y] => Point2::new(x, y),
-                    _ => {
-                        eprint!("Points with {} dimensions is not supported yet", vec.len());
-                        exit(15)
-                    }
-                })
-                .collect::<Vec<Point2<f32>>>();
-            Some(reduced_points)
-        } else {
-            None
-        }
-    };
-
-    let explanations_2d: Option<Vec<exp::DaSilvaExplanation>> = {
-        if let Some(path) = matches.value_of("annotations_2d") {
-            let (annotations, d, _) = read(Path::new(path));
-            println!(
-                "Da Silva annotations for 2D loaded. Consists of {} points with {} dimensions",
-                annotations.len(),
-                d
-            );
-            let explanations = annotations
-                .iter()
-                .map(|v| exp::DaSilvaExplanation {
-                    attribute_index: v[0] as usize,
-                    confidence: v[1],
-                })
-                .collect::<Vec<exp::DaSilvaExplanation>>();
-            Some(explanations)
-        } else {
-            None
-        }
-    };
-
-    display(
-        original_points,
-        dimension_names,
-        reduced_points_2d,
-        explanations_2d,
-        reduced_points_3d,
-        explanations_3d,
-    );
+    view::display(point_container_2d, point_container_3d);
 }

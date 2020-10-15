@@ -3,6 +3,7 @@
 /// Build in party imports
 use std::collections::HashSet;
 
+use num_traits::Bounded;
 /// Third party imports
 use vpsearch::{BestCandidate, MetricSpace};
 
@@ -22,7 +23,7 @@ impl<Item: MetricSpace<Impl>, Impl> CountBasedNeighborhood<Item, Impl> {
     fn new(item_count: usize) -> Self {
         CountBasedNeighborhood {
             max_item_count: item_count,
-            max_observed_distance: <Item::Distance as Default>::default(),
+            max_observed_distance: <Item::Distance as Bounded>::min_value(),
             distance_x_index: Vec::<(Item::Distance, usize)>::new(),
         }
     }
@@ -134,7 +135,7 @@ mod tests {
 
     /// Get the tree definition used in testing
     fn get_test_tree() -> Tree<PointN> {
-            let points = vec![
+        let points = vec![
             PointN::new(&vec![2.0, 3.0]),
             PointN::new(&vec![0.0, 1.0]),
             PointN::new(&vec![4.0, 5.0]),

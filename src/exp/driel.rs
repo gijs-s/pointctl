@@ -9,18 +9,22 @@
 // which is efficient to compute, scales well visually for large and dense MP scatterplots, and can handle any projection technique.
 // We demonstrate our approach using several datasets.
 
-use nalgebra::Point3;
+// Build in imports
+use std::cmp::Ordering;
+
+// Third party imports
 use rstar::RTree;
 
+// First party imports
 use super::{
-    common::{Distance, IndexedPoint3D},
-    explanation::{Explanation, NeighborhoodExplanationMechanism},
+    explanation::Explanation,
     explanation::{GlobalContribution, LocalContributions, NeighborIndices},
     Neighborhood,
 };
-use crate::util::{math, types::PointN};
-
-use std::cmp::Ordering;
+use crate::{
+    search::{Distance, PointContainer, PointContainer3D, PointContainer2D},
+    util::math
+};
 
 /// Struct continaing the outcome of the Van Driel explanation for a single point
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -80,32 +84,28 @@ enum VanDrielType {
 }
 
 /// Struct containing the state of the van driel explanation mechanism
-pub struct VanDrielState<'a> {
-    pub rtree: RTree<IndexedPoint3D>,
-    pub original_points: &'a [PointN],
+pub struct VanDrielState<'a, PC: PointContainer> {
+    pub point_container: &'a PC,
     // theta value uses in the calculation
     pub theta: f32,
     explanation_type: VanDrielType,
 }
 
-impl<'a> NeighborhoodExplanationMechanism for VanDrielState<'a> {
-    fn get_tree(&self) -> &RTree<IndexedPoint3D> {
-        &self.rtree
-    }
-}
-
-impl<'a> Explanation<VanDrielExplanation> for VanDrielState<'a> {
+/// Allow running the explanation mechanism
+impl<'a, PC: PointContainer> Explanation<VanDrielExplanation> for VanDrielState<'a, PC> {
     /// Run the da silva explanation mechanism
-    #[allow(unused_variables)]
     fn explain(&self, neighborhood_size: Neighborhood) -> Vec<VanDrielExplanation> {
         // For each point get the indices of the neighbors
-        let neighborhoods = self.get_neighbor_indices(neighborhood_size);
+        let neighborhoods = self.point_container.get_neighbor_indices(neighborhood_size);
 
-        (0..self.get_point_count())
-            .zip(&neighborhoods)
-            .map(|(index, neighborhood)| {
+        neighborhoods
+            .iter()
+            .map(|neighborhood| {
                 match neighborhood.len() {
-                    0usize => VanDrielExplanation { dimension: 1, confidence: 0.0f32},
+                    0usize => VanDrielExplanation {
+                        dimension: 1,
+                        confidence: 0.0f32,
+                    },
                     _ => {
                         // Get the eigen values
                         let eigenvalues_sorted = self.get_eigen_values(neighborhood);
@@ -117,51 +117,40 @@ impl<'a> Explanation<VanDrielExplanation> for VanDrielState<'a> {
                         }
                     }
                 }
-
             })
             .collect::<Vec<VanDrielExplanation>>()
     }
 }
 
-impl<'a> VanDrielState<'a> {
-    pub fn new(
-        reduced_points: Vec<Point3<f32>>,
-        original_points: &'a [PointN],
-        theta: f32,
-    ) -> VanDrielState<'a> {
-        let indexed_points: Vec<IndexedPoint3D> = reduced_points
-            .into_iter()
-            .enumerate()
-            .map(|(index, point)| IndexedPoint3D {
-                index,
-                x: point.x,
-                y: point.y,
-                z: point.z,
-            })
-            .collect();
-        VanDrielState::new_with_indexed_point(indexed_points, original_points, theta)
-    }
-
-    pub fn new_with_indexed_point(
-        indexed_points: Vec<IndexedPoint3D>,
-        original_points: &'a [PointN],
-        theta: f32,
-    ) -> VanDrielState<'a> {
-        let rtree = RTree::<IndexedPoint3D>::bulk_load_with_params(indexed_points);
-        VanDrielState {
-            rtree,
-            original_points,
+impl<'a> VanDrielState<'a, PointContainer2D> {
+    /// Create a new mechanism
+    pub fn new(point_container: &'a PointContainer2D, theta: f32) -> VanDrielState<'a, PointContainer2D> {
+        VanDrielState::<PointContainer2D> {
+            point_container,
             explanation_type: VanDrielType::TotalVariance,
-            theta,
+            theta
         }
     }
+}
 
+impl<'a> VanDrielState<'a, PointContainer3D> {
+    /// Create a new mechanism
+    pub fn new(point_container: &'a PointContainer3D, theta: f32) -> VanDrielState<'a, PointContainer3D> {
+        VanDrielState::<PointContainer3D> {
+            point_container,
+            explanation_type: VanDrielType::TotalVariance,
+            theta
+        }
+    }
+}
+
+impl<'a, PC: PointContainer> VanDrielState<'a, PC> {
     /// Get the min/max normalized eigen vectors of the neighborhood sorted desc
     fn get_eigen_values(&self, neighborhood_indices: &[usize]) -> Vec<f32> {
-        // TODO: Clone is bad mkay
+        // TODO: Clone is bad mkay move this into the trait!
         let neighbor_points: Vec<Vec<f32>> = neighborhood_indices
             .iter()
-            .map(|index| self.original_points[*index].clone())
+            .map(|index| self.point_container.get_nd_point(*index).clone())
             .collect();
         // Get eigen values
         let eigenvalues = math::eigen_values_from_points(&neighbor_points).unwrap();

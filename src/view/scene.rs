@@ -1,10 +1,9 @@
 extern crate kiss3d;
-extern crate nalgebra as na;
 
-// Third party
+// Build in imports
 use std::process::exit;
 
-use crate::view::PointRendererInteraction;
+// Third party imports
 use kiss3d::{
     camera::{ArcBall, Camera},
     event::{Action, WindowEvent},
@@ -17,16 +16,15 @@ use kiss3d::{
 use na::{Point2, Point3};
 use rstar::{PointDistance, RTree};
 
-// First party
+// First party imports
 use crate::{
     exp,
-    exp::DaSilvaExplanation,
+    search::{PointContainer, PointContainer2D, PointContainer3D},
     util::types::PointN,
     view::{
         ui::{draw_overlay, WidgetId},
-        visualization_state::Load,
-        ColorMap, DimensionalityMode, PointRenderer2D, PointRenderer3D, RenderMode,
-        VisualizationState2D, VisualizationState3D,
+        ColorMap, DimensionalityMode, PointRenderer2D, PointRenderer3D, PointRendererInteraction,
+        RenderMode, VisualizationState2D, VisualizationState3D,
     },
 };
 
@@ -49,8 +47,6 @@ mod buttons {
 pub struct Scene {
     // Render mode in which the visualization can be used
     pub dimensionality_mode: DimensionalityMode,
-    // Original ND data
-    pub original_points: Vec<Vec<f32>>,
     // 2D state
     pub state_2d: Option<VisualizationState2D>,
     // 3D state
@@ -58,7 +54,7 @@ pub struct Scene {
     // Used by conrod to assign widget ids
     pub conrod_ids: WidgetId,
     // The dimension names
-    pub dimension_names: Vec<String>,
+    // pub dimension_names: Vec<String>,
     // The state of the current UI which are not relevant for the rest
     // of the program
     pub ui_state: UIState,
@@ -69,17 +65,11 @@ pub struct Scene {
 
 impl Scene {
     // Create a new 3D visualization without a initializing the 2D view
-    pub fn new(
-        original_points: Vec<PointN>,
-        dimension_names: Vec<String>,
-        conrod_ids: WidgetId,
-    ) -> Scene {
+    pub fn new(conrod_ids: WidgetId) -> Scene {
         Scene {
             dimensionality_mode: DimensionalityMode::ThreeD,
             state_2d: None,
             state_3d: None,
-            original_points,
-            dimension_names,
             conrod_ids,
             ui_state: UIState::new(),
             dirty: false,
@@ -87,35 +77,17 @@ impl Scene {
     }
 
     /// Load the 3D visualization state using the da silva explanations
-    pub fn load_3d(&mut self, points: Vec<Point3<f32>>) {
-        self.state_3d = Some(VisualizationState3D::new(points));
+    pub fn load_3d(&mut self, points_container: PointContainer3D) {
+        self.state_3d = Some(VisualizationState3D::new(points_container));
         self.dimensionality_mode = DimensionalityMode::ThreeD;
         self.dirty = true;
     }
 
-    /// Load the Da silva annotations from file for the 3D tooling
-    pub fn load_da_silva_3d(&mut self, explanations: Vec<DaSilvaExplanation>) {
-        if self.state_3d.is_some() {
-            self.state_3d.as_mut().unwrap().load(explanations);
-        } else {
-            eprintln!("You cannot load Annotations if the 3D points are not loaded")
-        }
-    }
-
     /// Load the 2D visualization state using the da silva explanations
-    pub fn load_2d(&mut self, points: Vec<Point2<f32>>) {
-        self.state_2d = Some(VisualizationState2D::new(points));
+    pub fn load_2d(&mut self, points_container: PointContainer2D) {
+        self.state_2d = Some(VisualizationState2D::new(points_container));
         self.dimensionality_mode = DimensionalityMode::TwoD;
         self.dirty = true;
-    }
-
-    /// Load the Da silva annotations from file for the 2D tooling
-    pub fn load_da_silva_2d(&mut self, explanations: Vec<DaSilvaExplanation>) {
-        if self.state_2d.is_some() {
-            self.state_2d.as_mut().unwrap().load(explanations);
-        } else {
-            eprintln!("You cannot load Annotations if the 2D points are not loaded")
-        }
     }
 
     /// Check if any data has been passed, we can not work without any reduction data
@@ -228,21 +200,18 @@ impl Scene {
         };
     }
 
+    /// TODO: Move running the explanation mode into the state
     pub fn run_explanation_mode(&mut self, mode: ExplanationMode, neighborhood: exp::Neighborhood) {
         match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &mut self.state_2d {
-                Some(state) => {
-                    state.run_explanation_mode(mode, &self.original_points, neighborhood)
-                }
+                Some(state) => state.run_explanation_mode(mode, neighborhood),
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
                 }
             },
             DimensionalityMode::ThreeD => match &mut self.state_3d {
-                Some(state) => {
-                    state.run_explanation_mode(mode, &self.original_points, neighborhood)
-                }
+                Some(state) => state.run_explanation_mode(mode, neighborhood),
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
@@ -331,9 +300,37 @@ impl Scene {
         }
     }
 
+    pub fn get_point_count(&self) -> usize {
+        match self.dimensionality_mode {
+            DimensionalityMode::TwoD => match &self.state_2d {
+                Some(state) => state.point_container.get_point_count(),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+            DimensionalityMode::ThreeD => match &self.state_3d {
+                Some(state) => state.point_container.get_point_count(),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+        }
+    }
+
     pub fn get_dimension_name(&self, index: &usize) -> Option<String> {
         match self.get_explanation_mode() {
-            ExplanationMode::DaSilva => self.dimension_names.get(*index).and_then(|v| Some(v.clone())),
+            ExplanationMode::DaSilva => match self.dimensionality_mode {
+                DimensionalityMode::TwoD => match &self.state_2d {
+                    Some(state) => state.point_container.dimension_names.get(*index).and_then(|v| Some(v.clone())),
+                    None => None
+                },
+                DimensionalityMode::ThreeD => match &self.state_3d {
+                    Some(state) => state.point_container.dimension_names.get(*index).and_then(|v| Some(v.clone())),
+                    None => None
+                },
+            },
             ExplanationMode::VanDriel => Some(format!("{} Dimension(s)", (index + 1))),
             ExplanationMode::None => None,
         }
@@ -488,12 +485,8 @@ impl ExtendedState for Scene {
 
 // Main display function
 pub fn display(
-    original_points: Vec<Vec<f32>>,
-    dimension_names: Vec<String>,
-    points_2d: Option<Vec<Point2<f32>>>,
-    explanations_2d: Option<Vec<DaSilvaExplanation>>,
-    points_3d: Option<Vec<Point3<f32>>>,
-    explanations_3d: Option<Vec<DaSilvaExplanation>>,
+    point_renderer_2d: Option<PointContainer2D>,
+    point_renderer_3d: Option<PointContainer3D>,
 ) {
     // Create the window and set the background
     const WINDOW_WIDTH: u32 = 1024;
@@ -507,22 +500,16 @@ pub fn display(
     let conrod_ids = WidgetId::new(window.conrod_ui_mut().widget_id_generator());
 
     // Create a scene with empty values
-    let mut scene = Scene::new(original_points, dimension_names, conrod_ids);
+    let mut scene = Scene::new(conrod_ids);
 
     // Add the 2D points if they were provided
-    if let Some(points) = points_2d {
-        scene.load_2d(points);
-        if let Some(explanations) = explanations_2d {
-            scene.load_da_silva_2d(explanations);
-        }
+    if let Some(container) = point_renderer_2d {
+        scene.load_2d(container);
     }
 
     // Add the 3D points if they were provided
-    if let Some(points) = points_3d {
-        scene.load_3d(points);
-        if let Some(explanations) = explanations_3d {
-            scene.load_da_silva_3d(explanations);
-        }
+    if let Some(container) = point_renderer_3d {
+        scene.load_3d(container);
     }
 
     if scene.state_3d.is_none() && scene.state_2d.is_some() {
