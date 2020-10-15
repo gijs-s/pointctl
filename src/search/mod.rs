@@ -8,6 +8,7 @@
 // Sub modules
 mod definitions;
 mod interface;
+mod load;
 
 // Structs that should be reexported from this module.
-pub use self::definitions::data::{PointContainer2D, PointContainer3D};
+pub use self::definitions::{PointContainer2D, PointContainer3D};

@@ -1,17 +1,14 @@
-/// Module containing the implementations required to store annotated 2d/3d
+/// Module containing the implementations required to store indexed 2d/3d
 /// points in an r*-tree.
 
-/// Module containing all the implementations required to store 2/3D annotated
-/// point in r*-trees.
-
-extern crate nalgebra as na;
-
+/// Third party imports
 use rstar;
 
-use super::data::{AnnotatedPoint};
+/// First party imports
+use super::data::IndexedPoint;
 
 /// Trait that allows use to store the annotated 2d points in an rtree
-impl rstar::RTreeObject for AnnotatedPoint<na::Point2<f32>> {
+impl rstar::RTreeObject for IndexedPoint<na::Point2<f32>> {
     type Envelope = rstar::AABB<[f32; 2]>;
     fn envelope(&self) -> Self::Envelope {
         rstar::AABB::from_point([self.point.x, self.point.y])
@@ -19,7 +16,7 @@ impl rstar::RTreeObject for AnnotatedPoint<na::Point2<f32>> {
 }
 
 /// Trait that allows use to store the annotated 3d points in an rtree
-impl rstar::RTreeObject for AnnotatedPoint<na::Point3<f32>> {
+impl rstar::RTreeObject for IndexedPoint<na::Point3<f32>> {
     type Envelope = rstar::AABB<[f32; 3]>;
     fn envelope(&self) -> Self::Envelope {
         rstar::AABB::from_point([self.point.x, self.point.y, self.point.z])
@@ -27,7 +24,7 @@ impl rstar::RTreeObject for AnnotatedPoint<na::Point3<f32>> {
 }
 
 /// Trait used for fast distance calculations between annotated 2d points
-impl rstar::PointDistance for AnnotatedPoint<na::Point2<f32>> {
+impl rstar::PointDistance for IndexedPoint<na::Point2<f32>> {
     fn distance_2(&self, point: &[f32; 2]) -> f32 {
         let x: f32 = point[0] - self.point.x;
         let y: f32 = point[1] - self.point.y;
@@ -52,7 +49,7 @@ impl rstar::PointDistance for AnnotatedPoint<na::Point2<f32>> {
 }
 
 /// Trait used for fast distance calculations between annotated 3d points
-impl rstar::PointDistance for AnnotatedPoint<na::Point3<f32>> {
+impl rstar::PointDistance for IndexedPoint<na::Point3<f32>> {
     fn distance_2(&self, point: &[f32; 3]) -> f32 {
         let x = point[0] - self.point.x;
         let y = point[1] - self.point.y;

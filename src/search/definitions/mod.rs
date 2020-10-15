@@ -1,6 +1,8 @@
-/// Module with all the data structures / defintions used throughout the search
+/// Module with all the data structures / definitions used throughout the search
 /// structures
 mod generic;
 mod rtree;
 mod vptree;
-pub mod data;
+mod data;
+
+pub use self::data::{IndexedPoint, PointContainer2D, PointContainer3D, PointData};

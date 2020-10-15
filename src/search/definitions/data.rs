@@ -9,28 +9,21 @@ use rstar::RTree;
 use vpsearch::Tree as VPTree;
 
 /// First party imports
-use crate::exp::{DaSilvaExplanation, VanDrielExplanation};
+use crate::exp::{DaSilvaExplanation, VanDrielExplanation, NormalExplanation};
 use super::rtree::*;
 
 /// Generic point struct that can be used to
-#[derive(Clone)]
-pub struct AnnotatedPoint<P: Clone + fmt::Debug> {
+#[derive(Clone, Debug)]
+pub struct IndexedPoint<P: Clone + fmt::Debug> {
     pub point: P,
-    pub annotation: Rc<PointData>
+    pub index: usize,
 }
 
-impl<P : Clone + fmt::Debug> fmt::Debug for AnnotatedPoint<P>
-where P : fmt::Debug {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.point.fmt(f)
-    }
-}
-
-impl<P : Clone + fmt::Debug> AnnotatedPoint<P> {
-    pub fn new(point: P, data: Rc<PointData>) -> Self {
-        AnnotatedPoint::<P> {
+impl<P : Clone + fmt::Debug> IndexedPoint<P> {
+    pub fn new(point: P, index: usize) -> Self {
+        IndexedPoint::<P> {
             point,
-            annotation: data
+            index
         }
     }
 }
@@ -41,7 +34,7 @@ pub struct PointData {
     pub dimensionality: usize,
     pub low: Vec<f32>,
     pub high: Vec<f32>,
-    pub normal: Option<na::Point3<f32>>,
+    pub normal: Option<NormalExplanation>,
     pub driel: Option<VanDrielExplanation>,
     pub silva: Option<DaSilvaExplanation>,
 }
@@ -66,13 +59,13 @@ impl PointData {
 pub struct PointContainer2D
 {
     // Used for finding low dimensional neighbors
-    pub tree_low: RTree<AnnotatedPoint<na::Point2<f32>>>,
+    pub tree_low: RTree<IndexedPoint<na::Point2<f32>>>,
     // Used for finding high dimensional neighbors.
-    pub tree_high: VPTree<AnnotatedPoint<Vec<f32>>>,
+    pub tree_high: VPTree<IndexedPoint<Vec<f32>>>,
     // Original dimension names
     pub dimension_names: Vec<String>,
     // Used when quickly iterating over all the points in order of index
-    pub points: Vec<Rc<PointData>>,
+    pub point_data: Vec<PointData>,
 }
 
 /// Data structure used to store the data about all the points,
@@ -81,11 +74,11 @@ pub struct PointContainer2D
 pub struct PointContainer3D
 {
     // Used for finding low dimensional neighbors
-    pub tree_low: RTree<AnnotatedPoint<na::Point3<f32>>>,
+    pub tree_low: RTree<IndexedPoint<na::Point3<f32>>>,
     // Used for finding high dimensional neighbors.
-    pub tree_high: VPTree<AnnotatedPoint<Vec<f32>>>,
+    pub tree_high: VPTree<IndexedPoint<Vec<f32>>>,
     // Original dimension names
     pub dimension_names: Vec<String>,
     // Used when quickly iterating over all the points in order of index
-    pub points: Vec<Rc<PointData>>,
+    pub point_data: Vec<PointData>,
 }

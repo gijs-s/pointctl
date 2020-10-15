@@ -13,10 +13,10 @@ pub use self::{radius::RadiusBasedNeighborhood, count::CountBasedNeighborhood};
 use vpsearch::{BestCandidate, MetricSpace};
 
 /// First party imports
-use super::data::AnnotatedPoint;
+use super::data::IndexedPoint;
 use crate::search::definitions::generic::Distance;
 
-impl MetricSpace for AnnotatedPoint<Vec<f32>> {
+impl MetricSpace for IndexedPoint<Vec<f32>> {
     type UserData = ();
     type Distance = f32;
 
@@ -30,7 +30,7 @@ impl MetricSpace for AnnotatedPoint<Vec<f32>> {
     }
 }
 
-impl MetricSpace for AnnotatedPoint<na::Point2<f32>> {
+impl MetricSpace for IndexedPoint<na::Point2<f32>> {
     type UserData = ();
     type Distance = f32;
 
@@ -39,7 +39,7 @@ impl MetricSpace for AnnotatedPoint<na::Point2<f32>> {
     }
 }
 
-impl MetricSpace for AnnotatedPoint<na::Point3<f32>> {
+impl MetricSpace for IndexedPoint<na::Point3<f32>> {
     type UserData = ();
     type Distance = f32;
 
