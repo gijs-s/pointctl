@@ -273,7 +273,7 @@ class Dataset:
         It will store this file to the file specified in path.
         """
         # Create the path if it did not exist.
-        self.raw_file_path.parent.mkdir(exist_ok=True)
+        self.raw_file_path.parent.mkdir(exist_ok=True, parents=True)
 
         # Start a streaming get request, retrieve the file size from t he content-length headers
         r = requests.get(self.url, stream=True)
