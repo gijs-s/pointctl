@@ -20,6 +20,7 @@ pub struct CountBasedNeighborhood<Item: MetricSpace<Impl>, Impl> {
 impl<Item: MetricSpace<Impl>, Impl> CountBasedNeighborhood<Item, Impl> {
     /// Helper function for creating the CountBasedNeighborhood struct.
     /// Here `item_count` is the amount of items returned, the k in knn.
+    #[allow(dead_code)]
     fn new(item_count: usize) -> Self {
         CountBasedNeighborhood {
             max_item_count: item_count,

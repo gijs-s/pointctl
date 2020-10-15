@@ -10,7 +10,7 @@ mod radius;
 pub use self::{count::CountBasedNeighborhood, radius::RadiusBasedNeighborhood};
 
 /// Third party imports
-use vpsearch::{BestCandidate, MetricSpace};
+use vpsearch::MetricSpace;
 
 /// First party imports
 use super::data::IndexedPoint;

@@ -9,7 +9,6 @@ use std::process::exit;
 use rstar::RTree;
 use vpsearch::Tree as VPTree;
 
-use super::rtree::*;
 /// First party imports
 use crate::{
     search::PointContainer,
