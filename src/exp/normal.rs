@@ -2,6 +2,7 @@
 /// of the principal competent with the lowest eigenvalue.
 extern crate nalgebra as na;
 
+#[allow(dead_code)]
 pub struct NormalExplanation {
     normal: na::Point3<f32>,
 }

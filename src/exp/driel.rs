@@ -12,17 +12,13 @@
 // Build in imports
 use std::cmp::Ordering;
 
-// Third party imports
-use rstar::RTree;
-
 // First party imports
 use super::{
     explanation::Explanation,
-    explanation::{GlobalContribution, LocalContributions, NeighborIndices},
     Neighborhood,
 };
 use crate::{
-    search::{Distance, PointContainer, PointContainer3D, PointContainer2D},
+    search::{PointContainer, PointContainer3D, PointContainer2D},
     util::math
 };
 
@@ -78,6 +74,7 @@ impl VanDrielExplanation {
     }
 }
 
+#[allow(dead_code)]
 enum VanDrielType {
     TotalVariance,
     MinimalVariance,
@@ -88,6 +85,7 @@ pub struct VanDrielState<'a, PC: PointContainer> {
     pub point_container: &'a PC,
     // theta value uses in the calculation
     pub theta: f32,
+    #[allow(dead_code)]
     explanation_type: VanDrielType,
 }
 

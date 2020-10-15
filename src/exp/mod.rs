@@ -12,7 +12,6 @@ pub use self::{
 
 // Third party imports
 use crate::search::{PointContainer2D, PointContainer3D};
-use na::{Point2, Point3};
 
 // First party imports
 use explanation::Explanation;
