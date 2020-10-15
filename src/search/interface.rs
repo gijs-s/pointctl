@@ -126,3 +126,45 @@ impl PointContainer2D {
         }
     }
 }
+
+impl PointContainer for PointContainer3D {
+    const DIMENSIONS: usize = 3;
+}
+
+impl PointContainer3D {
+    /// Create a new point container from 2 files
+    fn new(original_points_path: &Path, reduced_points_path: &Path) -> PointContainer3D {
+        let (original_points_raw, reduced_points_raw, dimension_names) =
+            Self::read_points(original_points_path, reduced_points_path);
+
+        let rc_points = Self::create_reference_points(&original_points_raw, &reduced_points_raw);
+
+        let ref_points_ld = reduced_points_raw
+            .iter()
+            .zip(&rc_points)
+            .map(|(raw, rc)| {
+                let point = match raw[..] {
+                    [x, y, z] => na::Point3::<f32>::new(x,y,z),
+                    _ => exit(14),
+                };
+                AnnotatedPoint::<na::Point3<f32>>::new(point, rc.clone())
+            })
+            .collect::<Vec<AnnotatedPoint<na::Point3<f32>>>>();
+
+        let ref_point_hd = original_points_raw
+            .into_iter()
+            .zip(&rc_points)
+            .map(|(raw, rc)| AnnotatedPoint::<Vec<f32>>::new(raw, rc.clone()))
+            .collect::<Vec<AnnotatedPoint::<Vec<f32>>>>();
+
+        let tree_low = RTree::<AnnotatedPoint<na::Point3<f32>>>::bulk_load(ref_points_ld);
+        let tree_high = VPTree::new(&ref_point_hd);
+
+        PointContainer3D {
+            tree_low,
+            tree_high,
+            dimension_names,
+            points: rc_points,
+        }
+    }
+}
