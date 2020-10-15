@@ -1,12 +1,13 @@
 /// This module contains the data structure that will be used to store
 /// the nd/low-d points and all its annotations. The annotations will
 /// contain index, explanations and normals. The search structure will
-/// use rtree's to quickly find nd or low-d neighbors and all its data
+/// use rtree's in 2/3d and vantage point trees in higher dimensions
+/// to quickly find neighbors and accompanying data.
 
-/// Right now this is not used yet, a heavy complication is the fact that
-/// I need to lift the dimensionality of the original data into the type level
 
+// Sub modules
 mod definitions;
 mod interface;
 
-pub use self::interface::PointContainer;
+// Structs that should be reexported from this module.
+pub use self::definitions::data::{PointContainer2D, PointContainer3D};

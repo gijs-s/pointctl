@@ -1142,7 +1142,7 @@ dependencies = [
  "rand 0.7.3",
  "rand_distr",
  "rstar",
- "typenum",
+ "vpsearch",
 ]
 
 [[package]]
@@ -1777,6 +1777,14 @@ name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
+
+[[package]]
+name = "vpsearch"
+version = "2.0.1"
+source = "git+https://github.com/gijs-s/vpsearch?branch=rust#5b11a68b96b6f0d37c1fb05c01347ca284ea7d74"
+dependencies = [
+ "num-traits",
+]
 
 [[package]]
 name = "walkdir"

@@ -1,5 +1,4 @@
 // Module containing the explanation mechanisms used for the visualization.
-// TODO: Add prelude?
 
 pub use self::{
     common::{
@@ -18,7 +17,7 @@ mod normal;
 
 use crate::util::types::PointN;
 use explanation::Explanation;
-use nalgebra::{Point2, Point3};
+use na::{Point2, Point3};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Neighborhood {

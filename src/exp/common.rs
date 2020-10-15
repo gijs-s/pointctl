@@ -187,6 +187,7 @@ pub trait Distance {
     // Euclidean distance
     fn distance(&self, other: &Self) -> f32;
 
+    // Squared distance
     fn sq_distance(&self, other: &Self) -> f32;
 }
 
