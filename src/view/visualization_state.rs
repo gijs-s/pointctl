@@ -5,28 +5,22 @@ use crate::exp;
 use std::collections::HashMap;
 
 // Third party imports
-use crate::view::RenderMode;
 use kiss3d::{
-    camera::{ArcBall, Camera},
-    light::Light,
-    planar_camera::{PlanarCamera, Sidescroll},
-    post_processing::PostProcessingEffect,
-    renderer::{PlanarRenderer, Renderer},
+    camera::ArcBall,
+    planar_camera::Sidescroll,
 };
 use na::{Point2, Point3};
-use rstar::{PointDistance, RTree};
 
 // First party imports
 use crate::{
     exp::{
         DaSilvaExplanation, VanDrielExplanation,
     },
-    search::{Load, PointContainer, PointContainer2D, PointContainer3D, PointData2D, PointData3D},
+    search::{Load, PointContainer, PointContainer2D, PointContainer3D},
     view::{
         color_map::ColorMap,
         point_renderer_2d::PointRenderer2D,
         point_renderer_3d::PointRenderer3D,
-        ui::{draw_overlay, WidgetId},
         ExplanationMode,
     },
 };
