@@ -30,7 +30,10 @@ fn main() {
         .subcommand(
             SubCommand::with_name("explain")
                 .alias("exp")
-                .about("Calculate a explanation given the original and reduced dataset (Only DaSilva right now)")
+                .about("Calculate a explanation given the original and reduced dataset. \
+                This will output the data to a simple csv file with 2 values on each row, \
+                the first being dimensionality/dimension and second the confidence. Both \
+                the input and output csv files will use ; as delimiter.")
                 .arg(
                     Arg::with_name("original_data")
                         .short("i")
