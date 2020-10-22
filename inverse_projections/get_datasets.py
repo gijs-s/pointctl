@@ -42,7 +42,7 @@ def process_abalone(input_file: Path, output_file: Path):
     X["y"] = df["y"]
 
     print("Processed dataset to {0} rows, {1} columns".format(len(X), len(X.columns)))
-    X.to_csv(output_file, sep=",", index=None)
+    X.to_csv(output_file, sep=";", index=None)
 
 
 def process_absenteeism(input_file: Path, output_file: Path):
@@ -66,7 +66,7 @@ def process_absenteeism(input_file: Path, output_file: Path):
     X["y"] = y
 
     print("Processed dataset to {0} rows, {1} columns".format(len(X), len(X.columns)))
-    X.to_csv(output_file, sep=",", index=None)
+    X.to_csv(output_file, sep=";", index=None)
 
 
 def process_bank(input_file: Path, output_file: Path):
@@ -89,7 +89,7 @@ def process_bank(input_file: Path, output_file: Path):
     X["y"] = y
 
     print("Processed dataset to {0} rows, {1} columns".format(len(X), len(X.columns)))
-    X.to_csv(output_file, sep=",", index=None)
+    X.to_csv(output_file, sep=";", index=None)
 
 
 def process_banknote(input_file: Path, output_file: Path):
@@ -107,7 +107,7 @@ def process_banknote(input_file: Path, output_file: Path):
     X["y"] = y
 
     print("Processed dataset to {0} rows, {1} columns".format(len(X), len(X.columns)))
-    X.to_csv(output_file, sep=",", index=None)
+    X.to_csv(output_file, sep=";", index=None)
 
 
 def process_defaultcc(input_file: Path, output_file: Path):
@@ -124,7 +124,7 @@ def process_defaultcc(input_file: Path, output_file: Path):
     X["y"] = y
 
     print("Processed dataset to {0} rows, {1} columns".format(len(X), len(X.columns)))
-    X.to_csv(output_file, sep=",", index=None)
+    X.to_csv(output_file, sep=";", index=None)
 
 
 def process_diabetes(input_file: Path, output_file: Path):
@@ -140,7 +140,7 @@ def process_diabetes(input_file: Path, output_file: Path):
     X["y"] = y
 
     print("Processed dataset to {0} rows, {1} columns".format(len(X), len(X.columns)))
-    X.to_csv(output_file, sep=",", index=None)
+    X.to_csv(output_file, sep=";", index=None)
 
 
 def process_epileptic(input_file: Path, output_file: Path):
@@ -156,7 +156,7 @@ def process_epileptic(input_file: Path, output_file: Path):
     X["y"] = df["y"]
 
     print("Processed dataset to {0} rows, {1} columns".format(len(X), len(X.columns)))
-    X.to_csv(output_file, sep=",", index=None)
+    X.to_csv(output_file, sep=";", index=None)
 
 
 def process_happiness(input_file: Path, output_file: Path):
@@ -184,7 +184,7 @@ def process_happiness(input_file: Path, output_file: Path):
     X["y"] = y
 
     print("Processed dataset to {0} rows, {1} columns".format(len(X), len(X.columns)))
-    X.to_csv(output_file, sep=",", index=None)
+    X.to_csv(output_file, sep=";", index=None)
 
 
 def process_seismic(input_file: Path, output_file: Path):
@@ -208,7 +208,7 @@ def process_seismic(input_file: Path, output_file: Path):
     X["y"] = y
 
     print("Processed dataset to {0} rows, {1} columns".format(len(X), len(X.columns)))
-    X.to_csv(output_file, sep=",", index=None)
+    X.to_csv(output_file, sep=";", index=None)
 
 
 def process_wbc(input_file: Path, output_file: Path):
@@ -241,7 +241,7 @@ def process_wbc(input_file: Path, output_file: Path):
     X["y"] = y
 
     print("Processed dataset to {0} rows, {1} columns".format(len(X), len(X.columns)))
-    X.to_csv(output_file, sep=",", index=None)
+    X.to_csv(output_file, sep=";", index=None)
 
 
 @dataclass
