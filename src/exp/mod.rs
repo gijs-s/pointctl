@@ -43,9 +43,8 @@ pub fn run_da_silva_variance_3d<'a>(
 pub fn run_van_driel_2d<'a>(
     point_container_2d: &'a PointContainer2D,
     neighborhood_size: Neighborhood,
+    theta: f32,
 ) -> Vec<VanDrielExplanation> {
-    // TODO: Remove dummy value
-    let theta = 0.95f32;
     let van_driel_mechanism = driel::VanDrielState::<PointContainer2D>::new(point_container_2d, theta);
     van_driel_mechanism.explain(neighborhood_size)
 }
@@ -53,9 +52,8 @@ pub fn run_van_driel_2d<'a>(
 pub fn run_van_driel_3d<'a>(
     point_container_3d: &'a PointContainer3D,
     neighborhood_size: Neighborhood,
+    theta: f32,
 ) -> Vec<VanDrielExplanation> {
-    // TODO: Remove dummy value
-    let theta = 0.95f32;
     let van_driel_mechanism = driel::VanDrielState::<PointContainer3D>::new(point_container_3d, theta);
     van_driel_mechanism.explain(neighborhood_size)
 }

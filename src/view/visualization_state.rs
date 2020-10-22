@@ -121,7 +121,7 @@ impl VisualizationState3D {
             }
             ExplanationMode::VanDriel => {
                 let van_driel_explanation =
-                    exp::run_van_driel_3d(&self.point_container, neighborhood_size);
+                    exp::run_van_driel_3d(&self.point_container, neighborhood_size, 0.95);
                 self.load(van_driel_explanation);
                 self.set_explanation_mode(mode);
             }
@@ -287,7 +287,7 @@ impl VisualizationState2D {
             }
             ExplanationMode::VanDriel => {
                 let van_driel_explanation =
-                    exp::run_van_driel_2d(&self.point_container, neighborhood_size);
+                    exp::run_van_driel_2d(&self.point_container, neighborhood_size, 0.95);
                 self.load(van_driel_explanation);
                 self.set_explanation_mode(mode);
             }

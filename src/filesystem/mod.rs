@@ -4,4 +4,4 @@ mod ply;
 mod prelude;
 
 // Public facing functions
-pub use self::prelude::{read, write};
+pub use self::prelude::{read, write, get_header};

@@ -201,7 +201,7 @@ impl<'a, PC: PointContainer> DaSilvaState<'a, PC> {
     /// Calculate the variance over all point per dimension.
     /// TODO: This is horrible code please fix
     fn calculate_global_variance(&self) -> GlobalContribution {
-        // This is basicly a transpose the points and then take the variance
+        // This is basically a transpose the points and then take the variance
         self.point_container
             .get_nd_points()
             .iter()

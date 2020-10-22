@@ -14,8 +14,8 @@ pub enum SupportedFileFormat {
     PLY,
 }
 
-// Generic function to write a collection of points to disk.
-// File format will be decided upon by extension, defaulting to CSV.
+/// Generic function to write a collection of points to disk.
+/// File format will be decided upon by extension, defaulting to CSV.
 pub fn write(file_path: &Path, points: Vec<PointN>) {
     let res = match get_file_extension(file_path) {
         SupportedFileFormat::CSV => csv::write(file_path, points),
@@ -31,8 +31,23 @@ pub fn write(file_path: &Path, points: Vec<PointN>) {
     };
 }
 
-// Generic function to read points from disk.
-// Will return the points and their dimensionality.
+/// Retrieve the header line of a file, can be used to check the dimension count
+pub fn get_header(file_path: &Path) -> Vec<String>{
+    let res = match get_file_extension(file_path) {
+        SupportedFileFormat::CSV => csv::get_header(file_path),
+        SupportedFileFormat::PLY => ply::get_header(file_path),
+    };
+    match res {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("{:?}", e);
+            exit(12)
+        }
+    }
+}
+
+/// Generic function to read points from disk.
+/// Will return the points and their dimensionality.
 pub fn read(file_path: &Path) -> (Vec<PointN>, usize, Vec<String>) {
     let res = match get_file_extension(file_path) {
         SupportedFileFormat::CSV => csv::read(file_path),
@@ -42,7 +57,7 @@ pub fn read(file_path: &Path) -> (Vec<PointN>, usize, Vec<String>) {
     match res {
         Ok(data) => data,
         Err(e) => {
-            eprint!("There was an IO error reading from file: {:?}", e);
+            eprintln!("There was an IO error reading from file: {:?}", e);
             exit(10)
         }
     }
@@ -55,14 +70,14 @@ fn get_file_extension(file_path: &Path) -> SupportedFileFormat {
             "ply" => SupportedFileFormat::PLY,
             alt => {
                 print!(
-                    "Unsupported file format `{}` passed, writing to file as CSV",
+                    "Unsupported file format `{}` passed, writing to file in CSV format",
                     alt
                 );
                 SupportedFileFormat::CSV
             }
         },
         None => {
-            print!("No file format passed, writing to file as CSV");
+            print!("No file format passed, writing to file in CSV format");
             SupportedFileFormat::CSV
         }
     }

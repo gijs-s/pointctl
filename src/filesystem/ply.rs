@@ -31,8 +31,14 @@ pub fn write(file_path: &Path, points: Vec<PointN>) -> std::io::Result<()> {
     Ok(())
 }
 
-// Read a CSV file from disk
-// TODO: Build this using NOM
+/// Retrieve the header line of a file, can be used to check the dimension count
+pub fn get_header(_file_path: &Path) -> std::io::Result<Vec<String>>{
+    unimplemented!("Reading from PLY is not yet supported")
+}
+
+
+/// Read a CSV file from disk
+/// TODO: Build this using NOM
 pub fn read(_file_path: &Path) -> std::io::Result<(Vec<PointN>, usize, Vec<String>)> {
     unimplemented!("Reading from PLY is not yet supported")
 }

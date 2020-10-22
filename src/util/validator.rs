@@ -21,3 +21,15 @@ pub fn is_float(v: String) -> Result<(), String> {
         Err(format!("`{}` is not a float", &*v))
     }
 }
+
+pub fn is_norm_float(v: String) -> Result<(), String> {
+    if let Ok(v) = v.parse::<f32>() {
+        if v >= 0f32 && v <= 1f32 {
+            Ok(())
+        } else {
+            Err(format!("`{}` is not between 1.0 and 0.0", v))
+        }
+    } else {
+        Err(format!("`{}` is not a float", &*v))
+    }
+}

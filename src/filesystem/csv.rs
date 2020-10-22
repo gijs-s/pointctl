@@ -3,8 +3,7 @@
 // TODO: use nom instead of of manual stuff.
 
 use std::fs::File;
-use std::io::prelude::*;
-use std::io::{BufReader, BufWriter};
+use std::io::{prelude::*, BufReader, BufWriter};
 use std::path::Path;
 use std::process::exit;
 
@@ -32,6 +31,31 @@ pub fn write(file_path: &Path, points: Vec<PointN>) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Retrieve the header line of a file, can be used to check the dimension count
+pub fn get_header(file_path: &Path) -> std::io::Result<Vec<String>>{
+    let buffer = BufReader::new(File::open(file_path)?);
+
+    match buffer.lines().next() {
+        None => {
+            eprintln!("File passed was empty");
+            exit(12)
+        },
+        Some(res) => match res {
+            Ok(line) => {
+                let data = line
+                    .split(';')
+                    .map(|s| s.to_string())
+                    .collect::<Vec<String>>();
+                Ok(data)
+            },
+            Err(e) => {
+                eprintln!("Error reading line from csv: {:?}", e);
+                exit(12)
+            }
+        },
+    }
+}
+
 // Read a CSV file from disk
 pub fn read(file_path: &Path) -> std::io::Result<(Vec<PointN>, usize, Vec<String>)> {
     let buffer = BufReader::new(File::open(file_path)?);
@@ -49,7 +73,7 @@ pub fn read(file_path: &Path) -> std::io::Result<(Vec<PointN>, usize, Vec<String
                 .map(|s| s.to_string())
                 .collect::<Vec<String>>(),
             Err(e) => {
-                eprintln!("Error reading line from csv: {:?}", e);
+                eprintln!("Error reading first line from csv: {:?}", e);
                 exit(12)
             }
         },
@@ -99,4 +123,4 @@ pub fn read(file_path: &Path) -> std::io::Result<(Vec<PointN>, usize, Vec<String
     Ok((points, length, header))
 }
 
-// TODO: Add tests for reading data.
+// TODO: Add tests for reading data using io::Cursor

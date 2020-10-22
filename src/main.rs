@@ -4,7 +4,7 @@ extern crate nalgebra as na;
 // Build in imports
 use exp::Neighborhood;
 use pc::search::{PointContainer2D, PointContainer3D};
-use std::{path::Path, process::exit};
+use std::{path::Path, process::exit, convert::TryFrom};
 
 // Third party imports
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
@@ -12,14 +12,14 @@ use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 // Local imports
 use pc::{
     exp,
-    filesystem::{read, write},
+    filesystem::{write, get_header},
     generate,
     util::validator,
     view,
 };
 
 fn main() {
-    // TODO: Move this entire mess to a yaml file. See https://docs.rs/clap/2.33.1/clap/
+    // TODO: Move this entire mess to a yaml file or use the nice makro. See https://docs.rs/clap/2.33.1/clap/
     let matches = App::new("Point cloud processing")
         .version(crate_version!())
         .author("Gijs van Steenpaal <g.j.vansteenpaal@students.uu.nl>")
@@ -34,6 +34,7 @@ fn main() {
                 .arg(
                     Arg::with_name("original_data")
                         .short("i")
+                        .long("input")
                         .required(true)
                         .takes_value(true)
                         .help("The original dataset in ply or csv format"),
@@ -41,26 +42,52 @@ fn main() {
                 .arg(
                     Arg::with_name("reduced_data")
                         .short("d")
+                        .long("reduced")
                         .required(true)
                         .takes_value(true)
                         .help("The reduced dataset in ply or csv format"),
                 ).arg(
+                    Arg::with_name("mechanism")
+                        .short("m")
+                        .long("mechanism")
+                        .default_value("silva")
+                        .takes_value(true)
+                        // TODO: Add more possible validation techniques
+                        .possible_values(&["silva", "driel"])
+                        .help("Chose which annotation technique is used, da silva's variance\
+                            based explanation or van Driel PCA sum metric.")
+                )
+                .arg(
+                    Arg::with_name("theta")
+                        .short("t")
+                        .long("theta")
+                        .required_if("mechanism", "driel")
+                        .takes_value(true)
+                        .validator(validator::is_norm_float)
+                )
+                .arg(
                     Arg::with_name("neighborhood_size_r")
                         .short("r")
+                        .long("radius")
+                        .conflicts_with("neighborhood_size_k")
+                        .required_unless("neighborhood_size_k")
                         .takes_value(true)
-                        .validator(validator::is_float)
+                        .validator(validator::is_norm_float)
                         .help("The radius based P value used for the explanation process"),
                 ).arg(
                     Arg::with_name("neighborhood_size_k")
                         .short("k")
+                        .long("neighbor_count")
+                        // .conflicts_with("neighborhood_size_r")
+                        .required_unless("neighborhood_size_r")
                         .takes_value(true)
                         .validator(validator::is_usize)
                         .help("The count based P value used for the explanation process"),
                 )
                 .arg(
                     Arg::with_name("OUTPUT_FILE")
-                    .short("o")
                     .index(1)
+                    .required(true)
                     .help("Set the file to output the explained data to")
                 ),
         )
@@ -70,8 +97,7 @@ fn main() {
                     "Allows you to view 3D data points given the original data, reduced points and \
                     the annotations. This command assumes that the reduced points, original data and \
                     annotations have matching indexes. The to start the viewer you need to provide the \
-                    original data and either a 2d or 3d reduced set. Annotations are optional and can \
-                    be computed from the viewer ")
+                    original data and either a 2d or 3d reduced set.")
                 .arg(
                     Arg::with_name("original_data")
                         .short("i")
@@ -88,25 +114,11 @@ fn main() {
                         .help("The 3D reduced dataset in ply or csv format"),
                 )
                 .arg(
-                    Arg::with_name("annotations_3d")
-                        .short("a")
-                        .long("a3d")
-                        .takes_value(true)
-                        .help("Annotations for the 3D data in ply or csv format"),
-                )
-                .arg(
                     Arg::with_name("reduced_data_2d")
                         .short("x")
                         .long("r2d")
                         .takes_value(true)
                         .help("The 2D reduced dataset in ply or csv format"),
-                )
-                .arg(
-                    Arg::with_name("annotations_2d")
-                        .short("b")
-                        .long("a2d")
-                        .takes_value(true)
-                        .help("Annotations for the 2D data in ply or csv format")
                 ),
         )
         .subcommand(
@@ -141,8 +153,8 @@ fn main() {
                 )
                 .arg(
                     Arg::with_name("OUTPUT_FILE")
-                        .required(true)
                         .index(1)
+                        .required(true)
                         .help("Sets the output file to use"),
                 ),
         )
@@ -188,7 +200,7 @@ fn generate_command(matches: &ArgMatches) {
             eprint!("Invalid value was passed as shape, received `{}`", v);
             exit(17)
         }
-        _ => panic!("This should not happend, programming error"),
+        _ => panic!("This should not happen, result of a programming error"),
     };
 
     let noise = match matches.value_of("noise") {
@@ -226,98 +238,122 @@ fn generate_command(matches: &ArgMatches) {
 
 // Explain a dataset
 fn explain_command(matches: &ArgMatches) {
-    // // Retrieve the points from the original dataset
-    // let original_data_path = matches.value_of("original_data").unwrap();
-    // let original_data = Path::new(original_data_path);
-    // let (original_points, dimension_count, _) = read(original_data);
-    // println!(
-    //     "Original data loaded. Consists of {} points with {} dimensions",
-    //     original_points.len(),
-    //     dimension_count
-    // );
+    // Find out which mechanism was used. Unwrap is safe since value
+    // has a default and a validator
+    let explanation_mode: view::ExplanationMode = {
+        let mechanism_text = matches.value_of("mechanism").unwrap();
+        view::ExplanationMode::try_from(mechanism_text).unwrap()
+    };
 
-    // // Retrieve the points from the reduced dataset
-    // let reduced_data_path = matches.value_of("reduced_data").unwrap();
-    // let reduced_data = Path::new(reduced_data_path);
-    // let (reduced_points, dimension_count, _) = read(reduced_data);
-    // println!(
-    //     "Reduced data loaded. Consists of {} points with {} dimensions",
-    //     reduced_points.len(),
-    //     dimension_count
-    // );
+    // Find out what the dimensionality is of the reduced data
+    let reduced_data_path: &Path = {
+        let path_str = matches.value_of("reduced_data").unwrap();
+        Path::new(path_str)
+    };
+    let dimensionality = get_header(reduced_data_path).len();
 
-    // // Convert reduced data to 3D nalgebra points with optional zero padding
-    // let clean_reduced_points = reduced_points
-    //     .iter()
-    //     .map(|vec| match vec[..] {
-    //         [x, y, z] => Point3::<f32>::new(x, y, z),
-    //         [x, y] => Point3::<f32>::new(x, y, 0.0),
-    //         _ => {
-    //             eprint!("Points with {} dimensions is not supported yet", vec.len());
-    //             exit(15)
-    //         }
-    //     })
-    //     .collect::<Vec<na::Point3<f32>>>();
+    // Construct the path for the original points
+    let original_data_path: &Path = {
+        let path_str = matches.value_of("original_data").unwrap();
+        Path::new(path_str)
+    };
 
-    // let neighborhoods_size = match (
-    //     matches.value_of("neighborhood_size_r"),
-    //     matches.value_of("neighborhood_size_k"),
-    // ) {
-    //     (None, None) => {
-    //         eprint!("No neighborhood size was choses");
-    //         exit(17);
-    //     }
-    //     // Safe because this was already checked by the validator in the CLI
-    //     (Some(r_str), None) => Neighborhood::R(r_str.parse::<f32>().unwrap()),
-    //     (None, Some(k_str)) => Neighborhood::K(k_str.parse::<usize>().unwrap()),
-    //     (Some(_), Some(_)) => {
-    //         eprint!("Two types of neighborhood size were chosen, please select only one");
-    //         exit(17);
-    //     }
-    // };
+    // Construct the path for the output file
+    let output_file_path: &Path = {
+        let path_str = matches.value_of("OUTPUT_FILE").unwrap();
+        Path::new(path_str)
+    };
 
-    // // Run the da silva explanation
-    // let da_silva_explanation =
-    //     exp::run_da_silva_variance(clean_reduced_points, &original_points, neighborhoods_size);
+    // Parse the choses neighborhood size
+    let neighborhoods_size: Neighborhood = match (
+        matches.value_of("neighborhood_size_r"),
+        matches.value_of("neighborhood_size_k"),
+    ) {
+        // Safe because this was already checked by the validator in the CLI.
+        // Clap also ensures exactly one of the 2 is chosen
+        (Some(r_str), None) => Neighborhood::R(r_str.parse::<f32>().unwrap()),
+        (None, Some(k_str)) => Neighborhood::K(k_str.parse::<usize>().unwrap()),
+        (_, _) => panic!("Impossible neighborhood combination passed, if this is raised the constraints set in the CLI are broken")
+    };
 
-    // // Write the annotations to file
-    // let annotations = da_silva_explanation
-    //     .iter()
-    //     .map(|exp| vec![exp.attribute_index as f32, exp.confidence])
-    //     .collect();
-    // let output_file_path = matches.value_of("OUTPUT_FILE").unwrap();
-    // let output_file = Path::new(output_file_path);
+    // if the van driel explanation is used the theta is mandatory in the cli.
+    // We already run a validator to ensure it is between 1 and 0 and that it
+    // is present iff driel is selected.
+    let theta: Option<f32> = matches.value_of("theta").and_then(|v| Some(v.parse::<f32>().unwrap()));
 
-    // // Write these annotated points to file
-    // write(output_file, annotations);
+    match (dimensionality, explanation_mode) {
+        (2, view::ExplanationMode::DaSilva) => {
+            let point_container = PointContainer2D::new(original_data_path, reduced_data_path);
+            let annotations: Vec<exp::DaSilvaExplanation> = exp::run_da_silva_variance_2d(&point_container, neighborhoods_size);
+            let points = annotations
+                .iter()
+                .map(|exp| vec![exp.attribute_index as f32, exp.confidence])
+                .collect();
+            write(&output_file_path, points);
+        },
+        (3, view::ExplanationMode::DaSilva) => {
+            let point_container = PointContainer3D::new(original_data_path, reduced_data_path);
+            let annotations: Vec<exp::DaSilvaExplanation> = exp::run_da_silva_variance_3d(&point_container, neighborhoods_size);
+            let points = annotations
+                .iter()
+                .map(|exp| vec![exp.attribute_index as f32, exp.confidence])
+                .collect();
+            write(&output_file_path, points);
+
+        },
+        (2, view::ExplanationMode::VanDriel) => {
+            let point_container = PointContainer2D::new(original_data_path, reduced_data_path);
+            let annotations: Vec<exp::VanDrielExplanation> = exp::run_van_driel_2d(&point_container, neighborhoods_size, theta.unwrap());
+            let points = annotations
+                .iter()
+                .map(|exp| vec![exp.dimension as f32, exp.confidence])
+                .collect();
+            write(&output_file_path, points);
+        },
+        (3, view::ExplanationMode::VanDriel) => {
+            let point_container = PointContainer3D::new(original_data_path, reduced_data_path);
+            let annotations: Vec<exp::VanDrielExplanation> = exp::run_van_driel_3d(&point_container, neighborhoods_size, theta.unwrap());
+            let points = annotations
+                .iter()
+                .map(|exp| vec![exp.dimension as f32, exp.confidence])
+                .collect();
+            write(&output_file_path, points);
+        },
+        (v, _) => {
+            eprintln!("The amount of dimensions in the header of the reduced file \
+            indicated that there were '{}' dimensions, this is not yet supported.", v);
+            exit(15)
+        }
+    };
 }
 
 // Command used to reduce datasets
 fn reduce_command(_matches: &ArgMatches) {
     // Load in the nD dataset
     // Preform TSNE data reduction with the given arguments
-    // Write the reduced 3D data to a new file
-    println!("`reduce` not yet implemented. You can use python's SciKit learn for now")
+    // Write the reduced data to a new file
+    println!("`reduce` not yet implemented. You can use python's SciKit learn for now in ./python-repl")
 }
 
 fn view_command(matches: &ArgMatches) {
-    // Load in a custom file with annotated points
-    // Determine which explanation was used, for now always only da silva
+    // Load in a custom files with all the points
     // Pass the data to a viewing mechanism, which will
     //  - Create a color pallet for dimensions based on the global dimension randing
     //  - Render all the points with the given color
-    // The viewing mechanism should allow basic navigation but need the ability for custom interactions in the future
+    // TODO: Add robust way to pass the precomputed annotations
 
     // Retrieve the points from the original dataset
-    let original_data_path = matches.value_of("original_data").unwrap();
-    let original_data = Path::new(original_data_path);
+    let original_data_path = {
+        let path_str = matches.value_of("original_data").unwrap();
+        Path::new(path_str)
+    };
 
     // If a path to the 3D points was given we load it into the point container
     let point_container_3d = matches
         .value_of("reduced_data_3d")
         .and_then(|reduced_data_path| {
             let reduced_path = Path::new(reduced_data_path);
-            Some(PointContainer3D::new(original_data, reduced_path))
+            Some(PointContainer3D::new(original_data_path, reduced_path))
         });
 
     // If a path to the 2D points was given we load it into the point container
@@ -325,7 +361,7 @@ fn view_command(matches: &ArgMatches) {
         .value_of("reduced_data_2d")
         .and_then(|reduced_data_path| {
             let reduced_path = Path::new(reduced_data_path);
-            Some(PointContainer2D::new(original_data, reduced_path))
+            Some(PointContainer2D::new(original_data_path, reduced_path))
         });
 
     view::display(point_container_2d, point_container_3d);

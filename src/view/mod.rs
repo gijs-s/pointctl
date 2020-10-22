@@ -1,11 +1,6 @@
-pub use self::{
-    color_map::ColorMap,
-    point_renderer_2d::PointRenderer2D,
-    point_renderer_3d::PointRenderer3D,
-    scene::display,
-    visualization_state::{VisualizationState2D, VisualizationState3D},
-};
+/// Module pertaining to everything that happens in the viewer
 
+// Sub modules
 mod color_map;
 mod marcos;
 mod point_renderer_2d;
@@ -14,6 +9,18 @@ mod scene;
 mod texture_creation;
 mod ui;
 mod visualization_state;
+
+// Re-export the public facing parts of this module
+pub use self::{
+    color_map::ColorMap,
+    point_renderer_2d::PointRenderer2D,
+    point_renderer_3d::PointRenderer3D,
+    scene::display,
+    visualization_state::{VisualizationState2D, VisualizationState3D},
+};
+
+//Build in imports
+use std::convert::TryFrom;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum RenderMode {
@@ -78,6 +85,19 @@ impl ExplanationMode {
             ExplanationMode::None => "None".to_string(),
             ExplanationMode::DaSilva => "Da Silva".to_string(),
             ExplanationMode::VanDriel => "Van Driel".to_string(),
+        }
+    }
+}
+
+impl TryFrom<&str> for ExplanationMode {
+    type Error = String;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "silva" => Ok(ExplanationMode::DaSilva),
+            "driel" => Ok(ExplanationMode::VanDriel),
+            "none" => Ok(ExplanationMode::None),
+            v => Err(format!("Could not create explanation mode from '{}'", v))
         }
     }
 }
