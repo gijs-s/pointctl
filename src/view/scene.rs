@@ -1,5 +1,3 @@
-extern crate kiss3d;
-
 // Build in imports
 use std::process::exit;
 

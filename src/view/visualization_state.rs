@@ -1,4 +1,4 @@
-extern crate kiss3d;
+/// Module containing the current state of the 2D or 3D renderer.
 
 // Build in imports
 use crate::exp;
@@ -19,8 +19,7 @@ use crate::{
     search::{Load, PointContainer, PointContainer2D, PointContainer3D},
     view::{
         color_map::ColorMap,
-        point_renderer_2d::PointRenderer2D,
-        point_renderer_3d::PointRenderer3D,
+        point_renderer::{PointRenderer2D, PointRenderer3D},
         ExplanationMode,
     },
 };

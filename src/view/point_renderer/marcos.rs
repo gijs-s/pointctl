@@ -1,5 +1,5 @@
 #![macro_use]
-extern crate kiss3d;
+/// Some quick and dirty marcros for verifying the output exit codes of GL ffi calls
 
 #[allow(unused_imports)]
 use kiss3d::context::Context;

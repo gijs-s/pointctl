@@ -1,6 +1,3 @@
-extern crate kiss3d;
-extern crate nalgebra as na;
-
 // Third party
 use kiss3d::{
     conrod::{widget, widget_ids, Color, Colorable, Labelable, Positionable, Sizeable, Widget},
@@ -640,22 +637,22 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             static_min - static_max * 0.05,
             static_max + static_max * 0.05,
         )
-        .label(format!("{} - {}", min_text, max_text).as_str())
-        .label_font_size(FONT_SIZE - 1)
-        .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-        .up_from(ids.text_recompute, 7.0f64)
-        .h(SLIDER_HEIGHT)
-        .set(ids.slider_color_normalization, &mut ui)
-        {
-            match edge {
-                widget::range_slider::Edge::Start => {
-                    queue.push(UIEvents::SetColorBound(value, current_max))
-                }
-                widget::range_slider::Edge::End => {
-                    queue.push(UIEvents::SetColorBound(current_min, value))
+            .label(format!("{} - {}", min_text, max_text).as_str())
+            .label_font_size(FONT_SIZE - 1)
+            .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+            .up_from(ids.text_recompute, 7.0f64)
+            .h(SLIDER_HEIGHT)
+            .set(ids.slider_color_normalization, &mut ui)
+            {
+                match edge {
+                    widget::range_slider::Edge::Start => {
+                        queue.push(UIEvents::SetColorBound(value, current_max))
+                    }
+                    widget::range_slider::Edge::End => {
+                        queue.push(UIEvents::SetColorBound(current_min, value))
+                    }
                 }
             }
-        }
 
         // Recompute text
         widget::Text::new("Confidence bounds:")
