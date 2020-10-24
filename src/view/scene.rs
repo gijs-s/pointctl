@@ -17,7 +17,7 @@ use crate::{
     exp,
     search::{PointContainer, PointContainer2D, PointContainer3D},
     view::{
-        ui::{draw_overlay, WidgetId},
+        ui::draw_overlay,
         ColorMap, DimensionalityMode, PointRendererInteraction,
         RenderMode, VisualizationState2D, VisualizationState3D,
     },
@@ -46,10 +46,6 @@ pub struct Scene {
     pub state_2d: Option<VisualizationState2D>,
     // 3D state
     pub state_3d: Option<VisualizationState3D>,
-    // Used by conrod to assign widget ids
-    pub conrod_ids: WidgetId,
-    // The dimension names
-    // pub dimension_names: Vec<String>,
     // The state of the current UI which are not relevant for the rest
     // of the program
     pub ui_state: UIState,
@@ -60,13 +56,12 @@ pub struct Scene {
 
 impl Scene {
     // Create a new 3D visualization without a initializing the 2D view
-    pub fn new(conrod_ids: WidgetId) -> Scene {
+    pub fn new(window: &mut CustomWindow) -> Scene {
         Scene {
             dimensionality_mode: DimensionalityMode::ThreeD,
             state_2d: None,
             state_3d: None,
-            conrod_ids,
-            ui_state: UIState::new(),
+            ui_state: UIState::new(window.conrod_ui_mut().widget_id_generator()),
             dirty: false,
         }
     }
@@ -491,11 +486,8 @@ pub fn display(
     window.set_background_color(1.0, 1.0, 1.0);
     window.set_light(Light::StickToCamera);
 
-    // Generate widget ids for the conrod ui to use
-    let conrod_ids = WidgetId::new(window.conrod_ui_mut().widget_id_generator());
-
     // Create a scene with empty values
-    let mut scene = Scene::new(conrod_ids);
+    let mut scene = Scene::new(&mut window);
 
     // Add the 2D points if they were provided
     if let Some(container) = point_renderer_2d {

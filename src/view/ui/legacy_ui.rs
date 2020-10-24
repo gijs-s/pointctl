@@ -12,6 +12,7 @@ use crate::{
 
 // Generate a unique `WidgetId` for each widget.
 widget_ids! {
+    #[derive(Clone)]
     pub struct WidgetId {
         // Information widgets
         text_point_count,
@@ -118,22 +119,23 @@ impl ToString for NeighborhoodType {
     }
 }
 // Struct that contains data about the UI state that are not relevant to the state itself
-#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct UIState {
     pub neighborhood_type: NeighborhoodType,
     // Neighborhood size 10...50
     pub k: usize,
     // Radius between 0.0...1.0
     pub r: f32,
+    pub conrod_ids: WidgetId
 }
 
 impl UIState {
     /// Initialize the UI state
-    pub fn new() -> Self {
+    pub fn new(widget_generator: widget::id::Generator) -> Self {
         UIState {
             neighborhood_type: NeighborhoodType::R,
             k: 30,
             r: 0.1,
+            conrod_ids: WidgetId::new(widget_generator)
         }
     }
 
@@ -166,11 +168,11 @@ impl UIState {
     }
 }
 
-impl Into<Neighborhood> for UIState {
-    fn into(self: UIState) -> Neighborhood {
-        match self.neighborhood_type {
-            NeighborhoodType::K => Neighborhood::K(self.k),
-            NeighborhoodType::R => Neighborhood::R(self.r),
+impl From<&UIState> for Neighborhood {
+    fn from(state: &UIState) -> Neighborhood {
+        match state.neighborhood_type {
+            NeighborhoodType::K => Neighborhood::K(state.k),
+            NeighborhoodType::R => Neighborhood::R(state.r),
         }
     }
 }
@@ -178,7 +180,7 @@ impl Into<Neighborhood> for UIState {
 /// Draw an overlay in the window of the given scene
 pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
     // Get a mutable reference to the conrod ui
-    let ids = &scene.conrod_ids;
+    let ids = scene.ui_state.conrod_ids.clone();
     let mut ui = window.conrod_ui_mut().set_widgets();
 
     // ######################################################################
@@ -333,7 +335,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             ),
             false => (
                 "Calculate Da Silva".to_string(),
-                UIEvents::RunExplanationMode(ExplanationMode::DaSilva, scene.ui_state.into()),
+                UIEvents::RunExplanationMode(ExplanationMode::DaSilva, Neighborhood::from(&scene.ui_state)),
             ),
         };
     let (text_van_driel, event_van_driel) =
@@ -344,7 +346,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
             ),
             false => (
                 "Calculate Van Driel".to_string(),
-                UIEvents::RunExplanationMode(ExplanationMode::VanDriel, scene.ui_state.into()),
+                UIEvents::RunExplanationMode(ExplanationMode::VanDriel, Neighborhood::from(&scene.ui_state)),
             ),
         };
 
@@ -612,7 +614,7 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) {
         {
             queue.push(UIEvents::RunExplanationMode(
                 scene.get_explanation_mode(),
-                scene.ui_state.into(),
+                Neighborhood::from(&scene.ui_state),
             ))
         }
 
