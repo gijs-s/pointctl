@@ -9,7 +9,7 @@ fn main() {
 
     let pb = ProgressBar::new(total_size);
     pb.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta} left at {per_sec})")
+        .template("[{elapsed_precise}] Calculating neighbors [{bar:40.cyan/blue}] {pos}/{len} ({eta} left at {per_sec})")
         .progress_chars("#>-"));
 
     let _res: Vec<u64> = (0..total_size).progress_with(pb).map(|v| {thread::sleep(Duration::from_millis(12)); v}).collect();

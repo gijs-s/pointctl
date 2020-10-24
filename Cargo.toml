@@ -29,7 +29,7 @@ approx = "^0.3"
 # Used for easily getting some numeric values based on the types
 num-traits = "*"
 # Used for showing nice progres bars
-indicatif = {version = "^0.15", features = ["rayon"]}
+indicatif = { version = "^0.15", features = ["rayon"]}
 # Used for data-parallelism in some explanation mechanisms
 rayon = "1.5.0"
 
