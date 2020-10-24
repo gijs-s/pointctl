@@ -11,7 +11,7 @@ mod visualization_state;
 pub use self::{
     color_map::ColorMap,
     point_renderer::{PointRenderer2D, PointRenderer3D, PointRendererInteraction, RenderMode},
-    scene::display,
+    scene::{display, Scene},
     visualization_state::{VisualizationState2D, VisualizationState3D},
 };
 

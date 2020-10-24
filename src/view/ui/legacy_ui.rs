@@ -5,10 +5,9 @@ use kiss3d::{
 };
 
 // Internal imports
-use super::scene::Scene;
 use crate::{
     exp::Neighborhood,
-    view::{ExplanationMode, RenderMode},
+    view::{ExplanationMode, RenderMode, Scene},
 };
 
 // Generate a unique `WidgetId` for each widget.
