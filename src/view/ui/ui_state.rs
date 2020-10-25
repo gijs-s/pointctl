@@ -1,5 +1,5 @@
 use crate::exp::Neighborhood;
-use super::widget_ids::{InfoWidgetId, LegendWidgetId, MenuWidgetId};
+use super::widget_ids::*;
 
 // Move this into ui_state.rs
 pub struct UIState {

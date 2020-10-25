@@ -1,3 +1,5 @@
+// An enum that represents all possible actions that can originate from the UI
+
 // Internal imports
 use crate::{
     exp::Neighborhood,
