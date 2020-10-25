@@ -61,6 +61,8 @@ widget_ids! {
         // - Calculate da silva / van driel button
         button_explanation_1,
         button_explanation_2,
+        button_explanation_3,
+        button_explanation_4,
         // - Recompute the current metric
         text_recompute,
         button_recompute,

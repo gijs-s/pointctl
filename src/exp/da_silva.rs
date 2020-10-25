@@ -87,8 +87,8 @@ impl DaSilvaExplanation {
 }
 
 // Enum for the types of explanation metrics used in the da silva paper, Variance is beter.
-#[allow(dead_code)]
-enum DaSilvaType {
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum DaSilvaType {
     Euclidean,
     Variance,
 }
@@ -142,20 +142,26 @@ impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a
 
 impl<'a> DaSilvaState<'a, PointContainer2D> {
     /// Create a new mechanism
-    pub fn new(point_container: &'a PointContainer2D) -> DaSilvaState<'a, PointContainer2D> {
+    pub fn new(
+        point_container: &'a PointContainer2D,
+        explanation_type: DaSilvaType,
+    ) -> DaSilvaState<'a, PointContainer2D> {
         DaSilvaState::<PointContainer2D> {
             point_container,
-            explanation_type: DaSilvaType::Variance,
+            explanation_type,
         }
     }
 }
 
 impl<'a> DaSilvaState<'a, PointContainer3D> {
     /// Create a new mechanism
-    pub fn new(point_container: &'a PointContainer3D) -> DaSilvaState<'a, PointContainer3D> {
+    pub fn new(
+        point_container: &'a PointContainer3D,
+        explanation_type: DaSilvaType,
+    ) -> DaSilvaState<'a, PointContainer3D> {
         DaSilvaState::<PointContainer3D> {
             point_container,
-            explanation_type: DaSilvaType::Variance,
+            explanation_type,
         }
     }
 }
@@ -368,7 +374,7 @@ mod tests {
             dimensionality: 3,
         };
 
-        let state = DaSilvaState::<PointContainer3D>::new(&point_container);
+        let state = DaSilvaState::<PointContainer3D>::new(&point_container, DaSilvaType::Variance);
 
         assert_eq!(state.find_centroid(), vec![0.0, 1.0, 0.0]);
     }

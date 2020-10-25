@@ -12,7 +12,7 @@ use super::{
     ui_state::{NeighborhoodType, OpenSettingsMenu},
 };
 use crate::{
-    exp::Neighborhood,
+    exp::{DaSilvaType, Neighborhood, VanDrielType},
     view::{ExplanationMode, RenderMode, Scene},
 };
 
@@ -335,73 +335,95 @@ fn draw_right_explanation_settings_menu<'a>(
         UIEvents::SetExplanationMode(ExplanationMode::None),
     );
 
-    // Get the text and correct event for running the da silva explanation
-    let (text_da_silva, event_da_silva) =
-        match scene.is_explanation_available(&ExplanationMode::DaSilva) {
+    fn get_text_and_event(expl: ExplanationMode, scene: &Scene) -> (String, UIEvents) {
+        match scene.is_explanation_available(&expl) {
             true => (
-                "View to Da Silva".to_string(),
-                UIEvents::SetExplanationMode(ExplanationMode::DaSilva),
+                format!("View to {}", expl.to_str()),
+                UIEvents::SetExplanationMode(expl),
             ),
             false => (
-                "Calculate Da Silva".to_string(),
+                format!("Calculate {}", expl.to_str()),
                 UIEvents::RunExplanationMode(
-                    ExplanationMode::DaSilva,
+                    expl,
                     Neighborhood::from(&scene.ui_state.recompute_state),
-                    None,
+                    match expl {
+                        ExplanationMode::VanDriel(_) => Some(scene.ui_state.theta),
+                        _ => None,
+                    },
                 ),
             ),
-        };
+        }
+    }
 
-    // Get the text and correct event for running the da van driel explanation
-    let (text_van_driel, event_van_driel) =
-        match scene.is_explanation_available(&ExplanationMode::VanDriel) {
-            true => (
-                "View Van Driel".to_string(),
-                UIEvents::SetExplanationMode(ExplanationMode::VanDriel),
-            ),
-            false => (
-                "Calculate Van Driel".to_string(),
-                UIEvents::RunExplanationMode(
-                    ExplanationMode::VanDriel,
-                    Neighborhood::from(&scene.ui_state.recompute_state),
-                    Some(scene.ui_state.theta),
-                ),
-            ),
-        };
+    // Get the text and correct event for running the explanation
+    let (text_da_silva_var, event_da_silva_var) =
+        get_text_and_event(ExplanationMode::DaSilva(DaSilvaType::Variance), &scene);
+    let (text_da_silva_euclidian, event_da_silva_euclidian) =
+        get_text_and_event(ExplanationMode::DaSilva(DaSilvaType::Variance), &scene);
+    let (text_van_driel_min, event_van_driel_min) = get_text_and_event(
+        ExplanationMode::VanDriel(VanDrielType::MinimalVariance),
+        &scene,
+    );
+    let (text_van_driel_total, event_van_driel_total) = get_text_and_event(
+        ExplanationMode::VanDriel(VanDrielType::TotalVariance),
+        &scene,
+    );
 
-    // Only show the 2 other options, switching to the mode you are already
-    // in does not make sense.
-    let (text_1, event_1, text_2, event_2) = match scene.get_explanation_mode() {
-        ExplanationMode::None => (
-            text_van_driel,
-            event_van_driel,
-            text_da_silva,
-            event_da_silva,
-        ),
-        ExplanationMode::DaSilva => (text_van_driel, event_van_driel, text_none, event_none),
-        ExplanationMode::VanDriel => (text_da_silva, event_da_silva, text_none, event_none),
+    // Only allow switching to another metric, selecting the current one again does not make sense.
+    let mut button_texts = vec![
+        text_none,
+        text_da_silva_var,
+        text_da_silva_euclidian,
+        text_van_driel_min,
+        text_van_driel_total,
+    ];
+    let mut events = vec![
+        event_none,
+        event_da_silva_var,
+        event_da_silva_euclidian,
+        event_van_driel_min,
+        event_van_driel_total,
+    ];
+    let ids = vec![
+        menu_ids.button_explanation_1,
+        menu_ids.button_explanation_2,
+        menu_ids.button_explanation_3,
+        menu_ids.button_explanation_4,
+    ];
+    // find the index I should drop
+    let drop_index = match scene.get_explanation_mode() {
+        ExplanationMode::None => 0usize,
+        ExplanationMode::DaSilva(DaSilvaType::Variance) => 1usize,
+        ExplanationMode::DaSilva(DaSilvaType::Euclidean) => 2usize,
+        ExplanationMode::VanDriel(VanDrielType::MinimalVariance) => 3usize,
+        ExplanationMode::VanDriel(VanDrielType::TotalVariance) => 4usize,
     };
 
+    button_texts.remove(drop_index);
+    events.remove(drop_index);
+
     for _ in widget::Button::new()
-        .label(&text_1)
+        .label(&button_texts[0])
         .label_font_size(FONT_SIZE - 2)
         .up_from(menu_ids.explanation_settings_menu_toggle, 5.0f64)
         .w(BUTTON_WIDTH)
         .h(BUTTON_HEIGHT - 2f64)
         .set(menu_ids.button_explanation_1, &mut ui)
     {
-        event_queue.push(event_1)
+        event_queue.push(events[0])
     }
 
-    for _ in widget::Button::new()
-        .label(&text_2)
-        .label_font_size(FONT_SIZE - 2)
-        .up_from(menu_ids.button_explanation_1, 3.0f64)
-        .w(BUTTON_WIDTH)
-        .h(BUTTON_HEIGHT - 2f64)
-        .set(menu_ids.button_explanation_2, &mut ui)
-    {
-        event_queue.push(event_2)
+    for i in 1usize..=3 {
+        for _ in widget::Button::new()
+            .label(&button_texts[i])
+            .label_font_size(FONT_SIZE - 2)
+            .up_from(ids[i - 1], 3.0f64)
+            .w(BUTTON_WIDTH)
+            .h(BUTTON_HEIGHT - 2f64)
+            .set(ids[i], &mut ui)
+        {
+            event_queue.push(events[i])
+        }
     }
 
     // Allow recomputing the current metric if a explanation mode is set
@@ -409,14 +431,14 @@ fn draw_right_explanation_settings_menu<'a>(
         for _ in widget::Button::new()
             .label("Recompute current metric")
             .label_font_size(FONT_SIZE - 2)
-            .up_from(menu_ids.button_explanation_2, 3.0f64)
+            .up_from(menu_ids.button_explanation_4, 3.0f64)
             .w(BUTTON_WIDTH)
             .h(BUTTON_HEIGHT - 2f64)
             .set(menu_ids.button_recompute, &mut ui)
         {
             event_queue.push(match scene.get_explanation_mode() {
-                ExplanationMode::VanDriel => UIEvents::RunExplanationMode(
-                    ExplanationMode::VanDriel,
+                expl @ ExplanationMode::VanDriel(_) => UIEvents::RunExplanationMode(
+                    expl,
                     Neighborhood::from(&scene.ui_state.recompute_state),
                     Some(scene.ui_state.theta),
                 ),
@@ -442,7 +464,7 @@ fn draw_right_explanation_settings_menu<'a>(
             if scene.get_explanation_mode() != ExplanationMode::None {
                 menu_ids.button_recompute
             } else {
-                menu_ids.button_explanation_2
+                menu_ids.button_explanation_4
             },
             7.0f64,
         )

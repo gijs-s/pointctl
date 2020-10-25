@@ -25,7 +25,7 @@ impl UIState {
             menu_widgets: MenuWidgetId::new(ui.widget_id_generator()),
             open_menu: OpenSettingsMenu::ExplanationSettings,
             recompute_state: RecomputeButtonState::new(),
-            theta: 0.95,
+            theta: 0.05,
         }
     }
 }

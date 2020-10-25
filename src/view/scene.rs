@@ -335,7 +335,7 @@ impl Scene {
 
     pub fn get_dimension_name(&self, index: &usize) -> Option<String> {
         match self.get_explanation_mode() {
-            ExplanationMode::DaSilva => match self.dimensionality_mode {
+            ExplanationMode::DaSilva(_) => match self.dimensionality_mode {
                 DimensionalityMode::TwoD => match &self.state_2d {
                     Some(state) => state
                         .point_container
@@ -353,7 +353,7 @@ impl Scene {
                     None => None,
                 },
             },
-            ExplanationMode::VanDriel => Some(format!("{} Dimension(s)", (index))),
+            ExplanationMode::VanDriel(_) => Some(format!("{} Dimension(s)", (index))),
             ExplanationMode::None => None,
         }
     }

@@ -14,6 +14,8 @@ pub use self::{
     visualization_state::{VisualizationState2D, VisualizationState3D},
 };
 
+use crate::exp::{DaSilvaType, VanDrielType};
+
 //Build in imports
 use std::convert::TryFrom;
 
@@ -46,8 +48,8 @@ impl DimensionalityMode {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum ExplanationMode {
     None,
-    DaSilva,
-    VanDriel,
+    DaSilva(DaSilvaType),
+    VanDriel(VanDrielType),
 }
 
 impl ExplanationMode {
@@ -55,8 +57,14 @@ impl ExplanationMode {
     pub fn to_str(self) -> String {
         match self {
             ExplanationMode::None => "None".to_string(),
-            ExplanationMode::DaSilva => "Da Silva".to_string(),
-            ExplanationMode::VanDriel => "Van Driel".to_string(),
+            ExplanationMode::DaSilva(DaSilvaType::Euclidean) => "Da Silva (euclidean)".to_string(),
+            ExplanationMode::DaSilva(DaSilvaType::Variance) => "Da Silva (variance)".to_string(),
+            ExplanationMode::VanDriel(VanDrielType::MinimalVariance) => {
+                "Van Driel (min)".to_string()
+            }
+            ExplanationMode::VanDriel(VanDrielType::TotalVariance) => {
+                "Van Driel (total)".to_string()
+            }
         }
     }
 }
@@ -66,8 +74,10 @@ impl TryFrom<&str> for ExplanationMode {
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s {
-            "silva" => Ok(ExplanationMode::DaSilva),
-            "driel" => Ok(ExplanationMode::VanDriel),
+            "silva_euclidean" => Ok(ExplanationMode::DaSilva(DaSilvaType::Euclidean)),
+            "silva_variance" => Ok(ExplanationMode::DaSilva(DaSilvaType::Variance)),
+            "driel_sum" => Ok(ExplanationMode::VanDriel(VanDrielType::TotalVariance)),
+            "driel_min" => Ok(ExplanationMode::VanDriel(VanDrielType::MinimalVariance)),
             "none" => Ok(ExplanationMode::None),
             v => Err(format!("Could not create explanation mode from '{}'", v)),
         }

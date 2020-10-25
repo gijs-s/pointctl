@@ -44,8 +44,10 @@ pub struct PointData2D {
     pub low: na::Point2<f32>,
     pub high: Vec<f32>,
     pub normal: Option<NormalExplanation>,
-    pub driel: Option<VanDrielExplanation>,
-    pub silva: Option<DaSilvaExplanation>,
+    pub driel_min: Option<VanDrielExplanation>,
+    pub driel_total: Option<VanDrielExplanation>,
+    pub silva_var: Option<DaSilvaExplanation>,
+    pub silva_euclidean: Option<DaSilvaExplanation>,
 }
 
 impl Into<na::Point2<f32>> for PointData2D {
@@ -65,8 +67,10 @@ impl PointData2D {
             low: low_dimension_point,
             high: high_dimension_point,
             normal: None,
-            driel: None,
-            silva: None,
+            driel_min: None,
+            driel_total: None,
+            silva_var: None,
+            silva_euclidean: None,
         }
     }
 }
@@ -77,8 +81,10 @@ pub struct PointData3D {
     pub low: na::Point3<f32>,
     pub high: Vec<f32>,
     pub normal: Option<NormalExplanation>,
-    pub driel: Option<VanDrielExplanation>,
-    pub silva: Option<DaSilvaExplanation>,
+    pub driel_min: Option<VanDrielExplanation>,
+    pub driel_total: Option<VanDrielExplanation>,
+    pub silva_var: Option<DaSilvaExplanation>,
+    pub silva_euclidean: Option<DaSilvaExplanation>,
 }
 
 impl Into<na::Point3<f32>> for PointData3D {
@@ -98,8 +104,10 @@ impl PointData3D {
             low: low_dimension_point,
             high: high_dimension_point,
             normal: None,
-            driel: None,
-            silva: None,
+            driel_min: None,
+            driel_total: None,
+            silva_var: None,
+            silva_euclidean: None,
         }
     }
 }
@@ -159,8 +167,10 @@ impl PointContainer2D {
                     low: low_point,
                     high: high.to_vec(),
                     normal: None,
-                    driel: None,
-                    silva: None,
+                    driel_min: None,
+                    driel_total: None,
+                    silva_var: None,
+                    silva_euclidean: None,
                 }
             })
             .collect::<Vec<PointData2D>>();
@@ -219,8 +229,10 @@ impl PointContainer3D {
                     low: low_point,
                     high: high.to_vec(),
                     normal: None,
-                    driel: None,
-                    silva: None,
+                    driel_min: None,
+                    driel_total: None,
+                    silva_var: None,
+                    silva_euclidean: None,
                 }
             })
             .collect::<Vec<PointData3D>>();

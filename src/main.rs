@@ -53,18 +53,18 @@ fn main() {
                     Arg::with_name("mechanism")
                         .short("m")
                         .long("mechanism")
-                        .default_value("silva")
+                        .default_value("silva_variance")
                         .takes_value(true)
                         // TODO: Add more possible validation techniques
-                        .possible_values(&["silva", "driel"])
-                        .help("Chose which annotation technique is used, da silva's variance\
-                            based explanation or van Driel PCA sum metric.")
+                        .possible_values(&["silva_variance", "silva_euclidean", "driel_min", "driel_sum"])
+                        .help("Chose which annotation technique is used, da silva's variance and distance\
+                            based explanation or van Driel PCA metric.")
                 )
                 .arg(
                     Arg::with_name("theta")
                         .short("t")
                         .long("theta")
-                        .required_if("mechanism", "driel")
+                        .required_ifs(&[("mechanism", "driel_min"),("mechanism", "driel_total")])
                         .takes_value(true)
                         .validator(validator::is_norm_float)
                 )
@@ -289,40 +289,40 @@ fn explain_command(matches: &ArgMatches) {
         .and_then(|v| Some(v.parse::<f32>().unwrap()));
 
     match (dimensionality, explanation_mode) {
-        (2, view::ExplanationMode::DaSilva) => {
+        (2, view::ExplanationMode::DaSilva(method)) => {
             let point_container = PointContainer2D::new(original_data_path, reduced_data_path);
             let annotations: Vec<exp::DaSilvaExplanation> =
-                exp::run_da_silva_variance_2d(&point_container, neighborhoods_size);
+                exp::run_da_silva_2d(&point_container, neighborhoods_size, method);
             let points = annotations
                 .iter()
                 .map(|exp| vec![exp.attribute_index as f32, exp.confidence])
                 .collect();
             write(&output_file_path, points);
         }
-        (3, view::ExplanationMode::DaSilva) => {
+        (3, view::ExplanationMode::DaSilva(method)) => {
             let point_container = PointContainer3D::new(original_data_path, reduced_data_path);
             let annotations: Vec<exp::DaSilvaExplanation> =
-                exp::run_da_silva_variance_3d(&point_container, neighborhoods_size);
+                exp::run_da_silva_3d(&point_container, neighborhoods_size, method);
             let points = annotations
                 .iter()
                 .map(|exp| vec![exp.attribute_index as f32, exp.confidence])
                 .collect();
             write(&output_file_path, points);
         }
-        (2, view::ExplanationMode::VanDriel) => {
+        (2, view::ExplanationMode::VanDriel(method)) => {
             let point_container = PointContainer2D::new(original_data_path, reduced_data_path);
             let annotations: Vec<exp::VanDrielExplanation> =
-                exp::run_van_driel_2d(&point_container, neighborhoods_size, theta.unwrap());
+                exp::run_van_driel_2d(&point_container, neighborhoods_size, theta.unwrap(), method);
             let points = annotations
                 .iter()
                 .map(|exp| vec![exp.dimension as f32, exp.confidence])
                 .collect();
             write(&output_file_path, points);
         }
-        (3, view::ExplanationMode::VanDriel) => {
+        (3, view::ExplanationMode::VanDriel(method)) => {
             let point_container = PointContainer3D::new(original_data_path, reduced_data_path);
             let annotations: Vec<exp::VanDrielExplanation> =
-                exp::run_van_driel_3d(&point_container, neighborhoods_size, theta.unwrap());
+                exp::run_van_driel_3d(&point_container, neighborhoods_size, theta.unwrap(), method);
             let points = annotations
                 .iter()
                 .map(|exp| vec![exp.dimension as f32, exp.confidence])

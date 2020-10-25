@@ -71,12 +71,10 @@ impl VanDrielExplanation {
         (min, max)
     }
 }
-
-#[allow(dead_code)]
-enum VanDrielType {
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum VanDrielType {
     TotalVariance,
     MinimalVariance,
-    Ratio,
 }
 
 /// Struct containing the state of the van driel explanation mechanism
@@ -107,8 +105,18 @@ impl<'a, PC: PointContainer> Explanation<VanDrielExplanation> for VanDrielState<
                         // Get the eigen values
                         let eigenvalues_sorted = self.get_eigen_values(neighborhood);
                         // total variance calculation from table 1
-                        let dimension = self.get_dimensionality(&eigenvalues_sorted);
-                        let confidence = self.get_confidence(&eigenvalues_sorted, dimension);
+                        let (dimension, confidence) = match self.explanation_type {
+                            VanDrielType::TotalVariance => {
+                                let dimension = self.get_dimensionality_total(&eigenvalues_sorted);
+                                let conf =
+                                    self.get_confidence_total(&eigenvalues_sorted, dimension);
+                                (dimension, conf)
+                            }
+                            VanDrielType::MinimalVariance => {
+                                self.get_dimensionality_and_confidence_min(&eigenvalues_sorted)
+                            }
+                        };
+                        // println!("\n\n{:?}\n{:?} - {:?}", eigenvalues_sorted, dimension, confidence);
                         VanDrielExplanation {
                             dimension,
                             confidence,
@@ -125,10 +133,11 @@ impl<'a> VanDrielState<'a, PointContainer2D> {
     pub fn new(
         point_container: &'a PointContainer2D,
         theta: f32,
+        explanation_type: VanDrielType,
     ) -> VanDrielState<'a, PointContainer2D> {
         VanDrielState::<PointContainer2D> {
             point_container,
-            explanation_type: VanDrielType::TotalVariance,
+            explanation_type,
             theta,
         }
     }
@@ -139,10 +148,11 @@ impl<'a> VanDrielState<'a, PointContainer3D> {
     pub fn new(
         point_container: &'a PointContainer3D,
         theta: f32,
+        explanation_type: VanDrielType,
     ) -> VanDrielState<'a, PointContainer3D> {
         VanDrielState::<PointContainer3D> {
             point_container,
-            explanation_type: VanDrielType::TotalVariance,
+            explanation_type,
             theta,
         }
     }
@@ -166,7 +176,7 @@ impl<'a, PC: PointContainer> VanDrielState<'a, PC> {
     }
 
     /// Get the dimensionality from the eigenvalues
-    fn get_dimensionality(&self, eigenvalues: &Vec<f32>) -> usize {
+    fn get_dimensionality_total(&self, eigenvalues: &Vec<f32>) -> usize {
         let sum_eigen_value = eigenvalues.iter().sum::<f32>();
         // Check how many dimensions are needed to exceed theta
         for i in 1..=eigenvalues.len() {
@@ -175,19 +185,34 @@ impl<'a, PC: PointContainer> VanDrielState<'a, PC> {
             }
         }
         // fallback, we need all dimension, in practice this case is never hit.
-        eigenvalues.len() - 1
+        eigenvalues.len()
     }
 
     /// Get the confidence from the eigenvalues
-    fn get_confidence(&self, eigenvalues: &Vec<f32>, dimensionality: usize) -> f32 {
+    fn get_confidence_total(&self, eigenvalues: &Vec<f32>, dimensionality: usize) -> f32 {
         let sum_eigen_value = eigenvalues.iter().sum::<f32>();
         let average_eigen_value = sum_eigen_value / eigenvalues.len() as f32;
         let sum_eigen_value_diff_from_mean = eigenvalues
             .iter()
-            .take(dimensionality + 1)
-            .map(|v| (v - average_eigen_value).abs())
+            .take(dimensionality)
+            .map(|v| (v - average_eigen_value))
             .sum::<f32>();
 
-        1.0f32 - (sum_eigen_value_diff_from_mean / sum_eigen_value)
+        1.0f32 - (sum_eigen_value_diff_from_mean.max(0.0) / sum_eigen_value)
+    }
+
+    /// Get the dimensionality based on the minimal variance
+    fn get_dimensionality_and_confidence_min(&self, eigenvalues: &Vec<f32>) -> (usize, f32) {
+        let sum_eigen_value = eigenvalues.iter().sum::<f32>();
+        // check how many dimensions contribute at least alpha
+        let contributing_values: Vec<f32> = eigenvalues
+            .iter()
+            .filter(|&v| (v / sum_eigen_value) >= self.theta)
+            .map(|v| *v)
+            .collect();
+
+        let conf = contributing_values.iter().sum::<f32>() / sum_eigen_value;
+
+        (contributing_values.len(), conf)
     }
 }

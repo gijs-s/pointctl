@@ -7,7 +7,9 @@ mod normal;
 
 // Re-export the public facing parts of this module
 pub use self::{
-    da_silva::DaSilvaExplanation, driel::VanDrielExplanation, normal::NormalExplanation,
+    da_silva::{DaSilvaExplanation, DaSilvaType},
+    driel::{VanDrielExplanation, VanDrielType},
+    normal::NormalExplanation,
 };
 
 // Third party imports
@@ -22,21 +24,23 @@ pub enum Neighborhood {
     R(f32),
 }
 
-pub fn run_da_silva_variance_2d<'a>(
+pub fn run_da_silva_2d<'a>(
     point_container_2d: &'a PointContainer2D,
     neighborhood_size: Neighborhood,
+    method: DaSilvaType,
 ) -> Vec<DaSilvaExplanation> {
     let da_silva_mechanism =
-        da_silva::DaSilvaState::<'a, PointContainer2D>::new(point_container_2d);
+        da_silva::DaSilvaState::<'a, PointContainer2D>::new(point_container_2d, method);
     da_silva_mechanism.explain(neighborhood_size)
 }
 
-pub fn run_da_silva_variance_3d<'a>(
+pub fn run_da_silva_3d<'a>(
     point_container_3d: &'a PointContainer3D,
     neighborhood_size: Neighborhood,
+    method: DaSilvaType,
 ) -> Vec<DaSilvaExplanation> {
     let da_silva_mechanism =
-        da_silva::DaSilvaState::<'a, PointContainer3D>::new(point_container_3d);
+        da_silva::DaSilvaState::<'a, PointContainer3D>::new(point_container_3d, method);
     da_silva_mechanism.explain(neighborhood_size)
 }
 
@@ -44,9 +48,10 @@ pub fn run_van_driel_2d<'a>(
     point_container_2d: &'a PointContainer2D,
     neighborhood_size: Neighborhood,
     theta: f32,
+    method: VanDrielType,
 ) -> Vec<VanDrielExplanation> {
     let van_driel_mechanism =
-        driel::VanDrielState::<PointContainer2D>::new(point_container_2d, theta);
+        driel::VanDrielState::<PointContainer2D>::new(point_container_2d, theta, method);
     van_driel_mechanism.explain(neighborhood_size)
 }
 
@@ -54,8 +59,9 @@ pub fn run_van_driel_3d<'a>(
     point_container_3d: &'a PointContainer3D,
     neighborhood_size: Neighborhood,
     theta: f32,
+    method: VanDrielType,
 ) -> Vec<VanDrielExplanation> {
     let van_driel_mechanism =
-        driel::VanDrielState::<PointContainer3D>::new(point_container_3d, theta);
+        driel::VanDrielState::<PointContainer3D>::new(point_container_3d, theta, method);
     van_driel_mechanism.explain(neighborhood_size)
 }

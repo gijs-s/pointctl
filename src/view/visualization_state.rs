@@ -9,7 +9,7 @@ use na::{Point2, Point3};
 
 // First party imports
 use crate::{
-    exp::{DaSilvaExplanation, VanDrielExplanation},
+    exp::{DaSilvaExplanation, DaSilvaType, VanDrielExplanation, VanDrielType},
     search::{Load, PointContainer, PointContainer2D, PointContainer3D},
     view::{
         color_map::ColorMap,
@@ -114,19 +114,19 @@ impl VisualizationState3D {
             self.color_maps.remove(&mode);
         }
         match (mode, theta) {
-            (ExplanationMode::DaSilva, _) => {
+            (ExplanationMode::DaSilva(method), _) => {
                 let da_silva_explanation =
-                    exp::run_da_silva_variance_3d(&self.point_container, neighborhood_size);
-                self.load(da_silva_explanation);
+                    exp::run_da_silva_3d(&self.point_container, neighborhood_size, method);
+                self.load(da_silva_explanation, method);
                 self.set_explanation_mode(mode);
             }
-            (ExplanationMode::VanDriel, Some(t)) => {
+            (ExplanationMode::VanDriel(method), Some(t)) => {
                 let van_driel_explanation =
-                    exp::run_van_driel_3d(&self.point_container, neighborhood_size, t);
-                self.load(van_driel_explanation);
+                    exp::run_van_driel_3d(&self.point_container, neighborhood_size, t, method);
+                self.load(van_driel_explanation, method);
                 self.set_explanation_mode(mode);
             }
-            (ExplanationMode::VanDriel, None) => {
+            (ExplanationMode::VanDriel(_), None) => {
                 panic!("Tried to compute van driel without passing theta")
             }
             (ExplanationMode::None, _) => (),
@@ -147,12 +147,20 @@ impl VisualizationState3D {
             .map(|point_data| {
                 let color = match self.explanation {
                     ExplanationMode::None => ColorMap::default_color(),
-                    ExplanationMode::DaSilva => {
-                        let explanation: DaSilvaExplanation = point_data.silva.unwrap();
+                    ExplanationMode::DaSilva(DaSilvaType::Variance) => {
+                        let explanation: DaSilvaExplanation = point_data.silva_var.unwrap();
                         color_map.get_color(explanation.attribute_index, explanation.confidence)
                     }
-                    ExplanationMode::VanDriel => {
-                        let explanation: VanDrielExplanation = point_data.driel.unwrap();
+                    ExplanationMode::DaSilva(DaSilvaType::Euclidean) => {
+                        let explanation: DaSilvaExplanation = point_data.silva_euclidean.unwrap();
+                        color_map.get_color(explanation.attribute_index, explanation.confidence)
+                    }
+                    ExplanationMode::VanDriel(VanDrielType::MinimalVariance) => {
+                        let explanation: VanDrielExplanation = point_data.driel_min.unwrap();
+                        color_map.get_color(explanation.dimension, explanation.confidence)
+                    }
+                    ExplanationMode::VanDriel(VanDrielType::TotalVariance) => {
+                        let explanation: VanDrielExplanation = point_data.driel_total.unwrap();
                         color_map.get_color(explanation.dimension, explanation.confidence)
                     }
                 };
@@ -176,23 +184,25 @@ impl VisualizationState3D {
     }
 }
 
-impl Load<Vec<DaSilvaExplanation>> for VisualizationState3D {
-    fn load(&mut self, explanations: Vec<DaSilvaExplanation>) {
+impl Load<Vec<DaSilvaExplanation>, DaSilvaType> for VisualizationState3D {
+    fn load(&mut self, explanations: Vec<DaSilvaExplanation>, mode: DaSilvaType) {
         // Create the color map
         let color_map = ColorMap::from(&explanations);
-        self.color_maps.insert(ExplanationMode::DaSilva, color_map);
-        self.point_container.load(explanations);
-        self.set_explanation_mode(ExplanationMode::DaSilva);
+        self.color_maps
+            .insert(ExplanationMode::DaSilva(mode), color_map);
+        self.point_container.load(explanations, mode);
+        self.set_explanation_mode(ExplanationMode::DaSilva(mode));
     }
 }
 
-impl Load<Vec<VanDrielExplanation>> for VisualizationState3D {
-    fn load(&mut self, explanations: Vec<VanDrielExplanation>) {
+impl Load<Vec<VanDrielExplanation>, VanDrielType> for VisualizationState3D {
+    fn load(&mut self, explanations: Vec<VanDrielExplanation>, mode: VanDrielType) {
         // Create the color map
         let color_map = ColorMap::from(&explanations);
-        self.color_maps.insert(ExplanationMode::VanDriel, color_map);
-        self.point_container.load(explanations);
-        self.set_explanation_mode(ExplanationMode::VanDriel);
+        self.color_maps
+            .insert(ExplanationMode::VanDriel(mode), color_map);
+        self.point_container.load(explanations, mode);
+        self.set_explanation_mode(ExplanationMode::VanDriel(mode));
     }
 }
 
@@ -291,19 +301,19 @@ impl VisualizationState2D {
             self.color_maps.remove(&mode);
         }
         match (mode, theta) {
-            (ExplanationMode::DaSilva, _) => {
+            (ExplanationMode::DaSilva(method), _) => {
                 let da_silva_explanation =
-                    exp::run_da_silva_variance_2d(&self.point_container, neighborhood_size);
-                self.load(da_silva_explanation);
+                    exp::run_da_silva_2d(&self.point_container, neighborhood_size, method);
+                self.load(da_silva_explanation, method);
                 self.set_explanation_mode(mode);
             }
-            (ExplanationMode::VanDriel, Some(t)) => {
+            (ExplanationMode::VanDriel(method), Some(t)) => {
                 let van_driel_explanation =
-                    exp::run_van_driel_2d(&self.point_container, neighborhood_size, t);
-                self.load(van_driel_explanation);
+                    exp::run_van_driel_2d(&self.point_container, neighborhood_size, t, method);
+                self.load(van_driel_explanation, method);
                 self.set_explanation_mode(mode);
             }
-            (ExplanationMode::VanDriel, None) => {
+            (ExplanationMode::VanDriel(_), None) => {
                 panic!("Tried to compute van driel without passing theta")
             }
             (ExplanationMode::None, _) => (),
@@ -324,12 +334,20 @@ impl VisualizationState2D {
             .map(|point_data| {
                 let color = match self.explanation {
                     ExplanationMode::None => ColorMap::default_color(),
-                    ExplanationMode::DaSilva => {
-                        let explanation: DaSilvaExplanation = point_data.silva.unwrap();
+                    ExplanationMode::DaSilva(DaSilvaType::Variance) => {
+                        let explanation: DaSilvaExplanation = point_data.silva_var.unwrap();
                         color_map.get_color(explanation.attribute_index, explanation.confidence)
                     }
-                    ExplanationMode::VanDriel => {
-                        let explanation: VanDrielExplanation = point_data.driel.unwrap();
+                    ExplanationMode::DaSilva(DaSilvaType::Euclidean) => {
+                        let explanation: DaSilvaExplanation = point_data.silva_euclidean.unwrap();
+                        color_map.get_color(explanation.attribute_index, explanation.confidence)
+                    }
+                    ExplanationMode::VanDriel(VanDrielType::MinimalVariance) => {
+                        let explanation: VanDrielExplanation = point_data.driel_min.unwrap();
+                        color_map.get_color(explanation.dimension, explanation.confidence)
+                    }
+                    ExplanationMode::VanDriel(VanDrielType::TotalVariance) => {
+                        let explanation: VanDrielExplanation = point_data.driel_total.unwrap();
                         color_map.get_color(explanation.dimension, explanation.confidence)
                     }
                 };
@@ -351,25 +369,27 @@ impl VisualizationState2D {
     }
 }
 
-impl Load<Vec<DaSilvaExplanation>> for VisualizationState2D {
-    fn load(&mut self, explanations: Vec<DaSilvaExplanation>) {
+impl Load<Vec<DaSilvaExplanation>, DaSilvaType> for VisualizationState2D {
+    fn load(&mut self, explanations: Vec<DaSilvaExplanation>, mode: DaSilvaType) {
         // Create the color map
         let color_map = ColorMap::from(&explanations);
-        self.color_maps.insert(ExplanationMode::DaSilva, color_map);
+        self.color_maps
+            .insert(ExplanationMode::DaSilva(mode), color_map);
 
-        self.point_container.load(explanations);
+        self.point_container.load(explanations, mode);
 
-        self.set_explanation_mode(ExplanationMode::DaSilva);
+        self.set_explanation_mode(ExplanationMode::DaSilva(mode));
     }
 }
 
-impl Load<Vec<VanDrielExplanation>> for VisualizationState2D {
-    fn load(&mut self, explanations: Vec<VanDrielExplanation>) {
+impl Load<Vec<VanDrielExplanation>, VanDrielType> for VisualizationState2D {
+    fn load(&mut self, explanations: Vec<VanDrielExplanation>, mode: VanDrielType) {
         // Create the color map
         let color_map = ColorMap::from(&explanations);
-        self.color_maps.insert(ExplanationMode::VanDriel, color_map);
-        self.point_container.load(explanations);
+        self.color_maps
+            .insert(ExplanationMode::VanDriel(mode), color_map);
+        self.point_container.load(explanations, mode);
 
-        self.set_explanation_mode(ExplanationMode::VanDriel);
+        self.set_explanation_mode(ExplanationMode::VanDriel(mode));
     }
 }
