@@ -8,7 +8,7 @@ use std::boxed::Box;
 
 // Internal imports
 use crate::{exp::Neighborhood, view::{ExplanationMode, RenderMode, Scene}};
-use super::{ui_events::UIEvents, ui_state::{OpenSettingsMenu, NeighborhoodType}};
+use super::{ui_events::UIEvents, ui_state::{NeighborhoodType, OpenSettingsMenu}};
 
 // Font sizes
 const FONT_SIZE: u32 = 12;
@@ -18,12 +18,13 @@ const BUTTON_WIDTH: f64 = 160f64;
 const BUTTON_HEIGHT: f64 = 22f64;
 const MENU_BUTTON_WIDTH: f64 = 160f64;
 // Slider settings
-const SLIDER_WIDTH: f64 = 150f64;
+const SLIDER_WIDTH: f64 = 160f64;
 const SLIDER_HEIGHT: f64 = 18f64;
 // Bounds on sliders
 const GAMMA_MIN_MAX: (f32, f32) = (1.0, 3.4);
 const NEIGHBORHOOD_R_MIN_MAX: (f32, f32) = (0.01, 1.1);
 const NEIGHBORHOOD_K_MIN_MAX: (usize, usize) = (10, 250);
+const THETA_MIN_MAX: (f32, f32) = (0.0, 1.0);
 // Misc
 const SIDE_MARGIN: f64 = 3.0f64;
 const COLOR_PREVIEW_SIZE: f64 = 18f64;
@@ -232,13 +233,25 @@ fn draw_bottom_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_queue: Vec<UIEvents>,
 fn draw_left_general_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_queue: Vec<UIEvents>, scene: &Scene) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
     let menu_ids = &scene.ui_state.menu_widgets;
 
+    // Button for reseting the current view
+    for _ in widget::Button::new()
+        .label("Reset camera view")
+        .label_font_size(FONT_SIZE - 2)
+        .bottom_left_with_margin(SIDE_MARGIN)
+        .w(BUTTON_WIDTH)
+        .h(BUTTON_HEIGHT - 2f64)
+        .set(menu_ids.button_reset, &mut ui)
+    {
+        event_queue.push(UIEvents::ResetButtonPress)
+    }
+
     // Button for switching 2D/3D if available
     if scene.dimension_switch_available() {
         let text = format!("Switch to {}", scene.dimensionality_mode.inverse().to_str());
         for _ in widget::Button::new()
             .label(&text)
             .label_font_size(FONT_SIZE - 2)
-            .bottom_left_with_margin(SIDE_MARGIN)
+            .up_from(menu_ids.button_reset, 3.0f64)
             .w(BUTTON_WIDTH)
             .h(BUTTON_HEIGHT - 2f64)
             .set(menu_ids.button_dimension_switch, &mut ui)
@@ -247,17 +260,6 @@ fn draw_left_general_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_queue: Vec<UIEv
         }
     }
 
-    // Button for reseting the current view
-    for _ in widget::Button::new()
-        .label("Reset view")
-        .label_font_size(FONT_SIZE - 2)
-        .up_from(menu_ids.button_dimension_switch, 3.0f64)
-        .w(BUTTON_WIDTH)
-        .h(BUTTON_HEIGHT - 2f64)
-        .set(menu_ids.button_reset, &mut ui)
-    {
-        event_queue.push(UIEvents::ResetButtonPress)
-    }
 
     (ui, event_queue)
 }
@@ -281,7 +283,7 @@ fn draw_right_explanation_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_q
             ),
             false => (
                 "Calculate Da Silva".to_string(),
-                UIEvents::RunExplanationMode(ExplanationMode::DaSilva, Neighborhood::from(&scene.ui_state.recompute_state)),
+                UIEvents::RunExplanationMode(ExplanationMode::DaSilva, Neighborhood::from(&scene.ui_state.recompute_state), None),
             ),
         };
 
@@ -294,7 +296,7 @@ fn draw_right_explanation_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_q
             ),
             false => (
                 "Calculate Van Driel".to_string(),
-                UIEvents::RunExplanationMode(ExplanationMode::VanDriel, Neighborhood::from(&scene.ui_state.recompute_state)),
+                UIEvents::RunExplanationMode(ExplanationMode::VanDriel, Neighborhood::from(&scene.ui_state.recompute_state), Some(scene.ui_state.theta)),
             ),
         };
 
@@ -333,6 +335,52 @@ fn draw_right_explanation_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_q
         event_queue.push(event_2)
     }
 
+    // Allow recomputing the current metric if a explanation mode is set
+    if scene.get_explanation_mode() != ExplanationMode::None {
+        for _ in widget::Button::new()
+            .label("Recompute current metric")
+            .label_font_size(FONT_SIZE - 2)
+            .up_from(menu_ids.button_explanation_2, 3.0f64)
+            .w(BUTTON_WIDTH)
+            .h(BUTTON_HEIGHT - 2f64)
+            .set(menu_ids.button_recompute, &mut ui)
+        {
+            event_queue.push(
+                match scene.get_explanation_mode() {
+                    ExplanationMode::VanDriel => UIEvents::RunExplanationMode(
+                        ExplanationMode::VanDriel,
+                        Neighborhood::from(&scene.ui_state.recompute_state),
+                        Some(scene.ui_state.theta)
+                    ),
+                    v => UIEvents::RunExplanationMode(
+                        v, Neighborhood::from(&scene.ui_state.recompute_state), None
+                    )
+                }
+            )
+        }
+    }
+
+
+    // Allow setting the theta
+    let mut theta_text = scene.ui_state.theta.to_string();
+    theta_text.truncate(5);
+    if let Some(t) = widget::Slider::new(scene.ui_state.theta, THETA_MIN_MAX.0, THETA_MIN_MAX.1)
+        .label(&theta_text)
+        .label_font_size(FONT_SIZE -1)
+        .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+        .w(SLIDER_WIDTH)
+        .h(SLIDER_HEIGHT)
+        .up_from(if scene.get_explanation_mode() != ExplanationMode::None { menu_ids.button_recompute } else { menu_ids.button_explanation_2 }, 7.0f64)
+        .set(menu_ids.slider_theta, &mut ui) {
+            event_queue.push(UIEvents::SetTheta(t))
+        }
+
+    widget::Text::new("Set theta value for van Driel:")
+        .font_size(FONT_SIZE_SMALL)
+        .up_from(menu_ids.slider_theta, 3.0f64)
+        .w(SLIDER_WIDTH)
+        .set(menu_ids.text_theta, &mut ui);
+
     // Create the slider and metric switch button
     match scene.ui_state.recompute_state.neighborhood_type {
         NeighborhoodType::R => {
@@ -346,7 +394,7 @@ fn draw_right_explanation_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_q
             .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
             .w(SLIDER_WIDTH)
             .h(SLIDER_HEIGHT)
-            .up_from(menu_ids.button_explanation_2, 7.0f64)
+            .up_from(menu_ids.text_theta, 7.0f64)
             .set(menu_ids.slider_neighborhood, &mut ui)
             {
                 event_queue.push(UIEvents::UpdateUINeighborhood(Neighborhood::R(
@@ -364,7 +412,7 @@ fn draw_right_explanation_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_q
             .label(&scene.ui_state.recompute_state.get_neighborhood_text())
             .label_font_size(FONT_SIZE - 1)
             .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-            .up_from(menu_ids.button_explanation_2, 7.0f64)
+            .up_from(menu_ids.text_theta, 7.0f64)
             .w(SLIDER_WIDTH)
             .h(SLIDER_HEIGHT)
             .set(menu_ids.slider_neighborhood, &mut ui)
@@ -384,28 +432,11 @@ fn draw_right_explanation_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_q
         ))
         .label_font_size(FONT_SIZE_SMALL)
         .up_from(menu_ids.slider_neighborhood, 2.0f64)
-        .w(if scene.get_explanation_mode() != ExplanationMode::None {BUTTON_WIDTH / 2.0} else { BUTTON_WIDTH })
+        .w(BUTTON_WIDTH)
         .h(BUTTON_HEIGHT - 2f64)
         .set(menu_ids.button_switch_neighborhood_type, &mut ui)
     {
         event_queue.push(UIEvents::UpdateUISwitchNeighborhood)
-    }
-
-    // Allow recomputing the current metric if a explanation mode is set
-    if scene.get_explanation_mode() != ExplanationMode::None {
-        for _ in widget::Button::new()
-        .label("Compute")
-        .label_font_size(FONT_SIZE_SMALL)
-        .right_from(menu_ids.button_switch_neighborhood_type, 2.0f64)
-        .w(BUTTON_WIDTH / 2.0)
-        .h(BUTTON_HEIGHT - 2f64)
-        .set(menu_ids.button_recompute, &mut ui)
-        {
-            event_queue.push(UIEvents::RunExplanationMode(
-                scene.get_explanation_mode(),
-                Neighborhood::from(&scene.ui_state.recompute_state),
-            ))
-        }
     }
 
     // Recompute text

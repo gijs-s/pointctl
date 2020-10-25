@@ -105,26 +105,28 @@ impl VisualizationState3D {
         &mut self,
         mode: ExplanationMode,
         neighborhood_size: exp::Neighborhood,
+        theta: Option<f32>
     ) {
         // render mode is already loaded, first remove it
         if self.is_explanation_available(&mode) {
             self.explanation = ExplanationMode::None;
             self.color_maps.remove(&mode);
         }
-        match mode {
-            ExplanationMode::DaSilva => {
+        match (mode, theta) {
+            (ExplanationMode::DaSilva, _) => {
                 let da_silva_explanation =
                     exp::run_da_silva_variance_3d(&self.point_container, neighborhood_size);
                 self.load(da_silva_explanation);
                 self.set_explanation_mode(mode);
             }
-            ExplanationMode::VanDriel => {
+            (ExplanationMode::VanDriel, Some(t)) => {
                 let van_driel_explanation =
-                    exp::run_van_driel_3d(&self.point_container, neighborhood_size, 0.95);
+                    exp::run_van_driel_3d(&self.point_container, neighborhood_size,t);
                 self.load(van_driel_explanation);
                 self.set_explanation_mode(mode);
             }
-            ExplanationMode::None => (),
+            (ExplanationMode::VanDriel, None) => panic!("Tried to compute van driel without passing theta"),
+            (ExplanationMode::None, _) => (),
         }
     }
 
@@ -271,26 +273,28 @@ impl VisualizationState2D {
         &mut self,
         mode: ExplanationMode,
         neighborhood_size: exp::Neighborhood,
+        theta: Option<f32>
     ) {
         // render mode is already loaded, first remove it
         if self.is_explanation_available(&mode) {
             self.explanation = ExplanationMode::None;
             self.color_maps.remove(&mode);
         }
-        match mode {
-            ExplanationMode::DaSilva => {
+        match (mode, theta) {
+            (ExplanationMode::DaSilva, _) => {
                 let da_silva_explanation =
                     exp::run_da_silva_variance_2d(&self.point_container, neighborhood_size);
                 self.load(da_silva_explanation);
                 self.set_explanation_mode(mode);
             }
-            ExplanationMode::VanDriel => {
+            (ExplanationMode::VanDriel, Some(t)) => {
                 let van_driel_explanation =
-                    exp::run_van_driel_2d(&self.point_container, neighborhood_size, 0.95);
+                    exp::run_van_driel_2d(&self.point_container, neighborhood_size, t);
                 self.load(van_driel_explanation);
                 self.set_explanation_mode(mode);
             }
-            ExplanationMode::None => (),
+            (ExplanationMode::VanDriel, None) => panic!("Tried to compute van driel without passing theta"),
+            (ExplanationMode::None, _) => (),
         }
     }
 

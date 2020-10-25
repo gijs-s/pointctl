@@ -188,17 +188,17 @@ impl Scene {
     }
 
     /// TODO: Move running the explanation mode into the state
-    pub fn run_explanation_mode(&mut self, mode: ExplanationMode, neighborhood: exp::Neighborhood) {
+    pub fn run_explanation_mode(&mut self, mode: ExplanationMode, neighborhood: exp::Neighborhood, theta: Option<f32>) {
         match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &mut self.state_2d {
-                Some(state) => state.run_explanation_mode(mode, neighborhood),
+                Some(state) => state.run_explanation_mode(mode, neighborhood, theta),
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
                 }
             },
             DimensionalityMode::ThreeD => match &mut self.state_3d {
-                Some(state) => state.run_explanation_mode(mode, neighborhood),
+                Some(state) => state.run_explanation_mode(mode, neighborhood, theta),
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
@@ -391,14 +391,18 @@ impl Scene {
                 UIEvents::SetColorBound(min, max) => self.set_color_map_confidence_bounds(min, max),
                 UIEvents::SetExplanationMode(mode) => self.set_explanation_mode(mode),
                 // Running the explanation method
-                UIEvents::RunExplanationMode(mode, neighborhood) => {
+                UIEvents::RunExplanationMode(mode, neighborhood, theta) => {
                     self.ui_state.recompute_state.update(neighborhood);
-                    self.run_explanation_mode(mode, neighborhood)
+                    self.run_explanation_mode(mode, neighborhood, theta)
                 }
                 // UI specific
                 UIEvents::UpdateUINeighborhood(neighborhood) => self.ui_state.recompute_state.update(neighborhood),
                 UIEvents::UpdateUISwitchNeighborhood => self.ui_state.recompute_state.switch_neighborhood_type(),
                 UIEvents::SwitchOpenMenu(v) => self.ui_state.open_menu = v,
+                UIEvents::SetTheta(theta) => self.ui_state.theta = {
+                    let t = theta.max(0.0).min(1.0);
+                    (t * 200f32) as i32 as f32 / 200f32
+                }
             }
         }
     }

@@ -1,3 +1,6 @@
+/// Module that with a definition of the UI state.
+
+// First party imports
 use crate::exp::Neighborhood;
 use super::widget_ids::*;
 
@@ -11,6 +14,8 @@ pub struct UIState {
     pub open_menu: OpenSettingsMenu,
     // State used for the recompute button
     pub recompute_state: RecomputeButtonState,
+    // "theta" value used in the van driel computation
+    pub theta: f32,
 }
 
 impl UIState {
@@ -21,6 +26,7 @@ impl UIState {
             menu_widgets: MenuWidgetId::new(ui.widget_id_generator()),
             open_menu: OpenSettingsMenu::ViewerSettings,
             recompute_state: RecomputeButtonState::new(),
+            theta: 0.95,
         }
     }
 }

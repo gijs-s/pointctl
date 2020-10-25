@@ -110,21 +110,21 @@ fn main() {
                         .help("The original dataset in ply or csv format"),
                 )
                 .arg(
-                    Arg::with_name("reduced_data_3d")
-                        .short("r")
-                        .long("r3d")
-                        .required_unless("r2d")
-                        .takes_value(true)
-                        .help("The 3D reduced dataset in ply or csv format"),
-                )
-                .arg(
                     Arg::with_name("reduced_data_2d")
                         .short("x")
                         .long("r2d")
-                        .required_unless("r3d")
+                        .required_unless("reduced_data_3d")
                         .takes_value(true)
                         .help("The 2D reduced dataset in ply or csv format"),
-                ),
+                )
+                .arg(
+                    Arg::with_name("reduced_data_3d")
+                        .short("r")
+                        .long("r3d")
+                        .required_unless("reduced_data_2d")
+                        .takes_value(true)
+                        .help("The 3D reduced dataset in ply or csv format"),
+                )
         )
         .subcommand(
             SubCommand::with_name("generate")

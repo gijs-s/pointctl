@@ -47,8 +47,8 @@ widget_ids! {
         explanation_settings_menu_toggle,
         // Buttons controlling the viewer
         button_reset,
-        button_dimension_switch,
         buttom_render_mode,
+        button_dimension_switch,
         // - size of the blobs / points
         text_size_slider,
         button_size_reset,
@@ -69,5 +69,8 @@ widget_ids! {
         // - Color normalization focus
         text_color_normalization_bounds,
         slider_color_normalization,
+        // - Theta slider for van driel
+        text_theta,
+        slider_theta,
     }
 }
