@@ -113,6 +113,7 @@ fn main() {
                     Arg::with_name("reduced_data_3d")
                         .short("r")
                         .long("r3d")
+                        .required_unless("r2d")
                         .takes_value(true)
                         .help("The 3D reduced dataset in ply or csv format"),
                 )
@@ -120,6 +121,7 @@ fn main() {
                     Arg::with_name("reduced_data_2d")
                         .short("x")
                         .long("r2d")
+                        .required_unless("r3d")
                         .takes_value(true)
                         .help("The 2D reduced dataset in ply or csv format"),
                 ),
