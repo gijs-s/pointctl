@@ -22,14 +22,11 @@ use crate::{
         RenderMode, VisualizationState2D, VisualizationState3D,
     },
 };
-
-use super::{ui::UIState, ExplanationMode};
+use super::{ui::{UIState, UIEvents}, ExplanationMode};
 
 // Easy access to buttons
 mod buttons {
     use kiss3d::event::Key;
-    pub const GAMMA_UP_KEY: Key = Key::PageUp;
-    pub const GAMMA_DOWN_KEY: Key = Key::PageDown;
     // Switch between Discreet and Continuous
     pub const SWITCH_RENDER_MODE: Key = Key::N;
     // Switch between 2D and 3D
@@ -61,7 +58,7 @@ impl Scene {
             dimensionality_mode: DimensionalityMode::ThreeD,
             state_2d: None,
             state_3d: None,
-            ui_state: UIState::new(window.conrod_ui_mut().widget_id_generator()),
+            ui_state: UIState::new(window.conrod_ui_mut()),
             dirty: false,
         }
     }
@@ -381,16 +378,36 @@ impl Scene {
         self.current_render_mode().get_default_blob_size()
     }
 
+    fn handle_ui_input(&mut self, ui_events: Vec<UIEvents>) {
+        for event in ui_events {
+            match event {
+                UIEvents::ResetButtonPress => self.reset_camera(),
+                UIEvents::RenderModeSwitch => self.switch_render_mode(),
+                UIEvents::DimensionalitySwitch => self.switch_dimensionality(),
+                // Setting scene options
+                UIEvents::SetPointSize(size) => self.set_point_size(size),
+                UIEvents::SetBlobSize(size) => self.set_blob_size(size),
+                UIEvents::SetGamma(gamma) => self.set_gamma(gamma),
+                UIEvents::SetColorBound(min, max) => self.set_color_map_confidence_bounds(min, max),
+                UIEvents::SetExplanationMode(mode) => self.set_explanation_mode(mode),
+                // Running the explanation method
+                UIEvents::RunExplanationMode(mode, neighborhood) => {
+                    self.ui_state.recompute_state.update(neighborhood);
+                    self.run_explanation_mode(mode, neighborhood)
+                }
+                // UI specific
+                UIEvents::UpdateUINeighborhood(neighborhood) => self.ui_state.recompute_state.update(neighborhood),
+                UIEvents::UpdateUISwitchNeighborhood => self.ui_state.recompute_state.switch_neighborhood_type(),
+                UIEvents::SwitchOpenMenu(v) => self.ui_state.open_menu = v,
+            }
+        }
+    }
+
     // TODO: handle is dirty case?
     fn handle_input(&mut self, window: &mut CustomWindow) {
+        // Handle the window events
         for event in window.events().iter() {
             match event.value {
-                WindowEvent::Key(buttons::GAMMA_UP_KEY, Action::Press, _) => {
-                    println!("Gamma up pressed")
-                }
-                WindowEvent::Key(buttons::GAMMA_DOWN_KEY, Action::Press, _) => {
-                    println!("Gamma down pressed")
-                }
                 WindowEvent::Key(buttons::SWITCH_DIMENSIONALITY, Action::Press, _) => {
                     if self.initialized() {
                         self.switch_dimensionality();
@@ -434,7 +451,8 @@ impl Scene {
     fn draw_overlay(&mut self, window: &mut CustomWindow) {
         // Split out the logic into a separate file to prevent this file
         // from becoming even more bloated
-        draw_overlay(self, window);
+        let events = draw_overlay(self, window);
+        self.handle_ui_input(events);
     }
 }
 
@@ -468,8 +486,8 @@ impl ExtendedState for Scene {
     }
 
     fn step(&mut self, mut window: &mut CustomWindow) {
-        self.handle_input(&mut window);
         self.draw_overlay(&mut window);
+        self.handle_input(&mut window);
     }
 }
 

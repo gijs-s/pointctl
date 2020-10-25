@@ -12,7 +12,7 @@ use crate::{
 
 // Generate a unique `WidgetId` for each widget.
 widget_ids! {
-    #[derive(Clone)]
+    #[derive(Clone)]s
     pub struct WidgetId {
         // Information widgets
         text_point_count,
