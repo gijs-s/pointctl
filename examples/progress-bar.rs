@@ -1,7 +1,7 @@
 use std::thread;
 use std::time::Duration;
 
-use indicatif::{ProgressBar, ProgressStyle, ProgressIterator};
+use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
 
 fn main() {
     // let mut searched_neighborhoods = 0;
@@ -12,5 +12,11 @@ fn main() {
         .template("[{elapsed_precise}] Calculating neighbors [{bar:40.cyan/blue}] {pos}/{len} ({eta} left at {per_sec})")
         .progress_chars("#>-"));
 
-    let _res: Vec<u64> = (0..total_size).progress_with(pb).map(|v| {thread::sleep(Duration::from_millis(12)); v}).collect();
+    let _res: Vec<u64> = (0..total_size)
+        .progress_with(pb)
+        .map(|v| {
+            thread::sleep(Duration::from_millis(12));
+            v
+        })
+        .collect();
 }

@@ -13,16 +13,18 @@ use kiss3d::{
 };
 
 // First party imports
+use super::{
+    ui::{UIEvents, UIState},
+    ExplanationMode,
+};
 use crate::{
     exp,
     search::{PointContainer, PointContainer2D, PointContainer3D},
     view::{
-        ui::draw_overlay,
-        ColorMap, DimensionalityMode, PointRendererInteraction,
-        RenderMode, VisualizationState2D, VisualizationState3D,
+        ui::draw_overlay, ColorMap, DimensionalityMode, PointRendererInteraction, RenderMode,
+        VisualizationState2D, VisualizationState3D,
     },
 };
-use super::{ui::{UIState, UIEvents}, ExplanationMode};
 
 // Easy access to buttons
 mod buttons {
@@ -188,7 +190,12 @@ impl Scene {
     }
 
     /// TODO: Move running the explanation mode into the state
-    pub fn run_explanation_mode(&mut self, mode: ExplanationMode, neighborhood: exp::Neighborhood, theta: Option<f32>) {
+    pub fn run_explanation_mode(
+        &mut self,
+        mode: ExplanationMode,
+        neighborhood: exp::Neighborhood,
+        theta: Option<f32>,
+    ) {
         match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &mut self.state_2d {
                 Some(state) => state.run_explanation_mode(mode, neighborhood, theta),
@@ -287,6 +294,26 @@ impl Scene {
         }
     }
 
+    /// Toggle the confidence normalization in the current color map
+    pub fn toggle_color_map_confidence_normalization(&mut self) {
+        match self.dimensionality_mode {
+            DimensionalityMode::TwoD => match &mut self.state_2d {
+                Some(state) => state.toggle_color_confidence_normalization(),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+            DimensionalityMode::ThreeD => match &mut self.state_3d {
+                Some(state) => state.toggle_color_confidence_normalization(),
+                None => {
+                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
+                    exit(41);
+                }
+            },
+        }
+    }
+
     pub fn get_point_count(&self) -> usize {
         match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &self.state_2d {
@@ -310,12 +337,20 @@ impl Scene {
         match self.get_explanation_mode() {
             ExplanationMode::DaSilva => match self.dimensionality_mode {
                 DimensionalityMode::TwoD => match &self.state_2d {
-                    Some(state) => state.point_container.dimension_names.get(*index).and_then(|v| Some(v.clone())),
-                    None => None
+                    Some(state) => state
+                        .point_container
+                        .dimension_names
+                        .get(*index)
+                        .and_then(|v| Some(v.clone())),
+                    None => None,
                 },
                 DimensionalityMode::ThreeD => match &self.state_3d {
-                    Some(state) => state.point_container.dimension_names.get(*index).and_then(|v| Some(v.clone())),
-                    None => None
+                    Some(state) => state
+                        .point_container
+                        .dimension_names
+                        .get(*index)
+                        .and_then(|v| Some(v.clone())),
+                    None => None,
                 },
             },
             ExplanationMode::VanDriel => Some(format!("{} Dimension(s)", (index + 1))),

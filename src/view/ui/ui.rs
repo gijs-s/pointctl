@@ -1,14 +1,20 @@
 // Third party
 use kiss3d::{
-    conrod::{widget, UiCell, Color, Colorable, Labelable, Positionable, Sizeable, Widget},
+    conrod::{widget, Color, Colorable, Labelable, Positionable, Sizeable, UiCell, Widget},
     window::CustomWindow,
 };
 
 use std::boxed::Box;
 
 // Internal imports
-use crate::{exp::Neighborhood, view::{ExplanationMode, RenderMode, Scene}};
-use super::{ui_events::UIEvents, ui_state::{NeighborhoodType, OpenSettingsMenu}};
+use super::{
+    ui_events::UIEvents,
+    ui_state::{NeighborhoodType, OpenSettingsMenu},
+};
+use crate::{
+    exp::Neighborhood,
+    view::{ExplanationMode, RenderMode, Scene},
+};
 
 // Font sizes
 const FONT_SIZE: u32 = 12;
@@ -36,7 +42,9 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) -> Vec<UIEvent
     // Add the basic info on the top left
     let ui = draw_info_text(ui, &scene);
     // Add an early out when no points are loaded
-    if !scene.initialized() { return Vec::new(); }
+    if !scene.initialized() {
+        return Vec::new();
+    }
 
     // Render the current legends
     let ui = draw_legends(ui, &scene);
@@ -47,14 +55,18 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) -> Vec<UIEvent
     let (ui, event_queue) = draw_bottom_menu(ui, event_queue, &scene);
 
     // draw the left menu buttons
-    let (ui, event_queue) =  draw_left_general_menu(ui, event_queue, &scene);
+    let (ui, event_queue) = draw_left_general_menu(ui, event_queue, &scene);
 
     // draw the correct right menu
     let (_ui, event_queue) = match scene.ui_state.open_menu {
         // No-op, menu closed so we do not draw anything
         OpenSettingsMenu::None => (ui, event_queue),
-        OpenSettingsMenu::ViewerSettings => draw_right_viewer_settings_menu(ui, event_queue, &scene),
-        OpenSettingsMenu::ExplanationSettings => draw_right_explanation_settings_menu(ui, event_queue, &scene),
+        OpenSettingsMenu::ViewerSettings => {
+            draw_right_viewer_settings_menu(ui, event_queue, &scene)
+        }
+        OpenSettingsMenu::ExplanationSettings => {
+            draw_right_explanation_settings_menu(ui, event_queue, &scene)
+        }
     };
 
     // Return the event queue at the end, this will be handled in the scene
@@ -146,14 +158,46 @@ pub fn draw_legends<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<'a
         // Here the first entry is the one we offset the current ui element from
         // the second and third are the actual ui element legend_ids.
         let dimensions = vec![
-            (legend_ids.color_block_0, legend_ids.color_block_1, legend_ids.text_dim_1),
-            (legend_ids.color_block_1, legend_ids.color_block_2, legend_ids.text_dim_2),
-            (legend_ids.color_block_2, legend_ids.color_block_3, legend_ids.text_dim_3),
-            (legend_ids.color_block_3, legend_ids.color_block_4, legend_ids.text_dim_4),
-            (legend_ids.color_block_4, legend_ids.color_block_5, legend_ids.text_dim_5),
-            (legend_ids.color_block_5, legend_ids.color_block_6, legend_ids.text_dim_6),
-            (legend_ids.color_block_6, legend_ids.color_block_7, legend_ids.text_dim_7),
-            (legend_ids.color_block_7, legend_ids.color_block_other, legend_ids.text_dim_other),
+            (
+                legend_ids.color_block_0,
+                legend_ids.color_block_1,
+                legend_ids.text_dim_1,
+            ),
+            (
+                legend_ids.color_block_1,
+                legend_ids.color_block_2,
+                legend_ids.text_dim_2,
+            ),
+            (
+                legend_ids.color_block_2,
+                legend_ids.color_block_3,
+                legend_ids.text_dim_3,
+            ),
+            (
+                legend_ids.color_block_3,
+                legend_ids.color_block_4,
+                legend_ids.text_dim_4,
+            ),
+            (
+                legend_ids.color_block_4,
+                legend_ids.color_block_5,
+                legend_ids.text_dim_5,
+            ),
+            (
+                legend_ids.color_block_5,
+                legend_ids.color_block_6,
+                legend_ids.text_dim_6,
+            ),
+            (
+                legend_ids.color_block_6,
+                legend_ids.color_block_7,
+                legend_ids.text_dim_7,
+            ),
+            (
+                legend_ids.color_block_7,
+                legend_ids.color_block_other,
+                legend_ids.text_dim_other,
+            ),
         ];
 
         for (index, &(offset_id, preview_id, text_id)) in dimensions
@@ -194,42 +238,57 @@ pub fn draw_legends<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<'a
 }
 
 /// Draw the menu buttons at the bottom of the display
-fn draw_bottom_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_queue: Vec<UIEvents>, scene: &Scene) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
+fn draw_bottom_menu<'a>(
+    mut ui: Box<UiCell<'a>>,
+    mut event_queue: Vec<UIEvents>,
+    scene: &Scene,
+) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
     let menu_ids = &scene.ui_state.menu_widgets;
 
     // Draw the explanation settings menu expand button
-    if let (_, Some(status)) = widget::CollapsibleArea::new(scene.ui_state.open_menu == OpenSettingsMenu::ExplanationSettings, "Explanation settings")
-        .label_font_size(FONT_SIZE)
-        .bottom_right_with_margin(SIDE_MARGIN)
-        .w(MENU_BUTTON_WIDTH)
-        .h(BUTTON_HEIGHT)
-        .color(Color::Rgba(1.0, 1.0, 1.0, 1.00))
-        .set(menu_ids.explanation_settings_menu_toggle, &mut ui) {
-            event_queue.push(UIEvents::SwitchOpenMenu(match status.is_open() {
-                true => OpenSettingsMenu::ExplanationSettings,
-                false => OpenSettingsMenu::None,
-            }));
-        }
+    if let (_, Some(status)) = widget::CollapsibleArea::new(
+        scene.ui_state.open_menu == OpenSettingsMenu::ExplanationSettings,
+        "Explanation settings",
+    )
+    .label_font_size(FONT_SIZE)
+    .bottom_right_with_margin(SIDE_MARGIN)
+    .w(MENU_BUTTON_WIDTH)
+    .h(BUTTON_HEIGHT)
+    .color(Color::Rgba(1.0, 1.0, 1.0, 1.00))
+    .set(menu_ids.explanation_settings_menu_toggle, &mut ui)
+    {
+        event_queue.push(UIEvents::SwitchOpenMenu(match status.is_open() {
+            true => OpenSettingsMenu::ExplanationSettings,
+            false => OpenSettingsMenu::None,
+        }));
+    }
 
     // Draw the computation switch menu expand button
-    if let (_, Some(status)) = widget::CollapsibleArea::new(scene.ui_state.open_menu == OpenSettingsMenu::ViewerSettings, "Viewer settings")
-        .label_font_size(FONT_SIZE)
-        .left_from(menu_ids.explanation_settings_menu_toggle, 1.0f64)
-        .h(BUTTON_HEIGHT)
-        .color(Color::Rgba(1.0, 1.0, 1.0, 1.00))
-        .set(menu_ids.viewer_settings_menu_toggle, &mut ui) {
-            event_queue.push(UIEvents::SwitchOpenMenu(match status.is_open() {
-                true => OpenSettingsMenu::ViewerSettings,
-                false => OpenSettingsMenu::None,
-            }));
-        }
-
+    if let (_, Some(status)) = widget::CollapsibleArea::new(
+        scene.ui_state.open_menu == OpenSettingsMenu::ViewerSettings,
+        "Viewer settings",
+    )
+    .label_font_size(FONT_SIZE)
+    .left_from(menu_ids.explanation_settings_menu_toggle, 1.0f64)
+    .h(BUTTON_HEIGHT)
+    .color(Color::Rgba(1.0, 1.0, 1.0, 1.00))
+    .set(menu_ids.viewer_settings_menu_toggle, &mut ui)
+    {
+        event_queue.push(UIEvents::SwitchOpenMenu(match status.is_open() {
+            true => OpenSettingsMenu::ViewerSettings,
+            false => OpenSettingsMenu::None,
+        }));
+    }
 
     (ui, event_queue)
 }
 
 /// Draw the general menu above the left menu bar
-fn draw_left_general_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_queue: Vec<UIEvents>, scene: &Scene) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
+fn draw_left_general_menu<'a>(
+    mut ui: Box<UiCell<'a>>,
+    mut event_queue: Vec<UIEvents>,
+    scene: &Scene,
+) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
     let menu_ids = &scene.ui_state.menu_widgets;
 
     // Button for reseting the current view
@@ -259,12 +318,15 @@ fn draw_left_general_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_queue: Vec<UIEv
         }
     }
 
-
     (ui, event_queue)
 }
 
 /// Draw the settings menu for the current explanation above the right menu bar
-fn draw_right_explanation_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_queue: Vec<UIEvents>, scene: &Scene) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
+fn draw_right_explanation_settings_menu<'a>(
+    mut ui: Box<UiCell<'a>>,
+    mut event_queue: Vec<UIEvents>,
+    scene: &Scene,
+) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
     let menu_ids = &scene.ui_state.menu_widgets;
 
     // Get the text and correct event if for turning off the explanation
@@ -282,7 +344,11 @@ fn draw_right_explanation_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_q
             ),
             false => (
                 "Calculate Da Silva".to_string(),
-                UIEvents::RunExplanationMode(ExplanationMode::DaSilva, Neighborhood::from(&scene.ui_state.recompute_state), None),
+                UIEvents::RunExplanationMode(
+                    ExplanationMode::DaSilva,
+                    Neighborhood::from(&scene.ui_state.recompute_state),
+                    None,
+                ),
             ),
         };
 
@@ -295,7 +361,11 @@ fn draw_right_explanation_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_q
             ),
             false => (
                 "Calculate Van Driel".to_string(),
-                UIEvents::RunExplanationMode(ExplanationMode::VanDriel, Neighborhood::from(&scene.ui_state.recompute_state), Some(scene.ui_state.theta)),
+                UIEvents::RunExplanationMode(
+                    ExplanationMode::VanDriel,
+                    Neighborhood::from(&scene.ui_state.recompute_state),
+                    Some(scene.ui_state.theta),
+                ),
             ),
         };
 
@@ -344,35 +414,42 @@ fn draw_right_explanation_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_q
             .h(BUTTON_HEIGHT - 2f64)
             .set(menu_ids.button_recompute, &mut ui)
         {
-            event_queue.push(
-                match scene.get_explanation_mode() {
-                    ExplanationMode::VanDriel => UIEvents::RunExplanationMode(
-                        ExplanationMode::VanDriel,
-                        Neighborhood::from(&scene.ui_state.recompute_state),
-                        Some(scene.ui_state.theta)
-                    ),
-                    v => UIEvents::RunExplanationMode(
-                        v, Neighborhood::from(&scene.ui_state.recompute_state), None
-                    )
-                }
-            )
+            event_queue.push(match scene.get_explanation_mode() {
+                ExplanationMode::VanDriel => UIEvents::RunExplanationMode(
+                    ExplanationMode::VanDriel,
+                    Neighborhood::from(&scene.ui_state.recompute_state),
+                    Some(scene.ui_state.theta),
+                ),
+                v => UIEvents::RunExplanationMode(
+                    v,
+                    Neighborhood::from(&scene.ui_state.recompute_state),
+                    None,
+                ),
+            })
         }
     }
-
 
     // Allow setting the theta
     let mut theta_text = scene.ui_state.theta.to_string();
     theta_text.truncate(5);
     if let Some(t) = widget::Slider::new(scene.ui_state.theta, THETA_MIN_MAX.0, THETA_MIN_MAX.1)
         .label(&theta_text)
-        .label_font_size(FONT_SIZE -1)
+        .label_font_size(FONT_SIZE - 1)
         .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
         .w(SLIDER_WIDTH)
         .h(SLIDER_HEIGHT)
-        .up_from(if scene.get_explanation_mode() != ExplanationMode::None { menu_ids.button_recompute } else { menu_ids.button_explanation_2 }, 7.0f64)
-        .set(menu_ids.slider_theta, &mut ui) {
-            event_queue.push(UIEvents::SetTheta(t))
-        }
+        .up_from(
+            if scene.get_explanation_mode() != ExplanationMode::None {
+                menu_ids.button_recompute
+            } else {
+                menu_ids.button_explanation_2
+            },
+            7.0f64,
+        )
+        .set(menu_ids.slider_theta, &mut ui)
+    {
+        event_queue.push(UIEvents::SetTheta(t))
+    }
 
     widget::Text::new("Set theta value for van Driel:")
         .font_size(FONT_SIZE_SMALL)
@@ -427,7 +504,12 @@ fn draw_right_explanation_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_q
     for _ in widget::Button::new()
         .label(&format!(
             "Switch to {}",
-            scene.ui_state.recompute_state.neighborhood_type.inverse().to_string()
+            scene
+                .ui_state
+                .recompute_state
+                .neighborhood_type
+                .inverse()
+                .to_string()
         ))
         .label_font_size(FONT_SIZE_SMALL)
         .up_from(menu_ids.slider_neighborhood, 2.0f64)
@@ -454,7 +536,11 @@ fn draw_right_explanation_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_q
 }
 
 /// Draw the settings menu for the current viewer above the right menu bar
-fn draw_right_viewer_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_queue: Vec<UIEvents>, scene: &Scene) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
+fn draw_right_viewer_settings_menu<'a>(
+    mut ui: Box<UiCell<'a>>,
+    mut event_queue: Vec<UIEvents>,
+    scene: &Scene,
+) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
     let menu_ids = &scene.ui_state.menu_widgets;
 
     // Button for switching render mode

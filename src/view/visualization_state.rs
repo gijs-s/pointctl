@@ -1,21 +1,15 @@
 /// Module containing the current state of the 2D or 3D renderer.
-
 // Build in imports
 use crate::exp;
 use std::collections::HashMap;
 
 // Third party imports
-use kiss3d::{
-    camera::ArcBall,
-    planar_camera::Sidescroll,
-};
+use kiss3d::{camera::ArcBall, planar_camera::Sidescroll};
 use na::{Point2, Point3};
 
 // First party imports
 use crate::{
-    exp::{
-        DaSilvaExplanation, VanDrielExplanation,
-    },
+    exp::{DaSilvaExplanation, VanDrielExplanation},
     search::{Load, PointContainer, PointContainer2D, PointContainer3D},
     view::{
         color_map::ColorMap,
@@ -112,7 +106,7 @@ impl VisualizationState3D {
         &mut self,
         mode: ExplanationMode,
         neighborhood_size: exp::Neighborhood,
-        theta: Option<f32>
+        theta: Option<f32>,
     ) {
         // render mode is already loaded, first remove it
         if self.is_explanation_available(&mode) {
@@ -128,11 +122,13 @@ impl VisualizationState3D {
             }
             (ExplanationMode::VanDriel, Some(t)) => {
                 let van_driel_explanation =
-                    exp::run_van_driel_3d(&self.point_container, neighborhood_size,t);
+                    exp::run_van_driel_3d(&self.point_container, neighborhood_size, t);
                 self.load(van_driel_explanation);
                 self.set_explanation_mode(mode);
             }
-            (ExplanationMode::VanDriel, None) => panic!("Tried to compute van driel without passing theta"),
+            (ExplanationMode::VanDriel, None) => {
+                panic!("Tried to compute van driel without passing theta")
+            }
             (ExplanationMode::None, _) => (),
         }
     }
@@ -288,7 +284,7 @@ impl VisualizationState2D {
         &mut self,
         mode: ExplanationMode,
         neighborhood_size: exp::Neighborhood,
-        theta: Option<f32>
+        theta: Option<f32>,
     ) {
         // render mode is already loaded, first remove it
         if self.is_explanation_available(&mode) {
@@ -308,7 +304,9 @@ impl VisualizationState2D {
                 self.load(van_driel_explanation);
                 self.set_explanation_mode(mode);
             }
-            (ExplanationMode::VanDriel, None) => panic!("Tried to compute van driel without passing theta"),
+            (ExplanationMode::VanDriel, None) => {
+                panic!("Tried to compute van driel without passing theta")
+            }
             (ExplanationMode::None, _) => (),
         }
     }

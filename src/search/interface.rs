@@ -1,5 +1,4 @@
 /// File containing the entire interface with the search structure.
-
 // build in imports
 use std::{fmt::Debug, path::Path, process::exit};
 
@@ -8,13 +7,8 @@ use rstar::RTree;
 use vpsearch::Tree as VPTree;
 
 // First party imports
-use super::definitions::{
-    Indexed, IndexedPoint, PointContainer2D, PointContainer3D,
-};
-use crate::{
-    exp::Neighborhood,
-    filesystem,
-};
+use super::definitions::{Indexed, IndexedPoint, PointContainer2D, PointContainer3D};
+use crate::{exp::Neighborhood, filesystem};
 
 /// Functions that are supported by both 2 and 3 dimensional point containers
 pub trait PointContainer {
@@ -151,7 +145,11 @@ impl PointContainer for PointContainer2D {
     }
 
     /// Get a reference to all neighbors within a certain range. This used the rtree.
-    fn find_neighbors_r(&self, r: f32, indexed_point: &IndexedPoint<na::Point2<f32>>) -> Vec<usize> {
+    fn find_neighbors_r(
+        &self,
+        r: f32,
+        indexed_point: &IndexedPoint<na::Point2<f32>>,
+    ) -> Vec<usize> {
         let query_point = [indexed_point.point.x, indexed_point.point.y];
         self.tree_low
             .locate_within_distance(query_point, r * r)
@@ -161,7 +159,11 @@ impl PointContainer for PointContainer2D {
     }
 
     /// Get a reference to the k nearest neighbors.
-    fn find_neighbors_k(&self, k: usize, indexed_point: &IndexedPoint<na::Point2<f32>>) -> Vec<usize> {
+    fn find_neighbors_k(
+        &self,
+        k: usize,
+        indexed_point: &IndexedPoint<na::Point2<f32>>,
+    ) -> Vec<usize> {
         let query_point = [indexed_point.point.x, indexed_point.point.y];
         self.tree_low
             .nearest_neighbor_iter(&query_point)
@@ -237,9 +239,17 @@ impl PointContainer for PointContainer3D {
         self.dimensionality
     }
 
-     /// Get a reference to all neighbors within a certain range. This used the rtree.
-    fn find_neighbors_r(&self, r: f32, indexed_point: &IndexedPoint<na::Point3<f32>>) -> Vec<usize> {
-        let query_point = [indexed_point.point.x, indexed_point.point.y, indexed_point.point.z];
+    /// Get a reference to all neighbors within a certain range. This used the rtree.
+    fn find_neighbors_r(
+        &self,
+        r: f32,
+        indexed_point: &IndexedPoint<na::Point3<f32>>,
+    ) -> Vec<usize> {
+        let query_point = [
+            indexed_point.point.x,
+            indexed_point.point.y,
+            indexed_point.point.z,
+        ];
         self.tree_low
             .locate_within_distance(query_point, r * r)
             .map(|elem| elem.index)
@@ -248,8 +258,16 @@ impl PointContainer for PointContainer3D {
     }
 
     /// Get a reference to the k nearest neighbors.
-    fn find_neighbors_k(&self, k: usize, indexed_point: &IndexedPoint<na::Point3<f32>>) -> Vec<usize> {
-        let query_point = [indexed_point.point.x, indexed_point.point.y, indexed_point.point.z];
+    fn find_neighbors_k(
+        &self,
+        k: usize,
+        indexed_point: &IndexedPoint<na::Point3<f32>>,
+    ) -> Vec<usize> {
+        let query_point = [
+            indexed_point.point.x,
+            indexed_point.point.y,
+            indexed_point.point.z,
+        ];
         self.tree_low
             .nearest_neighbor_iter(&query_point)
             .take(k + 1)
@@ -346,7 +364,6 @@ impl PointContainer2D {
         (min, max)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

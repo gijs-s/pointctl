@@ -1,5 +1,4 @@
 /// Trait / implementation of for loading in explanations into the data structure
-
 // First party imports
 use super::definitions::{PointContainer2D, PointContainer3D};
 use crate::exp::{DaSilvaExplanation, VanDrielExplanation};

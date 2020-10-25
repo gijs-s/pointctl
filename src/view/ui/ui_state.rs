@@ -34,7 +34,7 @@ impl UIState {
 pub enum OpenSettingsMenu {
     ViewerSettings,
     ExplanationSettings,
-    None
+    None,
 }
 
 pub struct RecomputeButtonState {

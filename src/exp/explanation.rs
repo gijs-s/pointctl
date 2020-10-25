@@ -1,11 +1,9 @@
 /// An abstraction that handles the search of neighborhoods for you.
-
 // Build in imports
 use std::cmp::Ordering;
 
 // First party imports
 use super::Neighborhood;
-
 
 // Types to make the code more readable
 pub type LocalContributions = Vec<f32>;

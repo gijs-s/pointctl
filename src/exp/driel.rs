@@ -13,13 +13,10 @@
 use std::cmp::Ordering;
 
 // First party imports
-use super::{
-    explanation::Explanation,
-    Neighborhood,
-};
+use super::{explanation::Explanation, Neighborhood};
 use crate::{
-    search::{PointContainer, PointContainer3D, PointContainer2D},
-    util::math
+    search::{PointContainer, PointContainer2D, PointContainer3D},
+    util::math,
 };
 
 /// Struct continaing the outcome of the Van Driel explanation for a single point
@@ -78,6 +75,7 @@ impl VanDrielExplanation {
 enum VanDrielType {
     TotalVariance,
     MinimalVariance,
+    Ratio,
 }
 
 /// Struct containing the state of the van driel explanation mechanism
@@ -122,22 +120,28 @@ impl<'a, PC: PointContainer> Explanation<VanDrielExplanation> for VanDrielState<
 
 impl<'a> VanDrielState<'a, PointContainer2D> {
     /// Create a new mechanism
-    pub fn new(point_container: &'a PointContainer2D, theta: f32) -> VanDrielState<'a, PointContainer2D> {
+    pub fn new(
+        point_container: &'a PointContainer2D,
+        theta: f32,
+    ) -> VanDrielState<'a, PointContainer2D> {
         VanDrielState::<PointContainer2D> {
             point_container,
             explanation_type: VanDrielType::TotalVariance,
-            theta
+            theta,
         }
     }
 }
 
 impl<'a> VanDrielState<'a, PointContainer3D> {
     /// Create a new mechanism
-    pub fn new(point_container: &'a PointContainer3D, theta: f32) -> VanDrielState<'a, PointContainer3D> {
+    pub fn new(
+        point_container: &'a PointContainer3D,
+        theta: f32,
+    ) -> VanDrielState<'a, PointContainer3D> {
         VanDrielState::<PointContainer3D> {
             point_container,
             explanation_type: VanDrielType::TotalVariance,
-            theta
+            theta,
         }
     }
 }

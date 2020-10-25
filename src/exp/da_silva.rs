@@ -19,10 +19,9 @@ use super::{
     Neighborhood,
 };
 use crate::{
+    search::{Distance, PointContainer, PointContainer2D, PointContainer3D},
     util::math,
-    search::{Distance, PointContainer, PointContainer2D, PointContainer3D}
 };
-
 
 // Struct containing the outcome of the da Silva explanation for a single point
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -119,11 +118,10 @@ impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a
                 // Calculate the distance contribution / variance lc_j between each point p_i and all its neighbors
                 // v_i for every dimension j. Then average it for every dimension within the neighborhood
                 let lc: LocalContributions = match self.explanation_type {
-                    DaSilvaType::Euclidean => self.calculate_local_distance_contributions(
-                        index,
-                        neighborhood,
-                    ),
-                    DaSilvaType::Variance => self.calculate_local_variance(index, neighborhood)
+                    DaSilvaType::Euclidean => {
+                        self.calculate_local_distance_contributions(index, neighborhood)
+                    }
+                    DaSilvaType::Variance => self.calculate_local_variance(index, neighborhood),
                 };
                 // Normalize the local contribution by dividing by the global contribution (per dimension)
                 let nlc: LocalContributions = Self::normalize_rankings(lc, &global_contribution);
@@ -228,7 +226,9 @@ impl<'a, PC: PointContainer> DaSilvaState<'a, PC> {
         neighbor_indices: &[usize],
     ) -> LocalContributions {
         // Create the accumulator using the search point an put each dimension into a singleton
-        let accumulator: Vec<Vec<f32>> = self.point_container.get_nd_point(point_index)
+        let accumulator: Vec<Vec<f32>> = self
+            .point_container
+            .get_nd_point(point_index)
             .clone()
             .iter()
             .map(|&v| vec![v])
@@ -342,11 +342,11 @@ impl<'a, PC: PointContainer> DaSilvaState<'a, PC> {
 
 #[cfg(test)]
 mod tests {
-    use vpsearch::Tree as VPTree;
     use rstar::RTree;
+    use vpsearch::Tree as VPTree;
 
-    use crate::search::{IndexedPoint, PointContainer2D, PointContainer3D, PointData3D};
     use super::*;
+    use crate::search::{IndexedPoint, PointContainer2D, PointContainer3D, PointData3D};
 
     #[test]
     fn calculates_correct_centroid() {
@@ -354,7 +354,10 @@ mod tests {
             vec![1.0, 1.0, -1.0],
             vec![-1.0, 0.0, 1.0],
             vec![0.0, 2.0, 0.0],
-        ].into_iter().map(|v| PointData3D::new(0, na::Point3::<f32>::new(0.0,0.0,0.0), v)).collect();
+        ]
+        .into_iter()
+        .map(|v| PointData3D::new(0, na::Point3::<f32>::new(0.0, 0.0, 0.0), v))
+        .collect();
 
         let point_container = PointContainer3D {
             tree_low: RTree::<IndexedPoint<na::Point3<f32>>>::new(),
@@ -366,10 +369,7 @@ mod tests {
 
         let state = DaSilvaState::<PointContainer3D>::new(&point_container);
 
-        assert_eq!(
-            state.find_centroid(),
-            vec![0.0, 1.0, 0.0]
-        );
+        assert_eq!(state.find_centroid(), vec![0.0, 1.0, 0.0]);
     }
 
     #[test]

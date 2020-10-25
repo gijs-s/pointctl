@@ -1,4 +1,3 @@
-
 // Third party
 use kiss3d::{
     context::Context,

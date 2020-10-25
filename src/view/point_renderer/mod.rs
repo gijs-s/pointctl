@@ -1,5 +1,4 @@
 /// Submodule containing the custom kiss3d renderers
-
 mod marcos;
 mod point_renderer_2d;
 mod point_renderer_3d;

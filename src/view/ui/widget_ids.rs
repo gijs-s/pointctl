@@ -69,8 +69,10 @@ widget_ids! {
         // - Color normalization focus
         text_color_normalization_bounds,
         slider_color_normalization,
+        button_color_normalization_toggle,
         // - Theta slider for van driel
         text_theta,
         slider_theta,
+
     }
 }

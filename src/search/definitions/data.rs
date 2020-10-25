@@ -11,8 +11,8 @@ use vpsearch::Tree as VPTree;
 
 /// First party imports
 use crate::{
+    exp::{DaSilvaExplanation, NormalExplanation, VanDrielExplanation},
     search::PointContainer,
-    exp::{DaSilvaExplanation, NormalExplanation, VanDrielExplanation}
 };
 
 /// Generic point struct that can be used to
@@ -32,7 +32,7 @@ pub trait Indexed {
     fn get_index(&self) -> usize;
 }
 
-impl<P : Clone + fmt::Debug> Indexed for IndexedPoint<P> {
+impl<P: Clone + fmt::Debug> Indexed for IndexedPoint<P> {
     fn get_index(&self) -> usize {
         self.index
     }
@@ -136,7 +136,6 @@ pub struct PointContainer3D {
     pub dimensionality: usize,
 }
 
-
 impl PointContainer2D {
     /// Create a new point container from 2 files
     pub fn new(original_points_path: &Path, reduced_points_path: &Path) -> PointContainer2D {
@@ -196,7 +195,6 @@ impl PointContainer2D {
         }
     }
 }
-
 
 impl PointContainer3D {
     /// Create a new point container from 2 files

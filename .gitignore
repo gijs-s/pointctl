@@ -6,7 +6,7 @@
 # Generated dataset files
 *.ply
 *.csv
-data/projection-explainer
+data/*
 
 # Perf data files
 perf.data*

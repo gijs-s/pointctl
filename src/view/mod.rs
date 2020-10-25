@@ -1,5 +1,4 @@
 /// Module pertaining to everything that happens in the viewer
-
 // Sub modules
 mod color_map;
 mod point_renderer;
@@ -70,7 +69,7 @@ impl TryFrom<&str> for ExplanationMode {
             "silva" => Ok(ExplanationMode::DaSilva),
             "driel" => Ok(ExplanationMode::VanDriel),
             "none" => Ok(ExplanationMode::None),
-            v => Err(format!("Could not create explanation mode from '{}'", v))
+            v => Err(format!("Could not create explanation mode from '{}'", v)),
         }
     }
 }

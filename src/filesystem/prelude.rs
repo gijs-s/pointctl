@@ -32,7 +32,7 @@ pub fn write(file_path: &Path, points: Vec<PointN>) {
 }
 
 /// Retrieve the header line of a file, can be used to check the dimension count
-pub fn get_header(file_path: &Path) -> Vec<String>{
+pub fn get_header(file_path: &Path) -> Vec<String> {
     let res = match get_file_extension(file_path) {
         SupportedFileFormat::CSV => csv::get_header(file_path),
         SupportedFileFormat::PLY => ply::get_header(file_path),

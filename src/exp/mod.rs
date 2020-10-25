@@ -2,8 +2,8 @@
 // Sub modules
 mod da_silva;
 mod driel;
-mod normal;
 mod explanation;
+mod normal;
 
 // Re-export the public facing parts of this module
 pub use self::{
@@ -45,7 +45,8 @@ pub fn run_van_driel_2d<'a>(
     neighborhood_size: Neighborhood,
     theta: f32,
 ) -> Vec<VanDrielExplanation> {
-    let van_driel_mechanism = driel::VanDrielState::<PointContainer2D>::new(point_container_2d, theta);
+    let van_driel_mechanism =
+        driel::VanDrielState::<PointContainer2D>::new(point_container_2d, theta);
     van_driel_mechanism.explain(neighborhood_size)
 }
 
@@ -54,6 +55,7 @@ pub fn run_van_driel_3d<'a>(
     neighborhood_size: Neighborhood,
     theta: f32,
 ) -> Vec<VanDrielExplanation> {
-    let van_driel_mechanism = driel::VanDrielState::<PointContainer3D>::new(point_container_3d, theta);
+    let van_driel_mechanism =
+        driel::VanDrielState::<PointContainer3D>::new(point_container_3d, theta);
     van_driel_mechanism.explain(neighborhood_size)
 }

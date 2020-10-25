@@ -6,6 +6,6 @@ mod rtree;
 mod vptree;
 
 pub use self::{
+    data::{Indexed, IndexedPoint, PointContainer2D, PointContainer3D, PointData2D, PointData3D},
     generic::Distance,
-    data::{IndexedPoint, PointContainer2D, PointContainer3D, PointData2D, PointData3D, Indexed}
 };

@@ -1,10 +1,10 @@
-extern crate pointctl as pc;
 extern crate nalgebra as na;
+extern crate pointctl as pc;
 
 // Build in imports
 use exp::Neighborhood;
 use pc::search::{PointContainer2D, PointContainer3D};
-use std::{path::Path, process::exit, convert::TryFrom};
+use std::{convert::TryFrom, path::Path, process::exit};
 
 // Third party imports
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
@@ -12,7 +12,7 @@ use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 // Local imports
 use pc::{
     exp,
-    filesystem::{write, get_header},
+    filesystem::{get_header, write},
     generate,
     util::validator,
     view,
@@ -284,49 +284,57 @@ fn explain_command(matches: &ArgMatches) {
     // if the van driel explanation is used the theta is mandatory in the cli.
     // We already run a validator to ensure it is between 1 and 0 and that it
     // is present iff driel is selected.
-    let theta: Option<f32> = matches.value_of("theta").and_then(|v| Some(v.parse::<f32>().unwrap()));
+    let theta: Option<f32> = matches
+        .value_of("theta")
+        .and_then(|v| Some(v.parse::<f32>().unwrap()));
 
     match (dimensionality, explanation_mode) {
         (2, view::ExplanationMode::DaSilva) => {
             let point_container = PointContainer2D::new(original_data_path, reduced_data_path);
-            let annotations: Vec<exp::DaSilvaExplanation> = exp::run_da_silva_variance_2d(&point_container, neighborhoods_size);
+            let annotations: Vec<exp::DaSilvaExplanation> =
+                exp::run_da_silva_variance_2d(&point_container, neighborhoods_size);
             let points = annotations
                 .iter()
                 .map(|exp| vec![exp.attribute_index as f32, exp.confidence])
                 .collect();
             write(&output_file_path, points);
-        },
+        }
         (3, view::ExplanationMode::DaSilva) => {
             let point_container = PointContainer3D::new(original_data_path, reduced_data_path);
-            let annotations: Vec<exp::DaSilvaExplanation> = exp::run_da_silva_variance_3d(&point_container, neighborhoods_size);
+            let annotations: Vec<exp::DaSilvaExplanation> =
+                exp::run_da_silva_variance_3d(&point_container, neighborhoods_size);
             let points = annotations
                 .iter()
                 .map(|exp| vec![exp.attribute_index as f32, exp.confidence])
                 .collect();
             write(&output_file_path, points);
-
-        },
+        }
         (2, view::ExplanationMode::VanDriel) => {
             let point_container = PointContainer2D::new(original_data_path, reduced_data_path);
-            let annotations: Vec<exp::VanDrielExplanation> = exp::run_van_driel_2d(&point_container, neighborhoods_size, theta.unwrap());
+            let annotations: Vec<exp::VanDrielExplanation> =
+                exp::run_van_driel_2d(&point_container, neighborhoods_size, theta.unwrap());
             let points = annotations
                 .iter()
                 .map(|exp| vec![exp.dimension as f32, exp.confidence])
                 .collect();
             write(&output_file_path, points);
-        },
+        }
         (3, view::ExplanationMode::VanDriel) => {
             let point_container = PointContainer3D::new(original_data_path, reduced_data_path);
-            let annotations: Vec<exp::VanDrielExplanation> = exp::run_van_driel_3d(&point_container, neighborhoods_size, theta.unwrap());
+            let annotations: Vec<exp::VanDrielExplanation> =
+                exp::run_van_driel_3d(&point_container, neighborhoods_size, theta.unwrap());
             let points = annotations
                 .iter()
                 .map(|exp| vec![exp.dimension as f32, exp.confidence])
                 .collect();
             write(&output_file_path, points);
-        },
+        }
         (v, _) => {
-            eprintln!("The amount of dimensions in the header of the reduced file \
-            indicated that there were '{}' dimensions, this is not yet supported.", v);
+            eprintln!(
+                "The amount of dimensions in the header of the reduced file \
+            indicated that there were '{}' dimensions, this is not yet supported.",
+                v
+            );
             exit(15)
         }
     };
@@ -337,7 +345,9 @@ fn reduce_command(_matches: &ArgMatches) {
     // Load in the nD dataset
     // Preform TSNE data reduction with the given arguments
     // Write the reduced data to a new file
-    println!("`reduce` not yet implemented. You can use python's SciKit learn for now in ./python-repl")
+    println!(
+        "`reduce` not yet implemented. You can use python's SciKit learn for now in ./python-repl"
+    )
 }
 
 fn view_command(matches: &ArgMatches) {

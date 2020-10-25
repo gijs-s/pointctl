@@ -3,7 +3,6 @@
 /// contain index, explanations and normals. The search structure will
 /// use rtree's in 2/3d and vantage point trees in higher dimensions
 /// to quickly find neighbors and accompanying data.
-
 // Sub modules
 mod definitions;
 mod interface;
@@ -11,7 +10,9 @@ mod load;
 
 // Re-export the public facing parts of this module
 pub use self::{
-    definitions::{PointContainer2D, PointContainer3D, PointData2D, PointData3D, Distance, IndexedPoint},
+    definitions::{
+        Distance, IndexedPoint, PointContainer2D, PointContainer3D, PointData2D, PointData3D,
+    },
     interface::PointContainer,
     load::Load,
 };

@@ -1,13 +1,13 @@
-extern crate nalgebra as na;
 extern crate kiss3d;
+extern crate nalgebra as na;
 
 // Third party
 use kiss3d::light::Light;
 use kiss3d::window::Window;
 
 // Conrod
-use kiss3d::conrod::{widget, widget_ids, Color, Colorable, Widget, Sizeable, Positionable};
 use kiss3d::conrod::UiCell;
+use kiss3d::conrod::{widget, widget_ids, Color, Colorable, Positionable, Sizeable, Widget};
 
 // Generate a unique `WidgetId` for each widget.
 widget_ids! {
@@ -36,7 +36,7 @@ pub fn main() {
 
     let mut state = State {
         open: false,
-        ids: Ids::new(window.conrod_ui_mut().widget_id_generator())
+        ids: Ids::new(window.conrod_ui_mut().widget_id_generator()),
     };
     // Start the render loop, this will _not_ work with 2D scenes yet.
     while window.render() {
@@ -46,7 +46,10 @@ pub fn main() {
     }
 }
 
-fn set_colllabsible_area(mut ui: Box<UiCell>, mut state: State) -> (std::boxed::Box<kiss3d::conrod::UiCell>, State) {
+fn set_colllabsible_area(
+    mut ui: Box<UiCell>,
+    mut state: State,
+) -> (std::boxed::Box<kiss3d::conrod::UiCell>, State) {
     let (area, status) = widget::CollapsibleArea::new(state.open, "foobar")
         .label_font_size(10u32)
         .bottom_left_with_margin(1.0f64)
@@ -66,7 +69,7 @@ fn set_colllabsible_area(mut ui: Box<UiCell>, mut state: State) -> (std::boxed::
                 .up_from(a.collapsible_area_id, 5.0f64)
                 .color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
                 .set(state.ids.text, &mut ui);
-        },
+        }
         None => (),
     };
     (ui, state)

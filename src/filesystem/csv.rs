@@ -32,14 +32,14 @@ pub fn write(file_path: &Path, points: Vec<PointN>) -> std::io::Result<()> {
 }
 
 /// Retrieve the header line of a file, can be used to check the dimension count
-pub fn get_header(file_path: &Path) -> std::io::Result<Vec<String>>{
+pub fn get_header(file_path: &Path) -> std::io::Result<Vec<String>> {
     let buffer = BufReader::new(File::open(file_path)?);
 
     match buffer.lines().next() {
         None => {
             eprintln!("File passed was empty");
             exit(12)
-        },
+        }
         Some(res) => match res {
             Ok(line) => {
                 let data = line
@@ -47,7 +47,7 @@ pub fn get_header(file_path: &Path) -> std::io::Result<Vec<String>>{
                     .map(|s| s.to_string())
                     .collect::<Vec<String>>();
                 Ok(data)
-            },
+            }
             Err(e) => {
                 eprintln!("Error reading line from csv: {:?}", e);
                 exit(12)
