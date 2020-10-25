@@ -359,7 +359,7 @@ fn draw_right_explanation_settings_menu<'a>(
     let (text_da_silva_var, event_da_silva_var) =
         get_text_and_event(ExplanationMode::DaSilva(DaSilvaType::Variance), &scene);
     let (text_da_silva_euclidian, event_da_silva_euclidian) =
-        get_text_and_event(ExplanationMode::DaSilva(DaSilvaType::Variance), &scene);
+        get_text_and_event(ExplanationMode::DaSilva(DaSilvaType::Euclidean), &scene);
     let (text_van_driel_min, event_van_driel_min) = get_text_and_event(
         ExplanationMode::VanDriel(VanDrielType::MinimalVariance),
         &scene,
