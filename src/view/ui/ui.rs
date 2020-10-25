@@ -686,8 +686,8 @@ fn draw_right_viewer_settings_menu<'a>(
             // Turn off the normalization
             for _ in widget::Button::new()
                 .label("Turn off color normalization")
-                .label_font_size(FONT_SIZE - 2)
-                .up_from(menu_ids.text_size_slider, 3.0f64)
+                .label_font_size(FONT_SIZE_SMALL)
+                .up_from(menu_ids.text_size_slider, 7.0f64)
                 .w(BUTTON_WIDTH)
                 .h(BUTTON_HEIGHT - 2f64)
                 .set(menu_ids.button_color_normalization_toggle, &mut ui)
@@ -713,7 +713,7 @@ fn draw_right_viewer_settings_menu<'a>(
                 .label(format!("{} - {}", min_text, max_text).as_str())
                 .label_font_size(FONT_SIZE - 1)
                 .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-                .up_from(menu_ids.button_color_normalization_toggle, 7.0f64)
+                .up_from(menu_ids.button_color_normalization_toggle, 3.0f64)
                 .h(SLIDER_HEIGHT)
                 .set(menu_ids.slider_color_normalization, &mut ui)
             {
@@ -738,8 +738,8 @@ fn draw_right_viewer_settings_menu<'a>(
             // Turn on the normalization
             for _ in widget::Button::new()
                 .label("Turn on color normalization")
-                .label_font_size(FONT_SIZE - 2)
-                .up_from(menu_ids.text_size_slider, 3.0f64)
+                .label_font_size(FONT_SIZE_SMALL)
+                .up_from(menu_ids.text_size_slider, 7.0f64)
                 .w(BUTTON_WIDTH)
                 .h(BUTTON_HEIGHT - 2f64)
                 .set(menu_ids.button_color_normalization_toggle, &mut ui)
