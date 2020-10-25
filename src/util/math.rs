@@ -11,7 +11,7 @@ pub fn mean(data: &[f32]) -> Option<f32> {
     }
 }
 
-/// Get the variance of a vector of floats
+/// Get the sample variance of a vector of floats
 pub fn variance(data: &[f32]) -> Option<f32> {
     match (mean(&data), data.len()) {
         (Some(mean), count) if count > 0 => {
@@ -22,14 +22,14 @@ pub fn variance(data: &[f32]) -> Option<f32> {
                     diff * diff
                 })
                 .sum::<f32>()
-                / count as f32;
+                / (count - 1) as f32;
             Some(variance)
         }
         _ => None,
     }
 }
 
-/// Get the covariance between 2nd points
+/// Get the sample covariance between 2nd points
 pub fn covariance(x: &[f32], y: &[f32]) -> Option<f32> {
     match (mean(x), mean(y), x.len() == y.len()) {
         // If the length of both vectors are equal and more than 0
@@ -40,7 +40,7 @@ pub fn covariance(x: &[f32], y: &[f32]) -> Option<f32> {
                 .zip(y)
                 .map(|(x_i, y_i)| (*x_i - x_bar) * (*y_i - y_bar))
                 .sum::<f32>()
-                / count as f32;
+                / (count - 1) as f32;
             Some(covariance)
         }
         _ => None,
@@ -169,18 +169,18 @@ mod tests {
     }
 
     #[test]
-    fn correct_variance() {
+    fn correct_sample_variance() {
         let x = vec![1.0f32, 2.0, 3.0, 5.0, -1.0];
-        let expected = 4.0f32;
+        let expected = 5.0f32;
         let actual = variance(&x).unwrap();
         assert_relative_eq!(actual, expected, epsilon = 1.0e-5);
     }
 
     #[test]
-    fn correct_covariance() {
+    fn correct_sample_covariance() {
         let a = vec![1.0f32, 3.0, -1.0];
         let b = vec![1.0f32, 0.0, -1.0];
-        let expected = 2.0f32 / 3.0f32;
+        let expected = 1f32;
         let actual = covariance(&a, &b).unwrap();
         assert_relative_eq!(actual, expected, epsilon = 1.0e-5);
     }
@@ -196,11 +196,7 @@ mod tests {
     #[test]
     fn correct_covariance_matrix() {
         let data = vec![vec![1.0f32, 1.0], vec![3.0f32, 0.0], vec![-1.0f32, -1.0]];
-        let expected = na::DMatrix::from_vec(
-            2,
-            2,
-            vec![8f32 / 3f32, 2f32 / 3f32, 2f32 / 3f32, 2f32 / 3f32],
-        );
+        let expected = na::DMatrix::from_vec(2, 2, vec![4f32, 1f32, 1f32, 1f32]);
         let actual = covariance_matrix(&data).unwrap();
         for x in 0..4 {
             assert_relative_eq!(actual.index(x), expected.index(x), epsilon = 1.0e-5);
@@ -209,12 +205,8 @@ mod tests {
 
     #[test]
     fn correct_eigen_values() {
-        let input = na::DMatrix::from_vec(
-            2,
-            2,
-            vec![8f32 / 3f32, 2f32 / 3f32, 2f32 / 3f32, 2f32 / 3f32],
-        );
-        let expected_values = vec![2.868517, 0.46481627];
+        let input = na::DMatrix::from_vec(2, 2, vec![4f32, 1f32, 1f32, 1f32]);
+        let expected_values = vec![4.3027754, 0.6972244];
         let (actual_values, _) = eigen_values(input).unwrap();
         for (e, a) in expected_values.iter().zip(actual_values) {
             assert_relative_eq!(*e, a, epsilon = 1.0e-6);
