@@ -215,7 +215,6 @@ fn draw_bottom_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_queue: Vec<UIEvents>,
     if let (_, Some(status)) = widget::CollapsibleArea::new(scene.ui_state.open_menu == OpenSettingsMenu::ViewerSettings, "Viewer settings")
         .label_font_size(FONT_SIZE)
         .left_from(menu_ids.explanation_settings_menu_toggle, 1.0f64)
-        .w(MENU_BUTTON_WIDTH)
         .h(BUTTON_HEIGHT)
         .color(Color::Rgba(1.0, 1.0, 1.0, 1.00))
         .set(menu_ids.viewer_settings_menu_toggle, &mut ui) {
