@@ -396,13 +396,20 @@ impl Scene {
                     self.run_explanation_mode(mode, neighborhood, theta)
                 }
                 // UI specific
-                UIEvents::UpdateUINeighborhood(neighborhood) => self.ui_state.recompute_state.update(neighborhood),
-                UIEvents::UpdateUISwitchNeighborhood => self.ui_state.recompute_state.switch_neighborhood_type(),
-                UIEvents::SwitchOpenMenu(v) => self.ui_state.open_menu = v,
-                UIEvents::SetTheta(theta) => self.ui_state.theta = {
-                    let t = theta.max(0.0).min(1.0);
-                    (t * 200f32) as i32 as f32 / 200f32
+                UIEvents::UpdateUINeighborhood(neighborhood) => {
+                    self.ui_state.recompute_state.update(neighborhood)
                 }
+                UIEvents::UpdateUISwitchNeighborhood => {
+                    self.ui_state.recompute_state.switch_neighborhood_type()
+                }
+                UIEvents::SwitchOpenMenu(v) => self.ui_state.open_menu = v,
+                UIEvents::SetTheta(theta) => {
+                    self.ui_state.theta = {
+                        let t = theta.max(0.0).min(1.0);
+                        (t * 200f32) as i32 as f32 / 200f32
+                    }
+                }
+                UIEvents::ToggleConfidenceNormalization => self.toggle_color_map_confidence_normalization()
             }
         }
     }

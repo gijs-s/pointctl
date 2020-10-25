@@ -1,8 +1,7 @@
+use super::widget_ids::*;
 /// Module that with a definition of the UI state.
-
 // First party imports
 use crate::exp::Neighborhood;
-use super::widget_ids::*;
 
 // Move this into ui_state.rs
 pub struct UIState {
@@ -24,7 +23,7 @@ impl UIState {
             info_widgets: InfoWidgetId::new(ui.widget_id_generator()),
             legend_widgets: LegendWidgetId::new(ui.widget_id_generator()),
             menu_widgets: MenuWidgetId::new(ui.widget_id_generator()),
-            open_menu: OpenSettingsMenu::ViewerSettings,
+            open_menu: OpenSettingsMenu::ExplanationSettings,
             recompute_state: RecomputeButtonState::new(),
             theta: 0.95,
         }

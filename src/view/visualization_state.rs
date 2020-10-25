@@ -79,6 +79,13 @@ impl VisualizationState3D {
         self.reload_renderer_colors();
     }
 
+    pub fn toggle_color_confidence_normalization(&mut self) {
+        if let Some(map) = self.color_maps.get_mut(&self.get_explanation_mode()) {
+            map.toggle_confidence_normalisation();
+        };
+        self.reload_renderer_colors();
+    }
+
     /// Check if this render has an explanation mode available
     pub fn is_explanation_available(&self, mode: &ExplanationMode) -> bool {
         self.color_maps.contains_key(mode)
@@ -246,6 +253,14 @@ impl VisualizationState2D {
         };
         self.reload_renderer_colors();
     }
+
+    pub fn toggle_color_confidence_normalization(&mut self) {
+        if let Some(map) = self.color_maps.get_mut(&self.get_explanation_mode()) {
+            map.toggle_confidence_normalisation();
+        };
+        self.reload_renderer_colors();
+    }
+
 
     /// Check if this render has an explanation mode available
     pub fn is_explanation_available(&self, mode: &ExplanationMode) -> bool {

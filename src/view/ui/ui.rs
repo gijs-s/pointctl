@@ -592,29 +592,44 @@ fn draw_right_viewer_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_queue:
         }
     };
 
-    if scene.get_explanation_mode() != ExplanationMode::None {
-        // Slider allowing you to modify the confidence bounds set to the current color map
-        let color_map = scene.get_current_color_map();
-        let (static_min, static_max) = color_map.get_static_confidence_bounds();
-        let (current_min, current_max) = color_map.get_actual_confidence_bounds();
-        // Create text for in the slider
-        let mut min_text = current_min.to_string();
-        let mut max_text = current_max.to_string();
-        min_text.truncate(5);
-        max_text.truncate(5);
-        // create the range slider
-        for (edge, value) in widget::RangeSlider::new(
-            current_min,
-            current_max,
-            static_min - static_max * 0.05,
-            static_max + static_max * 0.05,
-        )
-            .label(format!("{} - {}", min_text, max_text).as_str())
-            .label_font_size(FONT_SIZE - 1)
-            .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-            .up_from(menu_ids.text_size_slider, 7.0f64)
-            .h(SLIDER_HEIGHT)
-            .set(menu_ids.slider_color_normalization, &mut ui)
+    let color_map = scene.get_current_color_map();
+    match (scene.get_explanation_mode(), color_map.use_normalization) {
+        (ExplanationMode::None, _) => (),
+        // The current color map makes use of normalization
+        (_, true) => {
+            // Turn off the normalization
+            for _ in widget::Button::new()
+                .label("Turn off color normalization")
+                .label_font_size(FONT_SIZE - 2)
+                .up_from(menu_ids.text_size_slider, 3.0f64)
+                .w(BUTTON_WIDTH)
+                .h(BUTTON_HEIGHT - 2f64)
+                .set(menu_ids.button_color_normalization_toggle, &mut ui)
+            {
+                event_queue.push(UIEvents::ToggleConfidenceNormalization);
+            }
+
+            // Slider allowing you to modify the confidence bounds set to the current color map
+            let (static_min, static_max) = color_map.get_static_confidence_bounds();
+            let (current_min, current_max) = color_map.get_actual_confidence_bounds();
+            // Create text for in the slider
+            let mut min_text = current_min.to_string();
+            let mut max_text = current_max.to_string();
+            min_text.truncate(5);
+            max_text.truncate(5);
+            // create the range slider
+            for (edge, value) in widget::RangeSlider::new(
+                current_min,
+                current_max,
+                static_min - static_max * 0.05,
+                static_max + static_max * 0.05,
+            )
+                .label(format!("{} - {}", min_text, max_text).as_str())
+                .label_font_size(FONT_SIZE - 1)
+                .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+                .up_from(menu_ids.button_color_normalization_toggle, 7.0f64)
+                .h(SLIDER_HEIGHT)
+                .set(menu_ids.slider_color_normalization, &mut ui)
             {
                 match edge {
                     widget::range_slider::Edge::Start => {
@@ -626,12 +641,26 @@ fn draw_right_viewer_settings_menu<'a>(mut ui: Box<UiCell<'a>>, mut event_queue:
                 }
             }
 
-        // Confidence bounds helper text
-        widget::Text::new("Confidence bounds:")
-            .font_size(FONT_SIZE_SMALL)
-            .up_from(menu_ids.slider_color_normalization, 3.0f64)
-            .w_of(menu_ids.button_size_reset)
-            .set(menu_ids.text_color_normalization_bounds, &mut ui);
+            // Confidence bounds helper text
+            widget::Text::new("Confidence bounds:")
+                .font_size(FONT_SIZE_SMALL)
+                .up_from(menu_ids.slider_color_normalization, 3.0f64)
+                .w_of(menu_ids.button_size_reset)
+                .set(menu_ids.text_color_normalization_bounds, &mut ui);
+        }
+        (_, false) => {
+            // Turn on the normalization
+            for _ in widget::Button::new()
+                .label("Turn on color normalization")
+                .label_font_size(FONT_SIZE - 2)
+                .up_from(menu_ids.text_size_slider, 3.0f64)
+                .w(BUTTON_WIDTH)
+                .h(BUTTON_HEIGHT - 2f64)
+                .set(menu_ids.button_color_normalization_toggle, &mut ui)
+            {
+                event_queue.push(UIEvents::ToggleConfidenceNormalization);
+            }
+        }
     }
 
     (ui, event_queue)

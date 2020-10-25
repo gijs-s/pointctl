@@ -1,11 +1,8 @@
 // An enum that represents all possible actions that can originate from the UI
 
 // Internal imports
-use crate::{
-    exp::Neighborhood,
-    view::ExplanationMode,
-};
 use super::ui_state::OpenSettingsMenu;
+use crate::{exp::Neighborhood, view::ExplanationMode};
 
 /// All the types of event that can happen in the UI.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -23,4 +20,5 @@ pub enum UIEvents {
     UpdateUINeighborhood(Neighborhood),
     UpdateUISwitchNeighborhood,
     SwitchOpenMenu(OpenSettingsMenu),
+    ToggleConfidenceNormalization,
 }

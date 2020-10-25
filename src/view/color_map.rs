@@ -19,6 +19,7 @@ pub struct ColorMap {
     // Min max values actually used to render the images, this can be set to
     // 'focus' in on a certain confidence range.
     normalization_bounds: (f32, f32),
+    pub use_normalization: bool,
 }
 
 impl From<&Vec<DaSilvaExplanation>> for ColorMap {
@@ -51,6 +52,7 @@ impl Default for ColorMap {
             inverse_map: HashMap::<usize, usize>::new(),
             normalization_bounds: (0.0, 1.0),
             static_normalization_bounds: (0.0, 1.0),
+            use_normalization: true,
         }
     }
 }
@@ -74,6 +76,7 @@ impl ColorMap {
             inverse_map,
             normalization_bounds: (min_confidence, max_confidence),
             static_normalization_bounds: (min_confidence, max_confidence),
+            use_normalization: true,
         }
     }
 
@@ -113,15 +116,20 @@ impl ColorMap {
 
     /// Get a RGB color based on the current pallet
     pub fn get_color(&self, dimension: usize, confidence: f32) -> Point3<f32> {
-        // normalize the confidence
-        let normalized_conf = (confidence - self.normalization_bounds.0)
-            / (self.normalization_bounds.1 - self.normalization_bounds.0);
+        let normalized_conf = match self.use_normalization {
+            false => confidence,
+            true => {
+                // normalize the confidence
+                let normalized_conf = (confidence - self.normalization_bounds.0)
+                    / (self.normalization_bounds.1 - self.normalization_bounds.0);
 
-        // The user can override the normalization_bounds so we need to clamp it
-        let normalized_conf = normalized_conf.max(0.0).min(1.0);
+                // The user can override the normalization_bounds so we need to clamp it
+                normalized_conf.max(0.0).min(1.0)
+            }
+        };
 
         // Retrieve the color that used for that dimension
-        // First we get the rank of that dimennsion, than we convert that rank to a color.
+        // First we get the rank of that dimension, than we convert that rank to a color.
         let base_color = match self.map.get(&dimension) {
             Some(rank) => self.rank_to_color(rank),
             _ => Point3::new(0.00000, 0.00000, 0.60000), // 999999 Grey
@@ -182,5 +190,9 @@ impl ColorMap {
         let lower = min.max(self.static_normalization_bounds.0);
         let upper = max.min(self.static_normalization_bounds.1);
         self.normalization_bounds = (lower, upper);
+    }
+
+    pub fn toggle_confidence_normalisation(&mut self) {
+        self.use_normalization = !self.use_normalization;
     }
 }
