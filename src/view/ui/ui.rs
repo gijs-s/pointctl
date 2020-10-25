@@ -710,12 +710,12 @@ fn draw_right_viewer_settings_menu<'a>(
                 static_min - static_max * 0.05,
                 static_max + static_max * 0.05,
             )
-                .label(format!("{} - {}", min_text, max_text).as_str())
-                .label_font_size(FONT_SIZE - 1)
-                .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-                .up_from(menu_ids.button_color_normalization_toggle, 3.0f64)
-                .h(SLIDER_HEIGHT)
-                .set(menu_ids.slider_color_normalization, &mut ui)
+            .label(format!("{} - {}", min_text, max_text).as_str())
+            .label_font_size(FONT_SIZE - 1)
+            .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+            .up_from(menu_ids.button_color_normalization_toggle, 3.0f64)
+            .h(SLIDER_HEIGHT)
+            .set(menu_ids.slider_color_normalization, &mut ui)
             {
                 match edge {
                     widget::range_slider::Edge::Start => {

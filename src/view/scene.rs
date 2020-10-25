@@ -353,7 +353,7 @@ impl Scene {
                     None => None,
                 },
             },
-            ExplanationMode::VanDriel => Some(format!("{} Dimension(s)", (index + 1))),
+            ExplanationMode::VanDriel => Some(format!("{} Dimension(s)", (index))),
             ExplanationMode::None => None,
         }
     }
@@ -444,7 +444,9 @@ impl Scene {
                         (t * 200f32) as i32 as f32 / 200f32
                     }
                 }
-                UIEvents::ToggleConfidenceNormalization => self.toggle_color_map_confidence_normalization()
+                UIEvents::ToggleConfidenceNormalization => {
+                    self.toggle_color_map_confidence_normalization()
+                }
             }
         }
     }

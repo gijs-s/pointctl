@@ -59,6 +59,7 @@ impl DaSilvaExplanation {
             .into_iter()
             // Add an index to the count of each dimension
             .enumerate()
+            .filter(|(_, count)| count != &0usize)
             .collect::<Vec<(usize, usize)>>();
 
         // Sort desc

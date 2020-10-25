@@ -257,7 +257,6 @@ impl VisualizationState2D {
         self.reload_renderer_colors();
     }
 
-
     /// Check if this render has an explanation mode available
     pub fn is_explanation_available(&self, mode: &ExplanationMode) -> bool {
         self.color_maps.contains_key(mode)

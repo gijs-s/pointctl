@@ -45,6 +45,7 @@ impl VanDrielExplanation {
             .into_iter()
             // Add an index to the count of each dimension
             .enumerate()
+            .filter(|(_, count)| count != &0usize)
             .collect::<Vec<(usize, usize)>>();
 
         // Sort desc
@@ -106,10 +107,11 @@ impl<'a, PC: PointContainer> Explanation<VanDrielExplanation> for VanDrielState<
                         // Get the eigen values
                         let eigenvalues_sorted = self.get_eigen_values(neighborhood);
                         // total variance calculation from table 1
-                        let dimensionality = self.get_dimensionality(&eigenvalues_sorted);
+                        let dimension = self.get_dimensionality(&eigenvalues_sorted);
+                        let confidence = self.get_confidence(&eigenvalues_sorted, dimension);
                         VanDrielExplanation {
-                            dimension: dimensionality,
-                            confidence: self.get_confidence(&eigenvalues_sorted, dimensionality),
+                            dimension,
+                            confidence,
                         }
                     }
                 }
@@ -169,7 +171,7 @@ impl<'a, PC: PointContainer> VanDrielState<'a, PC> {
         // Check how many dimensions are needed to exceed theta
         for i in 1..=eigenvalues.len() {
             if (eigenvalues.iter().take(i).sum::<f32>() / sum_eigen_value) >= self.theta {
-                return i - 1;
+                return i;
             }
         }
         // fallback, we need all dimension, in practice this case is never hit.
