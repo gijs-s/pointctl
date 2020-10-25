@@ -98,7 +98,7 @@ impl<'a, PC: PointContainer> Explanation<VanDrielExplanation> for VanDrielState<
             .iter()
             .map(|neighborhood| {
                 match neighborhood.len() {
-                    0usize => VanDrielExplanation {
+                    0usize | 1usize => VanDrielExplanation {
                         dimension: 1,
                         confidence: 0.0f32,
                     },
