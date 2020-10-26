@@ -116,7 +116,6 @@ impl<'a, PC: PointContainer> Explanation<VanDrielExplanation> for VanDrielState<
                                 self.get_dimensionality_and_confidence_min(&eigenvalues_sorted)
                             }
                         };
-                        // println!("\n\n{:?}\n{:?} - {:?}", eigenvalues_sorted, dimension, confidence);
                         VanDrielExplanation {
                             dimension,
                             confidence,
@@ -195,7 +194,7 @@ impl<'a, PC: PointContainer> VanDrielState<'a, PC> {
         let sum_eigen_value_diff_from_mean = eigenvalues
             .iter()
             .take(dimensionality)
-            .map(|v| (v - average_eigen_value))
+            .map(|v| (v - average_eigen_value).abs())
             .sum::<f32>();
 
         1.0f32 - (sum_eigen_value_diff_from_mean.max(0.0) / sum_eigen_value)
