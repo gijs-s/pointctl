@@ -5,6 +5,7 @@ use std::{fmt::Debug, path::Path, process::exit};
 // Third party imports
 use rstar::RTree;
 use vpsearch::Tree as VPTree;
+use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
 
 // First party imports
 use super::definitions::{Indexed, IndexedPoint, PointContainer2D, PointContainer3D};
@@ -49,9 +50,16 @@ pub trait PointContainer {
     /// do this for every (unordered) element in the rtree so we sort after.
     fn get_neighbor_indices(&self, neighborhood_size: Neighborhood) -> Vec<Vec<usize>> {
         let projection_width = self.projection_width();
+
+        let pb = ProgressBar::new(self.get_point_count() as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] Calculating neighbors [{bar:40.cyan/blue}] {pos}/{len} ({eta} left at {per_sec})")
+            .progress_chars("#>-"));
+
         let mut indexed_neighborhoods: Vec<(usize, Vec<usize>)> = self
             .get_tree_low()
             .iter()
+            .progress_with(pb)
             .map(|indexed_point| {
                 let neighbors = match neighborhood_size {
                     Neighborhood::R(size) => {

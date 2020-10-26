@@ -24,6 +24,15 @@ pub enum Neighborhood {
     R(f32),
 }
 
+impl Neighborhood {
+    pub fn to_string(&self) -> String {
+        match self {
+            Neighborhood::K(u) => format!("K: {}", u),
+            Neighborhood::R(r) => format!("R: {}", r),
+        }
+    }
+}
+
 pub fn run_da_silva_2d<'a>(
     point_container_2d: &'a PointContainer2D,
     neighborhood_size: Neighborhood,

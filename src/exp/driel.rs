@@ -12,6 +12,9 @@
 // Build in imports
 use std::cmp::Ordering;
 
+// Third party imports
+use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
+
 // First party imports
 use super::{explanation::Explanation, Neighborhood};
 use crate::{
@@ -90,11 +93,24 @@ pub struct VanDrielState<'a, PC: PointContainer> {
 impl<'a, PC: PointContainer> Explanation<VanDrielExplanation> for VanDrielState<'a, PC> {
     /// Run the da silva explanation mechanism
     fn explain(&self, neighborhood_size: Neighborhood) -> Vec<VanDrielExplanation> {
+
+        match self.explanation_type {
+            VanDrielType::MinimalVariance => println!("Running Van Driel's PCA min explanation with neighborhood: {}", neighborhood_size.to_string()),
+            VanDrielType::TotalVariance => println!("Running VAn Driel's PCA sum explanation with neighborhood: {}", neighborhood_size.to_string()),
+        };
+
         // For each point get the indices of the neighbors
         let neighborhoods = self.point_container.get_neighbor_indices(neighborhood_size);
 
+        // Create a fancy progres bar
+        let pb = ProgressBar::new(self.point_container.get_point_count() as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] Calculating annotations [{bar:40.cyan/blue}] {pos}/{len} ({eta} left at {per_sec})")
+            .progress_chars("#>-"));
+
         neighborhoods
             .iter()
+            .progress_with(pb)
             .map(|neighborhood| {
                 match neighborhood.len() {
                     0usize | 1usize => VanDrielExplanation {

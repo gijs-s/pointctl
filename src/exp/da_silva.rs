@@ -10,6 +10,9 @@
 // Build in imports
 use std::cmp::Ordering;
 
+// Third party imports
+use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
+
 // First party import
 use super::{
     // Import traits from the explanation module
@@ -103,6 +106,12 @@ pub struct DaSilvaState<'a, PC: PointContainer> {
 impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a, PC> {
     /// Run the da silva explanation mechanism
     fn explain(&self, neighborhood_size: Neighborhood) -> Vec<DaSilvaExplanation> {
+
+        match self.explanation_type {
+             DaSilvaType::Variance => println!("Running Da Silva's variance explanation with neighborhood: {}", neighborhood_size.to_string()),
+             DaSilvaType::Euclidean => println!("Running Da Silva's euclidean explanation with neighborhood: {}", neighborhood_size.to_string()),
+        };
+
         // Calculate the global contribution of each point (centroid of the nD space and
         //_every_ point in its neighborhood)
         let global_contribution: GlobalContribution = match self.explanation_type {
@@ -113,8 +122,15 @@ impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a
         // For each point get the indices of the neighbors
         let neighborhoods = self.point_container.get_neighbor_indices(neighborhood_size);
 
+        // Create a fancy progres bar
+        let pb = ProgressBar::new(self.point_container.get_point_count() as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] Calculating contributions [{bar:40.cyan/blue}] {pos}/{len} ({eta} left at {per_sec})")
+            .progress_chars("#>-"));
+
         let ranking_vectors: Vec<Ranking> = (0..self.point_container.get_point_count())
             .zip(&neighborhoods)
+            .progress_with(pb)
             .map(|(index, neighborhood)| {
                 // Calculate the distance contribution / variance lc_j between each point p_i and all its neighbors
                 // v_i for every dimension j. Then average it for every dimension within the neighborhood
@@ -131,7 +147,15 @@ impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a
             })
             .collect();
 
+        // Create a fancy progres bar
+        let pb = ProgressBar::new(self.point_container.get_point_count() as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] Calculating annotations [{bar:40.cyan/blue}] {pos}/{len} ({eta} left at {per_sec})")
+            .progress_chars("#>-"));
+
+
         (0..self.point_container.get_point_count())
+            .progress_with(pb)
             .zip(&neighborhoods)
             .map(|(index, neighborhood)| {
                 Self::calculate_annotation(index, &ranking_vectors, neighborhood)
