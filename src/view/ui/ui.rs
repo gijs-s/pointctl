@@ -404,7 +404,7 @@ fn draw_right_explanation_settings_menu<'a>(
 
     for _ in widget::Button::new()
         .label(&button_texts[0])
-        .label_font_size(FONT_SIZE - 2)
+        .label_font_size(FONT_SIZE_SMALL)
         .up_from(menu_ids.explanation_settings_menu_toggle, 5.0f64)
         .w(BUTTON_WIDTH)
         .h(BUTTON_HEIGHT - 2f64)
@@ -416,7 +416,7 @@ fn draw_right_explanation_settings_menu<'a>(
     for i in 1usize..=3 {
         for _ in widget::Button::new()
             .label(&button_texts[i])
-            .label_font_size(FONT_SIZE - 2)
+            .label_font_size(FONT_SIZE_SMALL)
             .up_from(ids[i - 1], 3.0f64)
             .w(BUTTON_WIDTH)
             .h(BUTTON_HEIGHT - 2f64)

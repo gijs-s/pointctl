@@ -25,12 +25,25 @@ pub trait Explanation<T> {
         let sum = local_contributions
             .iter()
             .zip(global_contributions)
-            .fold(0.0, |acc: f32, (lc_j, gc_j)| acc + (lc_j / gc_j));
+            .fold(0.0, |acc: f32, (lc_j, gc_j)| {
+                // Prevent deviding by zero
+                if gc_j.abs() < 1e-8 {
+                    acc
+                }  else {
+                    acc + (lc_j / gc_j)
+                }
+            });
         // Normalize each term
         local_contributions
             .iter()
             .zip(global_contributions)
-            .map(|(lc_j, gc_j)| (lc_j / gc_j) / sum)
+            .map(|(lc_j, gc_j)| {
+                if gc_j.abs() < 1e-8 {
+                    0.0f32
+                } else {
+                    lc_j * sum
+                }
+            })
             .collect()
     }
 
