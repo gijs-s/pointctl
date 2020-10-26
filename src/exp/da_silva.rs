@@ -8,7 +8,7 @@
 // least-varying dimensions over each neighborhood. We demonstrate our technique with both synthetic and real-world datasets.
 
 // Build in imports
-use std::cmp::Ordering;
+use std::{cmp::Ordering, iter};
 
 // Third party imports
 use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
@@ -122,7 +122,7 @@ impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a
         // For each point get the indices of the neighbors
         let neighborhoods = self.point_container.get_neighbor_indices(neighborhood_size);
 
-        // Create a fancy progres bar
+        // Create a fancy progres bar wen calculating the contributions
         let pb = ProgressBar::new(self.point_container.get_point_count() as u64);
         pb.set_style(ProgressStyle::default_bar()
             .template("[{elapsed_precise}] Calculating contributions [{bar:40.cyan/blue}] {pos}/{len} ({eta} left at {per_sec})")
@@ -256,30 +256,16 @@ impl<'a, PC: PointContainer> DaSilvaState<'a, PC> {
         point_index: usize,
         neighbor_indices: &[usize],
     ) -> LocalContributions {
-        // Create the accumulator using the search point an put each dimension into a singleton
-        let accumulator: Vec<Vec<f32>> = self
-            .point_container
-            .get_nd_point(point_index)
-            .clone()
-            .iter()
-            .map(|&v| vec![v])
-            .collect();
-
-        neighbor_indices
-            .iter()
+        let point_count = neighbor_indices.len();
+        let dimensions = self.point_container.get_dimensionality();
+        let point_matrix = na::DMatrix::<f32>::from_iterator(
+            dimensions,
+            point_count + 1,
             // Retrieve the actual point using the index
-            .map(|&index| self.point_container.get_nd_point(index))
-            // Fold to collect all the contributions into one single cumulative one.
-            // Transpose the points. Use search point as initial value for the accumulator
-            .fold(accumulator, |mut acc, p| {
-                for (acc_j, &p_j) in acc.iter_mut().zip(p) {
-                    acc_j.push(p_j);
-                }
-                acc
-            })
-            .iter()
-            .map(|acc_j| math::variance(acc_j).unwrap())
-            .collect()
+            neighbor_indices.iter().chain(iter::once(&point_index)).map(|&index| self.point_container.get_nd_point(index).iter()).flatten().cloned()
+        );
+        let variance = point_matrix.column_variance();
+        Vec::from(variance.as_slice())
     }
 }
 

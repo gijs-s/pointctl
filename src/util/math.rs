@@ -113,18 +113,6 @@ fn covariance_matrix(data: &[Vec<f32>]) -> Option<na::DMatrix<f32>> {
     Some(matrix)
 }
 
-/// For a set of nD point calculate the variance within each dimension.
-pub fn variance_per_dimension(data: &[Vec<f32>]) -> Option<Vec<f32>> {
-    // transpose the points
-    let transposed_data = match transpose(data) {
-        Some(v) => v,
-        None => return None,
-    };
-
-    // find the variance per dimension
-    transposed_data.iter().map(|dim| variance(dim)).collect()
-}
-
 /// Retrieve the eigen values from the covariance matrix using lapack ssyev.
 /// It will return the eigen values asc with the vectors in the same order.
 ///
