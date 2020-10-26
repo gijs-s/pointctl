@@ -106,10 +106,15 @@ pub struct DaSilvaState<'a, PC: PointContainer> {
 impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a, PC> {
     /// Run the da silva explanation mechanism
     fn explain(&self, neighborhood_size: Neighborhood) -> Vec<DaSilvaExplanation> {
-
         match self.explanation_type {
-             DaSilvaType::Variance => println!("Running Da Silva's variance explanation with neighborhood: {}", neighborhood_size.to_string()),
-             DaSilvaType::Euclidean => println!("Running Da Silva's euclidean explanation with neighborhood: {}", neighborhood_size.to_string()),
+            DaSilvaType::Variance => println!(
+                "Running Da Silva's variance explanation with neighborhood: {}",
+                neighborhood_size.to_string()
+            ),
+            DaSilvaType::Euclidean => println!(
+                "Running Da Silva's euclidean explanation with neighborhood: {}",
+                neighborhood_size.to_string()
+            ),
         };
 
         // Calculate the global contribution of each point (centroid of the nD space and
@@ -152,7 +157,6 @@ impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a
         pb.set_style(ProgressStyle::default_bar()
             .template("[{elapsed_precise}] Calculating annotations [{bar:40.cyan/blue}] {pos}/{len} ({eta} left at {per_sec})")
             .progress_chars("#>-"));
-
 
         (0..self.point_container.get_point_count())
             .progress_with(pb)
@@ -262,7 +266,12 @@ impl<'a, PC: PointContainer> DaSilvaState<'a, PC> {
             dimensions,
             point_count + 1,
             // Retrieve the actual point using the index
-            neighbor_indices.iter().chain(iter::once(&point_index)).map(|&index| self.point_container.get_nd_point(index).iter()).flatten().cloned()
+            neighbor_indices
+                .iter()
+                .chain(iter::once(&point_index))
+                .map(|&index| self.point_container.get_nd_point(index).iter())
+                .flatten()
+                .cloned(),
         );
         let variance = point_matrix.column_variance();
         Vec::from(variance.as_slice())

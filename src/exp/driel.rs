@@ -93,10 +93,15 @@ pub struct VanDrielState<'a, PC: PointContainer> {
 impl<'a, PC: PointContainer> Explanation<VanDrielExplanation> for VanDrielState<'a, PC> {
     /// Run the da silva explanation mechanism
     fn explain(&self, neighborhood_size: Neighborhood) -> Vec<VanDrielExplanation> {
-
         match self.explanation_type {
-            VanDrielType::MinimalVariance => println!("Running Van Driel's PCA min explanation with neighborhood: {}", neighborhood_size.to_string()),
-            VanDrielType::TotalVariance => println!("Running VAn Driel's PCA sum explanation with neighborhood: {}", neighborhood_size.to_string()),
+            VanDrielType::MinimalVariance => println!(
+                "Running Van Driel's PCA min explanation with neighborhood: {}",
+                neighborhood_size.to_string()
+            ),
+            VanDrielType::TotalVariance => println!(
+                "Running VAn Driel's PCA sum explanation with neighborhood: {}",
+                neighborhood_size.to_string()
+            ),
         };
 
         // For each point get the indices of the neighbors
@@ -184,7 +189,10 @@ impl<'a, PC: PointContainer> VanDrielState<'a, PC> {
         // Get eigen values
         let eigenvalues = math::eigen_values_from_points(&neighbor_points).unwrap();
         // Get the absolute eigen values keeping only the finite values
-        let mut eigenvalues: Vec<f32> = eigenvalues.into_iter().map(|v| if v.is_finite() { v } else { 0.0 }).collect();
+        let mut eigenvalues: Vec<f32> = eigenvalues
+            .into_iter()
+            .map(|v| if v.is_finite() { v } else { 0.0 })
+            .collect();
         // Sort in descending order
         eigenvalues.sort_by(|a, b| b.partial_cmp(&a).unwrap_or(Ordering::Equal));
         eigenvalues

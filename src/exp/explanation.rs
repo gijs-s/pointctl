@@ -22,23 +22,22 @@ pub trait Explanation<T> {
         global_contributions: &GlobalContribution,
     ) -> LocalContributions {
         // Sum of the local contributions per dimension
-        let sum = local_contributions
-            .iter()
-            .zip(global_contributions)
-            .fold(0.0, |acc: f32, (lc_j, gc_j)| {
+        let sum = local_contributions.iter().zip(global_contributions).fold(
+            0.0,
+            |acc: f32, (lc_j, gc_j)| {
                 // Prevent deviding by zero
                 if gc_j.abs() < 1e-8 {
                     acc
-                }  else {
+                } else {
                     acc + (lc_j / gc_j)
                 }
-            });
+            },
+        );
         // Normalize each term
         local_contributions
             .iter()
             .zip(global_contributions)
             .map(|(lc_j, gc_j)| {
-
                 if gc_j.abs() < 1e-10 {
                     0.0f32
                 } else {

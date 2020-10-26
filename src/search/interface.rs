@@ -3,9 +3,9 @@
 use std::{fmt::Debug, path::Path, process::exit};
 
 // Third party imports
+use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
 use rstar::RTree;
 use vpsearch::Tree as VPTree;
-use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
 
 // First party imports
 use super::definitions::{Indexed, IndexedPoint, PointContainer2D, PointContainer3D};
