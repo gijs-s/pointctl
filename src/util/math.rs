@@ -14,7 +14,7 @@ pub fn mean(data: &[f32]) -> Option<f32> {
 }
 
 /// Get the sample variance of a vector of floats
-pub fn variance(data: &[f32]) -> Option<f32> {
+pub fn sample_variance(data: &[f32]) -> Option<f32> {
     match (mean(&data), data.len()) {
         (Some(mean), count) if count > 0 => {
             let variance = data
@@ -25,6 +25,24 @@ pub fn variance(data: &[f32]) -> Option<f32> {
                 })
                 .sum::<f32>()
                 / (count - 1) as f32;
+            Some(variance)
+        }
+        _ => None,
+    }
+}
+
+/// Get the sample variance of a vector of floats
+pub fn variance(data: &[f32]) -> Option<f32> {
+    match (mean(&data), data.len()) {
+        (Some(mean), count) if count > 0 => {
+            let variance = data
+                .iter()
+                .map(|value| {
+                    let diff = mean - (*value as f32);
+                    diff * diff
+                })
+                .sum::<f32>()
+                / count as f32;
             Some(variance)
         }
         _ => None,
@@ -103,7 +121,7 @@ fn covariance_matrix(data: &[Vec<f32>]) -> Option<na::DMatrix<f32>> {
         for j in 0..n {
             match match i.cmp(&j) {
                 Ordering::Greater => Some(0.0),
-                Ordering::Equal => variance(&transposed_data[i]),
+                Ordering::Equal => sample_variance(&transposed_data[i]),
                 Ordering::Less => covariance(&transposed_data[i], &transposed_data[j]),
             } {
                 Some(v) => data.push(v),
