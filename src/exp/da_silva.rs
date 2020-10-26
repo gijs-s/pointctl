@@ -255,7 +255,9 @@ impl<'a, PC: PointContainer> DaSilvaState<'a, PC> {
     }
 
     /// Calculate the variance in a set of a neighborhood _including_ the point
-    fn calculate_local_variance(
+    /// This function is a lot faster but does not yield the correct results yet.
+    #[allow(dead_code)]
+    fn calculate_local_variance_fast(
         &self,
         point_index: usize,
         neighbor_indices: &[usize],
@@ -273,8 +275,41 @@ impl<'a, PC: PointContainer> DaSilvaState<'a, PC> {
                 .flatten()
                 .cloned(),
         );
+
         let variance = point_matrix.column_variance();
         Vec::from(variance.as_slice())
+    }
+
+        /// Calculate the variance in a set of a neighborhood _including_ the point
+    fn calculate_local_variance(
+        &self,
+        point_index: usize,
+        neighbor_indices: &[usize],
+    ) -> LocalContributions {
+        // Create the accumulator using the search point an put each dimension into a singleton
+        let accumulator: Vec<Vec<f32>> = self
+            .point_container
+            .get_nd_point(point_index)
+            .clone()
+            .iter()
+            .map(|&v| vec![v])
+            .collect();
+
+        neighbor_indices
+            .iter()
+            // Retrieve the actual point using the index
+            .map(|&index| self.point_container.get_nd_point(index))
+            // Fold to collect all the contributions into one single cumulative one.
+            // Transpose the points. Use search point as initial value for the accumulator
+            .fold(accumulator, |mut acc, p| {
+                for (acc_j, &p_j) in acc.iter_mut().zip(p) {
+                    acc_j.push(p_j);
+                }
+                acc
+            })
+            .iter()
+            .map(|acc_j| math::variance(acc_j).unwrap())
+            .collect()
     }
 }
 
