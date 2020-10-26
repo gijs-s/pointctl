@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 /// Module containing basic rust math utils, eigen values use lapack + openblas
 extern crate nalgebra as na;
 
@@ -99,9 +101,10 @@ fn covariance_matrix(data: &[Vec<f32>]) -> Option<na::DMatrix<f32>> {
     // Fill it with values one row at the time
     for i in 0..n {
         for j in 0..n {
-            match match i == j {
-                true => variance(&transposed_data[i]),
-                false => covariance(&transposed_data[i], &transposed_data[j]),
+            match match i.cmp(&j) {
+                Ordering::Greater => Some(0.0),
+                Ordering::Equal => variance(&transposed_data[i]),
+                Ordering::Less => covariance(&transposed_data[i], &transposed_data[j]),
             } {
                 Some(v) => data.push(v),
                 None => return None,
@@ -184,7 +187,7 @@ mod tests {
     #[test]
     fn correct_covariance_matrix() {
         let data = vec![vec![1.0f32, 1.0], vec![3.0f32, 0.0], vec![-1.0f32, -1.0]];
-        let expected = na::DMatrix::from_vec(2, 2, vec![4f32, 1f32, 1f32, 1f32]);
+        let expected = na::DMatrix::from_vec(2, 2, vec![4f32, 1f32, 0f32, 1f32]);
         let actual = covariance_matrix(&data).unwrap();
         for x in 0..4 {
             assert_relative_eq!(actual.index(x), expected.index(x), epsilon = 1.0e-5);
