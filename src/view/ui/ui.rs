@@ -372,15 +372,15 @@ fn draw_right_explanation_settings_menu<'a>(
     // Only allow switching to another metric, selecting the current one again does not make sense.
     let mut button_texts = vec![
         text_none,
-        text_da_silva_var,
         text_da_silva_euclidian,
+        text_da_silva_var,
         text_van_driel_min,
         text_van_driel_total,
     ];
     let mut events = vec![
         event_none,
-        event_da_silva_var,
         event_da_silva_euclidian,
+        event_da_silva_var,
         event_van_driel_min,
         event_van_driel_total,
     ];
@@ -393,8 +393,8 @@ fn draw_right_explanation_settings_menu<'a>(
     // find the index I should drop
     let drop_index = match scene.get_explanation_mode() {
         ExplanationMode::None => 0usize,
-        ExplanationMode::DaSilva(DaSilvaType::Variance) => 1usize,
-        ExplanationMode::DaSilva(DaSilvaType::Euclidean) => 2usize,
+        ExplanationMode::DaSilva(DaSilvaType::Euclidean) => 1usize,
+        ExplanationMode::DaSilva(DaSilvaType::Variance) => 2usize,
         ExplanationMode::VanDriel(VanDrielType::MinimalVariance) => 3usize,
         ExplanationMode::VanDriel(VanDrielType::TotalVariance) => 4usize,
     };

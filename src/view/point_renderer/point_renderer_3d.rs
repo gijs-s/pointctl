@@ -92,7 +92,7 @@ impl PointRenderer3D {
             // Variable to set when skipping all rendering while keeping data loaded.
             visible: true,
             alpha_texture: load_texture(),
-            render_mode: RenderMode::Discreet,
+            render_mode: RenderMode::Continuous,
             last_transform: Matrix4::identity(),
             dirty: false,
         }
