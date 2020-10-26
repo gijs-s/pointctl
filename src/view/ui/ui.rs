@@ -603,7 +603,7 @@ fn draw_right_viewer_settings_menu<'a>(
         .label("Reset gamma")
         .label_font_size(FONT_SIZE - 2)
         .up_from(menu_ids.slider_gamma, 2.0f64)
-        .w_of(menu_ids.slider_gamma)
+        .w(BUTTON_WIDTH)
         .h(BUTTON_HEIGHT - 2f64)
         .set(menu_ids.button_gamma_reset, &mut ui)
     {
@@ -614,11 +614,51 @@ fn draw_right_viewer_settings_menu<'a>(
     widget::Text::new("Set the gamma:")
         .font_size(FONT_SIZE - 2)
         .up_from(menu_ids.button_gamma_reset, 3.0f64)
-        .w_of(menu_ids.button_gamma_reset)
+        .w(SLIDER_WIDTH)
         .set(menu_ids.text_gamma_slider, &mut ui);
 
     // Settings for the point size
     match scene.get_current_render_mode() {
+        RenderMode::Continuous => {
+            // Create slider to set the blob size
+            let mut text_slider_value = scene.get_blob_size().to_string();
+            text_slider_value.truncate(5);
+
+            if let Some(blob_size) = widget::Slider::new(
+                scene.get_blob_size(),
+                scene.get_default_blob_size() / 4f32,
+                scene.get_default_blob_size() * 4f32,
+            )
+            .label(&text_slider_value)
+            .label_font_size(FONT_SIZE - 1)
+            .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+            .h_of(menu_ids.slider_gamma)
+            .w(SLIDER_WIDTH)
+            .up_from(menu_ids.text_gamma_slider, 7.0f64)
+            .set(menu_ids.slider_blob_size, &mut ui)
+            {
+                event_queue.push(UIEvents::SetBlobSize(blob_size))
+            }
+
+            // Blob reset button
+            for _ in widget::Button::new()
+                .label("Reset size")
+                .label_font_size(FONT_SIZE_SMALL)
+                .up_from(menu_ids.slider_blob_size, 2.0f64)
+                .w(BUTTON_WIDTH)
+                .h(BUTTON_HEIGHT - 2f64)
+                .set(menu_ids.button_size_reset, &mut ui)
+            {
+                event_queue.push(UIEvents::SetBlobSize(scene.get_default_blob_size()))
+            }
+
+            // Blob helper text
+            widget::Text::new("Set the blob size:")
+                .font_size(FONT_SIZE - 2)
+                .up_from(menu_ids.button_size_reset, 3.0f64)
+                .w(BUTTON_WIDTH)
+                .set(menu_ids.text_size_slider, &mut ui);
+        }
         RenderMode::Discreet => {
             // Point size slider
 
@@ -634,6 +674,7 @@ fn draw_right_viewer_settings_menu<'a>(
             .label_font_size(FONT_SIZE - 1)
             .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
             .h_of(menu_ids.slider_gamma)
+            .w(SLIDER_WIDTH)
             .up_from(menu_ids.text_gamma_slider, 7.0f64)
             .set(menu_ids.slider_point_size, &mut ui)
             {
@@ -645,7 +686,7 @@ fn draw_right_viewer_settings_menu<'a>(
                 .label("Reset point size")
                 .label_font_size(FONT_SIZE - 2)
                 .up_from(menu_ids.slider_point_size, 2.0f64)
-                .w_of(menu_ids.slider_point_size)
+                .w(BUTTON_WIDTH)
                 .h(BUTTON_HEIGHT - 2f64)
                 .set(menu_ids.button_size_reset, &mut ui)
             {
@@ -656,46 +697,7 @@ fn draw_right_viewer_settings_menu<'a>(
             widget::Text::new("Set the point size:")
                 .font_size(FONT_SIZE - 2)
                 .up_from(menu_ids.button_size_reset, 3.0f64)
-                .w_of(menu_ids.button_size_reset)
-                .set(menu_ids.text_size_slider, &mut ui);
-        }
-        RenderMode::Continuous => {
-            // Create slider to set the blob size
-            let mut text_slider_value = scene.get_blob_size().to_string();
-            text_slider_value.truncate(5);
-
-            if let Some(blob_size) = widget::Slider::new(
-                scene.get_blob_size(),
-                scene.get_default_blob_size() / 4f32,
-                scene.get_default_blob_size() * 4f32,
-            )
-            .label(&text_slider_value)
-            .label_font_size(FONT_SIZE - 1)
-            .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
-            .h_of(menu_ids.slider_gamma)
-            .up_from(menu_ids.text_gamma_slider, 7.0f64)
-            .set(menu_ids.slider_blob_size, &mut ui)
-            {
-                event_queue.push(UIEvents::SetBlobSize(blob_size))
-            }
-
-            // Blob reset button
-            for _ in widget::Button::new()
-                .label("Reset size")
-                .label_font_size(FONT_SIZE_SMALL)
-                .up_from(menu_ids.slider_blob_size, 2.0f64)
-                .w_of(menu_ids.slider_point_size)
-                .h(BUTTON_HEIGHT - 2f64)
-                .set(menu_ids.button_size_reset, &mut ui)
-            {
-                event_queue.push(UIEvents::SetBlobSize(scene.get_default_blob_size()))
-            }
-
-            // Blob helper text
-            widget::Text::new("Set the blob size:")
-                .font_size(FONT_SIZE - 2)
-                .up_from(menu_ids.button_size_reset, 3.0f64)
-                .w_of(menu_ids.button_size_reset)
+                .w(BUTTON_WIDTH)
                 .set(menu_ids.text_size_slider, &mut ui);
         }
     };

@@ -39,7 +39,8 @@ pub trait Explanation<T> {
             .zip(global_contributions)
             .map(|(lc_j, gc_j)| {
                 if gc_j.abs() < 1e-10 {
-                    0.0f32
+                    // TODO: Is this the correct fallback?
+                    1.0f32
                 } else {
                     (lc_j / gc_j) / sum
                 }
