@@ -29,7 +29,7 @@ const SLIDER_HEIGHT: f64 = 18f64;
 // Bounds on sliders
 const GAMMA_MIN_MAX: (f32, f32) = (1.0, 3.4);
 const NEIGHBORHOOD_R_MIN_MAX: (f32, f32) = (0.01, 1.1);
-const NEIGHBORHOOD_K_MIN_MAX: (usize, usize) = (10, 250);
+const NEIGHBORHOOD_K_MIN_MAX: (usize, usize) = (10, 500);
 const THETA_MIN_MAX: (f32, f32) = (0.0, 1.0);
 // Misc
 const SIDE_MARGIN: f64 = 3.0f64;

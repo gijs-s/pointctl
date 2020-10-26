@@ -49,7 +49,7 @@ impl RecomputeButtonState {
     pub fn new() -> RecomputeButtonState {
         RecomputeButtonState {
             neighborhood_type: NeighborhoodType::R,
-            k: 30,
+            k: 50,
             r: 0.1,
         }
     }

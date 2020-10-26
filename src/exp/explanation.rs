@@ -38,10 +38,10 @@ pub trait Explanation<T> {
             .iter()
             .zip(global_contributions)
             .map(|(lc_j, gc_j)| {
-                if gc_j.abs() < 1e-8 {
+                if gc_j.abs() < 1e-8 || sum.abs() < 1e-8 {
                     0.0f32
                 } else {
-                    lc_j * sum
+                    (lc_j / gc_j) / sum
                 }
             })
             .collect()
