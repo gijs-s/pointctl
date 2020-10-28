@@ -104,19 +104,16 @@ impl<'a, PC: PointContainer> Explanation<VanDrielExplanation> for VanDrielState<
             ),
         };
 
-        // For each point get the indices of the neighbors
-        let neighborhoods = self.point_container.get_neighbor_indices(neighborhood_size);
-
         // Create a fancy progres bar
         let pb = ProgressBar::new(self.point_container.get_point_count() as u64);
         pb.set_style(ProgressStyle::default_bar()
             .template("[{elapsed_precise}] Calculating annotations [{bar:40.cyan/blue}] {pos}/{len} ({eta} left at {per_sec})")
             .progress_chars("#>-"));
 
-        neighborhoods
-            .iter()
+        (0..self.point_container.get_point_count())
             .progress_with(pb)
-            .map(|neighborhood| {
+            .map(|index| {
+                let neighborhood = self.point_container.get_neighbor_indices(index as u32, neighborhood_size);
                 match neighborhood.len() {
                     0usize | 1usize => VanDrielExplanation {
                         dimension: 1,
@@ -180,7 +177,7 @@ impl<'a> VanDrielState<'a, PointContainer3D> {
 
 impl<'a, PC: PointContainer> VanDrielState<'a, PC> {
     /// Get the min/max normalized eigen vectors of the neighborhood sorted desc
-    fn get_eigen_values(&self, neighborhood_indices: &[usize]) -> Vec<f32> {
+    fn get_eigen_values(&self, neighborhood_indices: Vec<u32>) -> Vec<f32> {
         // TODO: Clone is bad mkay move this into the trait!
         let neighbor_points: Vec<Vec<f32>> = neighborhood_indices
             .iter()
