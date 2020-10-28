@@ -183,16 +183,15 @@ impl PointContainer2D {
         let points_ld = reduced_points_raw
             .iter()
             .map(|raw_point| match raw_point[..] {
-                    [x, y] => na::Point2::<f32>::new(x, y),
-                    _ => exit(14),
-                }
-            )
+                [x, y] => na::Point2::<f32>::new(x, y),
+                _ => exit(14),
+            })
             .collect::<Vec<na::Point2<f32>>>();
 
         let projection_width = PointContainer2D::calculate_projection_width(&points_ld);
 
         // Create indexed points from the LD data
-        let indexed_ld_points: Vec<IndexedPoint::<na::Point2<f32>>> = points_ld
+        let indexed_ld_points: Vec<IndexedPoint<na::Point2<f32>>> = points_ld
             .into_iter()
             .enumerate()
             .map(|(index, point)| IndexedPoint::<na::Point2<f32>>::new(point, index as u32))
@@ -214,7 +213,7 @@ impl PointContainer2D {
             dimension_names,
             point_data: data_points,
             dimensionality: dimension_count,
-            projection_width
+            projection_width,
         }
     }
 }
@@ -253,16 +252,15 @@ impl PointContainer3D {
         let points_ld = reduced_points_raw
             .iter()
             .map(|raw_point| match raw_point[..] {
-                    [x, y, z] => na::Point3::<f32>::new(x, y, z),
-                    _ => exit(14),
-                }
-            )
+                [x, y, z] => na::Point3::<f32>::new(x, y, z),
+                _ => exit(14),
+            })
             .collect::<Vec<na::Point3<f32>>>();
 
         let projection_width = PointContainer3D::calculate_projection_width(&points_ld);
 
         // Create indexed points from the LD data
-        let indexed_ld_points: Vec<IndexedPoint::<na::Point3<f32>>> = points_ld
+        let indexed_ld_points: Vec<IndexedPoint<na::Point3<f32>>> = points_ld
             .into_iter()
             .enumerate()
             .map(|(index, point)| IndexedPoint::<na::Point3<f32>>::new(point, index as u32))
@@ -275,7 +273,6 @@ impl PointContainer3D {
             .map(|(index, raw_point)| IndexedPoint::<Vec<f32>>::new(raw_point, index as u32))
             .collect::<Vec<IndexedPoint<Vec<f32>>>>();
 
-
         let tree_low = RTree::<IndexedPoint<na::Point3<f32>>>::bulk_load(indexed_ld_points);
         let tree_high = VPTree::new(&point_hd);
 
@@ -285,7 +282,7 @@ impl PointContainer3D {
             dimension_names,
             point_data: data_points,
             dimensionality: dimension_count,
-            projection_width
+            projection_width,
         }
     }
 }

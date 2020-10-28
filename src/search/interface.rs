@@ -148,11 +148,7 @@ impl PointContainer for PointContainer2D {
     }
 
     /// Get a reference to all neighbors within a certain range. This used the rtree.
-    fn find_neighbors_r(
-        &self,
-        r: f32,
-        index: u32,
-    ) -> Vec<u32> {
+    fn find_neighbors_r(&self, r: f32, index: u32) -> Vec<u32> {
         let point = self.get_ld_point(index);
         let query_point = [point.x, point.y];
         self.tree_low
@@ -163,11 +159,7 @@ impl PointContainer for PointContainer2D {
     }
 
     /// Get a reference to the k nearest neighbors.
-    fn find_neighbors_k(
-        &self,
-        k: usize,
-        index: u32,
-    ) -> Vec<u32> {
+    fn find_neighbors_k(&self, k: usize, index: u32) -> Vec<u32> {
         let point = self.get_ld_point(index);
         let query_point = [point.x, point.y];
         self.tree_low
@@ -274,17 +266,9 @@ impl PointContainer for PointContainer3D {
     }
 
     /// Get a reference to all neighbors within a certain range. This used the rtree.
-    fn find_neighbors_r(
-        &self,
-        r: f32,
-        index: u32,
-    ) -> Vec<u32> {
+    fn find_neighbors_r(&self, r: f32, index: u32) -> Vec<u32> {
         let point = self.get_ld_point(index);
-        let query_point = [
-            point.x,
-            point.y,
-            point.z,
-        ];
+        let query_point = [point.x, point.y, point.z];
         self.tree_low
             .locate_within_distance(query_point, r * r)
             .map(|elem| elem.index as u32)
@@ -293,17 +277,9 @@ impl PointContainer for PointContainer3D {
     }
 
     /// Get a reference to the k nearest neighbors.
-    fn find_neighbors_k(
-        &self,
-        k: usize,
-        index: u32,
-    ) -> Vec<u32> {
+    fn find_neighbors_k(&self, k: usize, index: u32) -> Vec<u32> {
         let point = self.get_ld_point(index);
-        let query_point = [
-            point.x,
-            point.y,
-            point.z,
-        ];
+        let query_point = [point.x, point.y, point.z];
         self.tree_low
             .nearest_neighbor_iter(&query_point)
             .take(k + 1)
@@ -353,7 +329,6 @@ impl PointContainer for PointContainer3D {
         }
         (min, max)
     }
-
 
     fn find_average_nearest_neighbor_distance(&self) -> f32 {
         let mut res = Vec::<f32>::new();
@@ -427,7 +402,7 @@ mod tests {
             dimension_names: vec![],
             point_data: vec![],
             dimensionality: 0,
-            projection_width: 0f32
+            projection_width: 0f32,
         };
 
         let expected = (4.0f32 + 3.0f32 + 2.0f32 + 1.0f32 + 1.0f32) / 5.0f32;
@@ -477,7 +452,7 @@ mod tests {
             dimension_names: vec![],
             point_data: vec![],
             dimensionality: 0,
-            projection_width: 0f32
+            projection_width: 0f32,
         };
         let expected =
             (32.0f32.sqrt() + 18.0f32.sqrt() + 13.0f32.sqrt() + 1.0f32 + 1.0f32) / 5.0f32;

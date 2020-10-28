@@ -113,7 +113,9 @@ impl<'a, PC: PointContainer> Explanation<VanDrielExplanation> for VanDrielState<
         (0..self.point_container.get_point_count())
             .progress_with(pb)
             .map(|index| {
-                let neighborhood = self.point_container.get_neighbor_indices(index as u32, neighborhood_size);
+                let neighborhood = self
+                    .point_container
+                    .get_neighbor_indices(index as u32, neighborhood_size);
                 match neighborhood.len() {
                     0usize | 1usize => VanDrielExplanation {
                         dimension: 1,

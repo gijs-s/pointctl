@@ -133,7 +133,9 @@ impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a
         let ranking_vectors: Vec<Ranking> = (0..self.point_container.get_point_count() as u32)
             .progress_with(pb)
             .map(|index| {
-                let neighborhood = self.point_container.get_neighbor_indices(index as u32, neighborhood_size);
+                let neighborhood = self
+                    .point_container
+                    .get_neighbor_indices(index as u32, neighborhood_size);
                 // Calculate the distance contribution / variance lc_j between each point p_i and all its neighbors
                 // v_i for every dimension j. Then average it for every dimension within the neighborhood
                 let lc: LocalContributions = match self.explanation_type {
@@ -158,7 +160,9 @@ impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a
         (0..self.point_container.get_point_count())
             .progress_with(pb)
             .map(|index| {
-                let neighborhood = self.point_container.get_neighbor_indices(index as u32, neighborhood_size);
+                let neighborhood = self
+                    .point_container
+                    .get_neighbor_indices(index as u32, neighborhood_size);
                 Self::calculate_annotation(index, &ranking_vectors, &neighborhood)
             })
             .collect::<Vec<DaSilvaExplanation>>()
@@ -277,7 +281,7 @@ impl<'a, PC: PointContainer> DaSilvaState<'a, PC> {
         Vec::from(variance.as_slice())
     }
 
-        /// Calculate the variance in a set of a neighborhood _including_ the point
+    /// Calculate the variance in a set of a neighborhood _including_ the point
     fn calculate_local_variance(
         &self,
         point_index: u32,
