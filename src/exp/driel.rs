@@ -13,7 +13,8 @@
 use std::cmp::Ordering;
 
 // Third party imports
-use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle, ParallelProgressIterator};
+use rayon::prelude::*;
 
 // First party imports
 use super::{explanation::Explanation, Neighborhood};
@@ -22,7 +23,7 @@ use crate::{
     util::math,
 };
 
-/// Struct continaing the outcome of the Van Driel explanation for a single point
+/// Struct containing the outcome of the Van Driel explanation for a single point
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct VanDrielExplanation {
     pub dimension: usize,
@@ -104,13 +105,14 @@ impl<'a, PC: PointContainer> Explanation<VanDrielExplanation> for VanDrielState<
             ),
         };
 
-        // Create a fancy progres bar
+        // Create a fancy progress bar
         let pb = ProgressBar::new(self.point_container.get_point_count() as u64);
         pb.set_style(ProgressStyle::default_bar()
             .template("[{elapsed_precise}] Calculating annotations [{bar:40.cyan/blue}] {pos}/{len} ({eta} left at {per_sec})")
             .progress_chars("#>-"));
 
         (0..self.point_container.get_point_count())
+            .into_par_iter()
             .progress_with(pb)
             .map(|index| {
                 let neighborhood = self

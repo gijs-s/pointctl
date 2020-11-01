@@ -11,7 +11,8 @@
 use std::{cmp::Ordering, iter};
 
 // Third party imports
-use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle, ParallelProgressIterator, ProgressIterator};
+use rayon::prelude::*;
 
 // First party import
 use super::{
@@ -131,6 +132,7 @@ impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a
             .progress_chars("#>-"));
 
         let ranking_vectors: Vec<Ranking> = (0..self.point_container.get_point_count() as u32)
+            .into_par_iter()
             .progress_with(pb)
             .map(|index| {
                 let neighborhood = self

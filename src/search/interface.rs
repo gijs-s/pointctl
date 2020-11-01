@@ -11,7 +11,7 @@ use super::definitions::{Indexed, IndexedPoint, PointContainer2D, PointContainer
 use crate::{exp::Neighborhood, filesystem};
 
 /// Functions that are supported by both 2 and 3 dimensional point containers
-pub trait PointContainer {
+pub trait PointContainer: Send + Sync {
     const DIMENSIONS: usize;
     type LDPoint: Clone + Debug;
     type IndexedLDPoint: rstar::RTreeObject + Indexed + Clone + Debug;
