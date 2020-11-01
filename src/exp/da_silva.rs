@@ -11,7 +11,7 @@
 use std::{cmp::Ordering, iter};
 
 // Third party imports
-use indicatif::{ProgressBar, ProgressStyle, ParallelProgressIterator};
+use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 
 // First party import

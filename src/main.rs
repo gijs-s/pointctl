@@ -255,7 +255,10 @@ fn explain_command(matches: &ArgMatches) {
     if let Some(value) = matches.value_of("jobs") {
         // Unwrap is safe because of the validator
         let j = value.parse::<usize>().unwrap();
-        match rayon::ThreadPoolBuilder::new().num_threads(j).build_global() {
+        match rayon::ThreadPoolBuilder::new()
+            .num_threads(j)
+            .build_global()
+        {
             Ok(_) => println!("Using {} threads to compute the metric", j),
             Err(e) => {
                 eprintln!("Could not set thread count because\n {:?}", e);

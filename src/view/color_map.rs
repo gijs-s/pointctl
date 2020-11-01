@@ -6,6 +6,12 @@ use kiss3d::conrod::color::{rgb_bytes, rgba, Color, Rgba};
 use na::Point3;
 use std::collections::HashMap;
 
+#[derive(Debug, PartialEq, Clone)]
+enum ColoringMode {
+    Categorical,
+    Ordinal,
+}
+
 /// Everything related to the colors in the visualization
 #[derive(Debug, PartialEq, Clone)]
 pub struct ColorMap {
@@ -20,6 +26,7 @@ pub struct ColorMap {
     // 'focus' in on a certain confidence range.
     normalization_bounds: (f32, f32),
     pub use_normalization: bool,
+    mode: ColoringMode,
 }
 
 impl From<&Vec<DaSilvaExplanation>> for ColorMap {
@@ -29,6 +36,7 @@ impl From<&Vec<DaSilvaExplanation>> for ColorMap {
             min,
             max,
             DaSilvaExplanation::calculate_dimension_rankings(&explanations),
+            ColoringMode::Categorical,
         )
     }
 }
@@ -40,6 +48,7 @@ impl From<&Vec<VanDrielExplanation>> for ColorMap {
             min,
             max,
             VanDrielExplanation::calculate_dimension_rankings(&explanations),
+            ColoringMode::Ordinal,
         )
     }
 }
@@ -53,16 +62,17 @@ impl Default for ColorMap {
             normalization_bounds: (0.0, 1.0),
             static_normalization_bounds: (0.0, 1.0),
             use_normalization: true,
+            mode: ColoringMode::Categorical,
         }
     }
 }
 
 impl ColorMap {
-    // TODO: Create the actual color map
-    pub fn new(
+    fn new(
         min_confidence: f32,
         max_confidence: f32,
         dimension_ranking: Vec<usize>,
+        mode: ColoringMode,
     ) -> ColorMap {
         let mut map = HashMap::<usize, usize>::new();
         let mut inverse_map = HashMap::<usize, usize>::new();
@@ -77,6 +87,7 @@ impl ColorMap {
             normalization_bounds: (min_confidence, max_confidence),
             static_normalization_bounds: (min_confidence, max_confidence),
             use_normalization: true,
+            mode,
         }
     }
 
@@ -98,19 +109,31 @@ impl ColorMap {
     }
 
     /// Convert a dimension rank to a color. The ordering is as follows:
-    /// Pink, Yellow, Dark red, Green, Blue, Orange, Purple and Crimson brown.clap
+    /// Pink, Yellow, Dark red, Green, Blue, Orange, Purple and Crimson brown.
     /// Grey is used for all ranks that are not in the top 8.
     pub fn rank_to_color(&self, rank: &usize) -> Point3<f32> {
-        match rank {
-            0 => Point3::new(0.91243, 0.47774, 0.96863), // f781bf Pink
-            1 => Point3::new(0.16667, 0.80000, 1.00000), // ffff33 Yellow
-            2 => Point3::new(0.99835, 0.88597, 0.89412), // e41a1c Dark red
-            3 => Point3::new(0.32838, 0.57715, 0.68627), // 4daf4a Green
-            4 => Point3::new(0.57493, 0.70108, 0.72157), // 377eb8 Blue
-            5 => Point3::new(0.08301, 1.00000, 1.00000), // ff7f00 Orange
-            6 => Point3::new(0.81177, 0.52147, 0.63922), // 984ea3 Purple
-            7 => Point3::new(0.06085, 0.75904, 0.65098), // a65628 Crimson brown
-            _ => Point3::new(0.00000, 0.00000, 0.60000), // 999999 Grey
+        match self.mode {
+            // Ordinal color mode
+            ColoringMode::Ordinal => {
+                if rank > &7usize {
+                    Point3::new(0.00000, 0.00000, 0.60000)
+                } else {
+                    let colored_dimensions = self.dimension_count().min(8usize);
+                    Point3::new(*rank as f32 / colored_dimensions as f32, 1f32, 1f32)
+                }
+            }
+            // Categorical color mode
+            ColoringMode::Categorical => match rank {
+                0 => Point3::new(0.91243, 0.47774, 0.96863), // f781bf Pink
+                1 => Point3::new(0.16667, 0.80000, 1.00000), // ffff33 Yellow
+                2 => Point3::new(0.99835, 0.88597, 0.89412), // e41a1c Dark red
+                3 => Point3::new(0.32838, 0.57715, 0.68627), // 4daf4a Green
+                4 => Point3::new(0.57493, 0.70108, 0.72157), // 377eb8 Blue
+                5 => Point3::new(0.08301, 1.00000, 1.00000), // ff7f00 Orange
+                6 => Point3::new(0.81177, 0.52147, 0.63922), // 984ea3 Purple
+                7 => Point3::new(0.06085, 0.75904, 0.65098), // a65628 Crimson brown
+                _ => Point3::new(0.00000, 0.00000, 0.60000), // 999999 Grey
+            },
         }
     }
 
@@ -148,17 +171,9 @@ impl ColorMap {
 
     /// Convert a color to one that can be used by the conrod ui
     pub fn get_conrod_color(&self, rank: &usize) -> Color {
-        match rank {
-            0 => rgb_bytes(247, 129, 191), // f781bf Pink
-            1 => rgb_bytes(255, 255, 51),  // ffff33 Yellow
-            2 => rgb_bytes(228, 26, 28),   // e41a1c Dark red
-            3 => rgb_bytes(77, 175, 74),   // 4daf4a Green
-            4 => rgb_bytes(55, 126, 184),  // 377eb8 Blue
-            5 => rgb_bytes(255, 127, 0),   // ff7f00 Orange
-            6 => rgb_bytes(152, 78, 163),  // 984ea3 Purple
-            7 => rgb_bytes(166, 86, 40),   // a65628 Crimson brown
-            _ => rgb_bytes(153, 153, 153), // 999999 Grey
-        }
+        let p = self.rank_to_color(rank);
+        let (r, g, b) = hsv2rgb(p.x, p.y, p.z);
+        Color::Rgba(r, g, b, 1.0f32)
     }
 
     pub fn get_conrod_color_with_gamma(&self, rank: &usize, gamma: f32) -> Color {
@@ -195,4 +210,25 @@ impl ColorMap {
     pub fn toggle_confidence_normalisation(&mut self) {
         self.use_normalization = !self.use_normalization;
     }
+}
+
+// Convert hue, saturation and value to rgb
+fn hsv2rgb(hue: f32, sat: f32, val: f32) -> (f32, f32, f32) {
+    // Useful constant
+    let h_1 = 1f32 / 6f32;
+
+    let c = val * sat;
+    let x = c * (1f32 - ((hue / h_1) % 2f32 - 1f32).abs());
+    let m = val - c;
+
+    let (r, g, b) = match hue {
+        h if h >= 0f32 && h < h_1 => (c, x, 0f32),
+        h if h >= h_1 && h < h_1 * 2f32 => (x, c, 0f32),
+        h if h >= h_1 * 2f32 && h < h_1 * 3f32 => (0f32, c, c),
+        h if h >= h_1 * 3f32 && h < h_1 * 4f32 => (0f32, x, c),
+        h if h >= h_1 * 4f32 && h < h_1 * 5f32 => (x, 0f32, c),
+        h if h >= h_1 * 5f32 && h < 1f32 => (c, 0f32, x),
+        _ => panic!("Actually unreachable"),
+    };
+    (r + m, g + m, b + m)
 }
