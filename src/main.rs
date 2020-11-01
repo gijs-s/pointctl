@@ -88,6 +88,14 @@ fn main() {
                         .help("The count based P value used for the explanation process"),
                 )
                 .arg(
+                    Arg::with_name("jobs")
+                        .short("j")
+                        .long("jobs")
+                        .takes_value(true)
+                        .validator(validator::is_usize)
+                        .help("The number of threads the program can use, by default it uses all")
+                )
+                .arg(
                     Arg::with_name("OUTPUT_FILE")
                     .index(1)
                     .required(true)
@@ -243,6 +251,19 @@ fn generate_command(matches: &ArgMatches) {
 
 // Explain a dataset
 fn explain_command(matches: &ArgMatches) {
+    // Check how many threads should be used
+    if let Some(value) = matches.value_of("jobs") {
+        // Unwrap is safe because of the validator
+        let j = value.parse::<usize>().unwrap();
+        match rayon::ThreadPoolBuilder::new().num_threads(j).build_global() {
+            Ok(_) => println!("Using {} threads to compute the metric", j),
+            Err(e) => {
+                eprintln!("Could not set thread count because\n {:?}", e);
+                exit(42)
+            }
+        }
+    }
+
     // Find out which mechanism was used. Unwrap is safe since value
     // has a default and a validator
     let explanation_mode: view::ExplanationMode = {

@@ -16,3 +16,4 @@ In an ideal world the program never panics and always returns a exit code.
 | 2x | Error writing data |
 | 3x | Error processing data |
 | 41 | Program entered an invalid state |
+| 42 | Threadpool could not be build |

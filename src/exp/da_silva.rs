@@ -11,7 +11,7 @@
 use std::{cmp::Ordering, iter};
 
 // Third party imports
-use indicatif::{ProgressBar, ProgressStyle, ParallelProgressIterator, ProgressIterator};
+use indicatif::{ProgressBar, ProgressStyle, ParallelProgressIterator};
 use rayon::prelude::*;
 
 // First party import
@@ -160,6 +160,7 @@ impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a
             .progress_chars("#>-"));
 
         (0..self.point_container.get_point_count())
+            .into_par_iter()
             .progress_with(pb)
             .map(|index| {
                 let neighborhood = self
