@@ -100,7 +100,7 @@ impl<'a, PC: PointContainer> Explanation<VanDrielExplanation> for VanDrielState<
                 neighborhood_size.to_string()
             ),
             VanDrielType::TotalVariance => println!(
-                "Running VAn Driel's PCA sum explanation with neighborhood: {}",
+                "Running Van Driel's PCA sum explanation with neighborhood: {}",
                 neighborhood_size.to_string()
             ),
         };

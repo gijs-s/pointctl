@@ -118,8 +118,9 @@ impl ColorMap {
                 if rank > &7usize {
                     Point3::new(0.00000, 0.00000, 0.60000)
                 } else {
-                    let colored_dimensions = self.dimension_count().min(8usize);
-                    Point3::new(*rank as f32 / colored_dimensions as f32, 1f32, 1f32)
+                    let colored_dimensions = (self.dimension_count()).min(8usize);
+                    let hue = *rank as f32 / colored_dimensions as f32;
+                    Point3::new(hue, 1f32, 1f32)
                 }
             }
             // Categorical color mode
@@ -214,21 +215,21 @@ impl ColorMap {
 
 // Convert hue, saturation and value to rgb
 fn hsv2rgb(hue: f32, sat: f32, val: f32) -> (f32, f32, f32) {
-    // Useful constant
-    let h_1 = 1f32 / 6f32;
+    // Ensure the hue does not exceed 1
+    let hue_360 = (hue * 360f32) % 360f32;
 
     let c = val * sat;
-    let x = c * (1f32 - ((hue / h_1) % 2f32 - 1f32).abs());
+    let x = c * (1f32 - ((hue / 60f32) % 2f32 - 1f32).abs());
     let m = val - c;
 
-    let (r, g, b) = match hue {
-        h if h >= 0f32 && h < h_1 => (c, x, 0f32),
-        h if h >= h_1 && h < h_1 * 2f32 => (x, c, 0f32),
-        h if h >= h_1 * 2f32 && h < h_1 * 3f32 => (0f32, c, c),
-        h if h >= h_1 * 3f32 && h < h_1 * 4f32 => (0f32, x, c),
-        h if h >= h_1 * 4f32 && h < h_1 * 5f32 => (x, 0f32, c),
-        h if h >= h_1 * 5f32 && h <= 1f32 => (c, 0f32, x),
-        _ => panic!("Actually unreachable: {}", hue),
+    let (r, g, b) = match hue_360 {
+        h if h >= 0f32 && h < 60f32 => (c, x, 0f32),
+        h if h >= 60f32 && h < 120f32 => (x, c, 0f32),
+        h if h >= 120f32 && h < 180f32 => (0f32, c, x),
+        h if h >= 180f32 && h < 240f32 => (0f32, x, c),
+        h if h >= 240f32 && h < 300f32 => (x, 0f32, c),
+        h if h >= 300f32 => (c, 0f32, x),
+        _ => panic!("Actually unreachable: {}", hue_360),
     };
     (r + m, g + m, b + m)
 }
