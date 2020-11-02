@@ -20,6 +20,8 @@ pub struct ColorMap {
     // Dimension ranks (inverse map). This maps a color index to the dimension
     // TODO: store dimension name instead
     inverse_map: HashMap<usize, usize>,
+    // Ordinal map, convert rank to the sorted dimension order. Only used when set to ordinal
+    ordinal_map: HashMap<usize, usize>,
     // Min max values for the confidence, used for normalization
     static_normalization_bounds: (f32, f32),
     // Min max values actually used to render the images, this can be set to
@@ -59,6 +61,7 @@ impl Default for ColorMap {
         ColorMap {
             map: HashMap::<usize, usize>::new(),
             inverse_map: HashMap::<usize, usize>::new(),
+            ordinal_map: HashMap::<usize, usize>::new(),
             normalization_bounds: (0.0, 1.0),
             static_normalization_bounds: (0.0, 1.0),
             use_normalization: true,
@@ -81,9 +84,18 @@ impl ColorMap {
             inverse_map.insert(index, dim);
         }
 
+        // For the first 7 find the ordinal ordering of the actual dimension number per rank.
+        // This ensures that the ordering of colors for dimensions is correct when ordinal mode is used.
+        let ordinal_map: HashMap<usize, usize> = {
+            let mut rankings: Vec<(usize, usize)> = dimension_ranking.into_iter().take(8).enumerate().collect();
+            rankings.sort_by(|(_, a), (_, b)| a.cmp(&b));
+            rankings.into_iter().enumerate().map(|(a, (b, _)) | (b,a)).collect::<HashMap::<usize, usize>>()
+        };
+
         ColorMap {
             map,
             inverse_map,
+            ordinal_map,
             normalization_bounds: (min_confidence, max_confidence),
             static_normalization_bounds: (min_confidence, max_confidence),
             use_normalization: true,
@@ -118,8 +130,9 @@ impl ColorMap {
                 if rank > &7usize {
                     Point3::new(0.00000, 0.00000, 0.60000)
                 } else {
-                    let colored_dimensions = (self.dimension_count()).min(8usize);
-                    let hue = *rank as f32 / colored_dimensions as f32;
+                    let colored_dimensions = (self.dimension_count()).min(8usize) as f32 - 1f32;
+                    let index = self.ordinal_map.get(rank).expect("Could not find entry in ordinal map");
+                    let hue = (2f32 / 3f32) - (*index as f32 * ((2f32 / 3f32) / colored_dimensions));
                     Point3::new(hue, 1f32, 1f32)
                 }
             }
@@ -133,7 +146,17 @@ impl ColorMap {
                 5 => Point3::new(0.08301, 1.00000, 1.00000), // ff7f00 Orange
                 6 => Point3::new(0.81177, 0.52147, 0.63922), // 984ea3 Purple
                 7 => Point3::new(0.06085, 0.75904, 0.65098), // a65628 Crimson brown
-                _ => Point3::new(0.00000, 0.00000, 0.60000), // 999999 Grey
+                // Project explainer color map from http://mbostock.github.io/protovis/docs/color.html
+                // 0 => Point3::new(0.753875, 0.455026, 0.741176), // Purple
+                // 1 => Point3::new(0.167741, 0.820105, 0.741176), // Gold
+                // 2 => Point3::new(0.028205, 0.464285, 0.549019), // Brown
+                // 3 => Point3::new(0.083006, 1.000000, 1.000000), // Dark orange
+                // 4 => Point3::new(0.884259, 0.475770, 0.890196), // Pink
+                // 5 => Point3::new(0.515398, 0.888888, 0.811764), // Blue
+                // 6 => Point3::new(0.001700, 0.390438, 0.984313), // Light red
+                // 7 => Point3::new(0.382352, 0.093406, 0.713725), // Light green
+                // 8 => Point3::new(0.568232, 0.827777, 0.705882), // Dark Blue
+                _ => Point3::new(0.000000, 0.000000, 0.600000), // 999999 Grey
             },
         }
     }

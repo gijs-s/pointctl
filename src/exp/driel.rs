@@ -204,7 +204,7 @@ impl<'a, PC: PointContainer> VanDrielState<'a, PC> {
         let sum_eigen_value = eigenvalues.iter().sum::<f32>();
         // Check how many dimensions are needed to exceed theta
         for i in 1..=eigenvalues.len() {
-            if (eigenvalues.iter().take(i).sum::<f32>() / sum_eigen_value) >= self.theta {
+            if eigenvalues.iter().take(i).sum::<f32>() / sum_eigen_value >= self.theta {
                 return i;
             }
         }
@@ -222,7 +222,7 @@ impl<'a, PC: PointContainer> VanDrielState<'a, PC> {
             .map(|v| (v - average_eigen_value).abs())
             .sum::<f32>();
 
-        1.0f32 - (sum_eigen_value_diff_from_mean.max(0.0) / sum_eigen_value)
+        1.0f32 - (sum_eigen_value_diff_from_mean / sum_eigen_value)
     }
 
     /// Get the dimensionality based on the minimal variance
