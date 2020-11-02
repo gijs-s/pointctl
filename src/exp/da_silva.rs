@@ -430,6 +430,7 @@ mod tests {
             dimension_names: vec![],
             point_data: point_data,
             dimensionality: 3,
+            projection_width: 0f32,
         };
 
         let state = DaSilvaState::<PointContainer3D>::new(&point_container, DaSilvaType::Variance);

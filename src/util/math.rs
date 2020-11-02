@@ -181,7 +181,7 @@ mod tests {
     fn correct_sample_variance() {
         let x = vec![1.0f32, 2.0, 3.0, 5.0, -1.0];
         let expected = 5.0f32;
-        let actual = variance(&x).unwrap();
+        let actual = sample_variance(&x).unwrap();
         assert_relative_eq!(actual, expected, epsilon = 1.0e-5);
     }
 
@@ -197,7 +197,7 @@ mod tests {
     #[test]
     fn covariance_of_self_is_variance() {
         let x = vec![1.0f32, 3.0, -1.0];
-        let expected = variance(&x).unwrap();
+        let expected = sample_variance(&x).unwrap();
         let actual = covariance(&x, &x).unwrap();
         assert_relative_eq!(actual, expected, epsilon = 1.0e-5);
     }

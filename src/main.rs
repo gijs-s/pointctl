@@ -133,6 +133,14 @@ fn main() {
                         .takes_value(true)
                         .help("The 3D reduced dataset in ply or csv format"),
                 )
+                .arg(
+                    Arg::with_name("jobs")
+                        .short("j")
+                        .long("jobs")
+                        .takes_value(true)
+                        .validator(validator::is_usize)
+                        .help("The number of threads the program can use, by default it uses all")
+                )
         )
         .subcommand(
             SubCommand::with_name("generate")
@@ -259,7 +267,7 @@ fn explain_command(matches: &ArgMatches) {
             .num_threads(j)
             .build_global()
         {
-            Ok(_) => println!("Using {} threads to compute the metric", j),
+            Ok(_) => println!("Using {} threads when computing the metrics", j),
             Err(e) => {
                 eprintln!("Could not set thread count because\n {:?}", e);
                 exit(42)
@@ -380,6 +388,22 @@ fn view_command(matches: &ArgMatches) {
     //  - Create a color pallet for dimensions based on the global dimension randing
     //  - Render all the points with the given color
     // TODO: Add robust way to pass the precomputed annotations
+
+    // Check how many threads should be used
+    if let Some(value) = matches.value_of("jobs") {
+        // Unwrap is safe because of the validator
+        let j = value.parse::<usize>().unwrap();
+        match rayon::ThreadPoolBuilder::new()
+            .num_threads(j)
+            .build_global()
+        {
+            Ok(_) => println!("Using {} threads to compute the metric", j),
+            Err(e) => {
+                eprintln!("Could not set thread count because\n {:?}", e);
+                exit(42)
+            }
+        }
+    }
 
     // Retrieve the points from the original dataset
     let original_data_path = {
