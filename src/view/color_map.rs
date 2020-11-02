@@ -219,7 +219,7 @@ fn hsv2rgb(hue: f32, sat: f32, val: f32) -> (f32, f32, f32) {
     let hue_360 = (hue * 360f32) % 360f32;
 
     let c = val * sat;
-    let x = c * (1f32 - ((hue / 60f32) % 2f32 - 1f32).abs());
+    let x = c * (1f32 - ((hue_360 / 60f32) % 2f32 - 1f32).abs());
     let m = val - c;
 
     let (r, g, b) = match hue_360 {
