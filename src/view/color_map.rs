@@ -2,7 +2,7 @@ extern crate nalgebra as na;
 
 // Buildin
 use crate::exp::{DaSilvaExplanation, VanDrielExplanation};
-use kiss3d::conrod::color::{rgb_bytes, rgba, Color, Rgba};
+use kiss3d::conrod::color::{rgba, Color, Rgba};
 use na::Point3;
 use std::collections::HashMap;
 
@@ -227,8 +227,8 @@ fn hsv2rgb(hue: f32, sat: f32, val: f32) -> (f32, f32, f32) {
         h if h >= h_1 * 2f32 && h < h_1 * 3f32 => (0f32, c, c),
         h if h >= h_1 * 3f32 && h < h_1 * 4f32 => (0f32, x, c),
         h if h >= h_1 * 4f32 && h < h_1 * 5f32 => (x, 0f32, c),
-        h if h >= h_1 * 5f32 && h < 1f32 => (c, 0f32, x),
-        _ => panic!("Actually unreachable"),
+        h if h >= h_1 * 5f32 && h <= 1f32 => (c, 0f32, x),
+        _ => panic!("Actually unreachable: {}", hue),
     };
     (r + m, g + m, b + m)
 }
