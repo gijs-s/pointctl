@@ -103,7 +103,7 @@ pub fn eigen_values_from_points(data: &[Vec<f32>]) -> Option<Vec<f32>> {
 }
 
 /// For a set of nD points calculate the NxN covariance matrix.
-fn covariance_matrix(data: &[Vec<f32>]) -> Option<na::DMatrix<f32>> {
+pub fn covariance_matrix(data: &[Vec<f32>]) -> Option<na::DMatrix<f32>> {
     // transpose the points
     let transposed_data = match transpose(&data) {
         Some(v) => v,
@@ -144,7 +144,7 @@ fn covariance_matrix(data: &[Vec<f32>]) -> Option<na::DMatrix<f32>> {
 ///
 /// where lambda(j) is its eigenvalue. The computed eigenvectors are orthonormal.
 /// https://software.intel.com/sites/products/documentation/doclib/mkl_sa/11/mkl_lapack_examples/ssyev_ex.c.htm
-fn eigen_values(covariance_matrix: na::DMatrix<f32>) -> Option<(Vec<f32>, na::DMatrix<f32>)> {
+pub fn eigen_values(covariance_matrix: na::DMatrix<f32>) -> Option<(Vec<f32>, na::DMatrix<f32>)> {
     // If there are no points we can not create a covariance matrix
     if covariance_matrix.is_empty() {
         return None;
