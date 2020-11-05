@@ -1,5 +1,7 @@
 /// For the process of shading the points we need to calculate PCA in local 3D regions and return the eigenvector
 /// of the principal competent with the lowest eigenvalue.
+// Build in imports
+use std::cmp::Ordering;
 
 // Third party imports
 use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
@@ -40,7 +42,7 @@ impl<'a> Explanation<NormalExplanation> for NormalState<'a> {
                     .get_neighbor_indices(index as u32, neighborhood_size);
                 let minor_eigen_vector = self.get_minor_eigen_vector(neighborhood);
                 NormalExplanation {
-                    normal: minor_eigen_vector
+                    normal: minor_eigen_vector,
                 }
             })
             .collect::<Vec<NormalExplanation>>()
@@ -63,8 +65,23 @@ impl<'a> NormalState<'a> {
                 vec![p.x, p.y, p.z]
             })
             .collect();
-        let cov_matrix = math::covariance_matrix(&neighbor_points).expect("Could not calculate the covariance matrix");
-        let (_values, _vectors) = math::eigen_values(cov_matrix).expect("Could not calculate the eigen values");
-        unimplemented!("Retrieval of the min eigenvalue is not yet ready")
+        // Get the covariance matrix and the eigen values / vectors
+        let cov_matrix = math::covariance_matrix(&neighbor_points)
+            .expect("Could not calculate the covariance matrix");
+        let (values, vectors) =
+            math::eigen_values(cov_matrix).expect("Could not calculate the eigen values");
+
+        // Return the minimal 3D eigen vector.
+        let (index, _) = values
+            .iter()
+            .enumerate()
+            .min_by(|(_, val_a), (_, val_b)| val_a.partial_cmp(&val_b).unwrap_or(Ordering::Equal))
+            .unwrap();
+
+        na::Point3::<f32>::new(
+            vectors[(index, 0)],
+            vectors[(index, 1)],
+            vectors[(index, 2)],
+        )
     }
 }

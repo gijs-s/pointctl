@@ -87,9 +87,14 @@ impl ColorMap {
         // For the first 7 find the ordinal ordering of the actual dimension number per rank.
         // This ensures that the ordering of colors for dimensions is correct when ordinal mode is used.
         let ordinal_map: HashMap<usize, usize> = {
-            let mut rankings: Vec<(usize, usize)> = dimension_ranking.into_iter().take(8).enumerate().collect();
+            let mut rankings: Vec<(usize, usize)> =
+                dimension_ranking.into_iter().take(8).enumerate().collect();
             rankings.sort_by(|(_, a), (_, b)| a.cmp(&b));
-            rankings.into_iter().enumerate().map(|(a, (b, _)) | (b,a)).collect::<HashMap::<usize, usize>>()
+            rankings
+                .into_iter()
+                .enumerate()
+                .map(|(a, (b, _))| (b, a))
+                .collect::<HashMap<usize, usize>>()
         };
 
         ColorMap {
@@ -131,9 +136,13 @@ impl ColorMap {
                     Point3::new(0.00000, 0.00000, 0.60000)
                 } else {
                     let colored_dimensions = (self.dimension_count()).min(8usize) as f32 - 1f32;
-                    let index = self.ordinal_map.get(rank).expect("Could not find entry in ordinal map");
-                     {}
-                    let hue: f32 = (2f32 / 3f32) - if colored_dimensions == 0f32 {
+                    let index = self
+                        .ordinal_map
+                        .get(rank)
+                        .expect("Could not find entry in ordinal map");
+                    {}
+                    let hue: f32 = (2f32 / 3f32)
+                        - if colored_dimensions == 0f32 {
                             0f32
                         } else {
                             *index as f32 * ((2f32 / 3f32) / colored_dimensions)

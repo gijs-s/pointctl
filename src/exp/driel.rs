@@ -232,10 +232,7 @@ impl<'a, PC: PointContainer> VanDrielState<'a, PC> {
     /// more, well, the confidence drops since you deviate from the exact explanation.
     fn get_confidence_total(&self, eigenvalues: &Vec<f32>, dimensionality: usize) -> f32 {
         let sum_eigen_value = eigenvalues.iter().sum::<f32>();
-        let sum_eigen_value_to_n = eigenvalues
-            .iter()
-            .take(dimensionality)
-            .sum::<f32>();
+        let sum_eigen_value_to_n = eigenvalues.iter().take(dimensionality).sum::<f32>();
 
         let theta_offset = (sum_eigen_value_to_n / sum_eigen_value) - self.theta;
         1.0f32 - theta_offset

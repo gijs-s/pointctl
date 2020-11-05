@@ -11,7 +11,7 @@ use vpsearch::Tree as VPTree;
 
 /// First party imports
 use crate::{
-    exp::{DaSilvaExplanation, NormalExplanation, VanDrielExplanation},
+    exp::{DaSilvaExplanation, VanDrielExplanation},
     search::PointContainer,
 };
 
@@ -43,7 +43,6 @@ pub struct PointData2D {
     pub index: u32,
     pub low: na::Point2<f32>,
     pub high: Vec<f32>,
-    pub normal: Option<NormalExplanation>,
     pub driel_min: Option<VanDrielExplanation>,
     pub driel_total: Option<VanDrielExplanation>,
     pub silva_var: Option<DaSilvaExplanation>,
@@ -66,7 +65,6 @@ impl PointData2D {
             index,
             low: low_dimension_point,
             high: high_dimension_point,
-            normal: None,
             driel_min: None,
             driel_total: None,
             silva_var: None,
@@ -80,7 +78,6 @@ pub struct PointData3D {
     pub index: u32,
     pub low: na::Point3<f32>,
     pub high: Vec<f32>,
-    pub normal: Option<NormalExplanation>,
     pub driel_min: Option<VanDrielExplanation>,
     pub driel_total: Option<VanDrielExplanation>,
     pub silva_var: Option<DaSilvaExplanation>,
@@ -103,7 +100,6 @@ impl PointData3D {
             index,
             low: low_dimension_point,
             high: high_dimension_point,
-            normal: None,
             driel_min: None,
             driel_total: None,
             silva_var: None,
@@ -170,7 +166,6 @@ impl PointContainer2D {
                     index: index as u32,
                     low: low_point,
                     high: high.to_vec(),
-                    normal: None,
                     driel_min: None,
                     driel_total: None,
                     silva_var: None,
@@ -240,7 +235,6 @@ impl PointContainer3D {
                     index: index as u32,
                     low: low_point,
                     high: high.to_vec(),
-                    normal: None,
                     driel_min: None,
                     driel_total: None,
                     silva_var: None,
