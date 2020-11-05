@@ -188,18 +188,27 @@ impl<'a, PC: PointContainer> VanDrielState<'a, PC> {
             .map(|index| self.point_container.get_nd_point(*index).clone())
             .collect();
         // Get eigen values
-        let eigenvalues = math::eigen_values_from_points(&neighbor_points).unwrap();
+        let mut eigenvalues = math::eigen_values_from_points(&neighbor_points).unwrap();
         // Get the absolute eigen values keeping only the finite values
-        let mut eigenvalues: Vec<f32> = eigenvalues
-            .into_iter()
-            .map(|v| if v.is_finite() { v } else { 0.0 })
-            .collect();
+        // let mut eigenvalues: Vec<f32> = eigenvalues
+        //     .into_iter()
+        //     .map(|v| if v.is_finite() { v } else { 0.0 })
+        //     .collect();
         // Sort in descending order
         eigenvalues.sort_by(|a, b| b.partial_cmp(&a).unwrap_or(Ordering::Equal));
+        // println!("{:?}", eigenvalues);
         eigenvalues
     }
 
     /// Get the dimensionality from the eigenvalues
+    ///
+    /// Dim_θ = min k s.t.
+    ///  1. 0 > k ≤ n
+    ///  2. (sum_{i=1}^k λ_i / sum_{i=1}^n λ_i) ≥ θ
+    ///  2. λi ≥ λj where 1 ≤ i < n and i < j ≤ n
+    ///
+    /// Here dimensionality is determined by the count of the k largest eigenvalues
+    /// which sum up to more than θ percent of the total variance in a neighborhood.
     fn get_dimensionality_total(&self, eigenvalues: &Vec<f32>) -> usize {
         let sum_eigen_value = eigenvalues.iter().sum::<f32>();
         // Check how many dimensions are needed to exceed theta
@@ -213,19 +222,34 @@ impl<'a, PC: PointContainer> VanDrielState<'a, PC> {
     }
 
     /// Get the confidence from the eigenvalues
+    ///
+    /// Conf_θ = 1 – ( (sum_{i=1}^k λ_i / sum_{i=1}^n λ_i) / θ )
+    ///     iff λi ≥ λj where 1 ≤ i < n and i < j ≤ n
+    ///
+    /// Here the sum of the first k eigenvalues explains AT LEAST theta, by construction.
+    /// So, if that sum explains EXACTLY theta, then you get conf_θ = 1, meaning, a
+    /// perfect explanation of exactly theta percent of the variance. If that sum explains
+    /// more, well, the confidence drops since you deviate from the exact explanation.
     fn get_confidence_total(&self, eigenvalues: &Vec<f32>, dimensionality: usize) -> f32 {
         let sum_eigen_value = eigenvalues.iter().sum::<f32>();
-        let average_eigen_value = sum_eigen_value / eigenvalues.len() as f32;
-        let sum_eigen_value_diff_from_mean = eigenvalues
+        let sum_eigen_value_to_n = eigenvalues
             .iter()
             .take(dimensionality)
-            .map(|v| (v - average_eigen_value).abs())
             .sum::<f32>();
 
-        1.0f32 - (sum_eigen_value_diff_from_mean / sum_eigen_value)
+        let theta_offset = (sum_eigen_value_to_n / sum_eigen_value) - self.theta;
+        1.0f32 - theta_offset
     }
 
-    /// Get the dimensionality based on the minimal variance
+    /// Get the dimensionality and confidence based on the minimal variance
+    ///
+    /// Dim_θ = | { λi / (sum_{j=1}^n λj) ≥ θ | 1 ≤ i ≤ n} |
+    /// Conf_θ = (sum_{i=1}^Dim_θ λi) / (sum_{j=1}^n λj)
+    ///     iff λi ≥ λj where 1 ≤ i < n and i < j ≤ n
+    ///
+    /// Dimensionality is given by how many of the top eigenvalues are larger than a given
+    /// threshold θ of the total variance. Confidence is given by how much of the total
+    /// variance the top k eigenvalues explain.
     fn get_dimensionality_and_confidence_min(&self, eigenvalues: &Vec<f32>) -> (usize, f32) {
         let sum_eigen_value = eigenvalues.iter().sum::<f32>();
         // check how many dimensions contribute at least alpha

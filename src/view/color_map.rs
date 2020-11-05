@@ -132,7 +132,15 @@ impl ColorMap {
                 } else {
                     let colored_dimensions = (self.dimension_count()).min(8usize) as f32 - 1f32;
                     let index = self.ordinal_map.get(rank).expect("Could not find entry in ordinal map");
-                    let hue = (2f32 / 3f32) - (*index as f32 * ((2f32 / 3f32) / colored_dimensions));
+                     {}
+                    let hue: f32 = (2f32 / 3f32) - if colored_dimensions == 0f32 {
+                            0f32
+                        } else {
+                            *index as f32 * ((2f32 / 3f32) / colored_dimensions)
+                        };
+                    if hue.is_nan() {
+                        println!("{} - {}", colored_dimensions, index);
+                    }
                     Point3::new(hue, 1f32, 1f32)
                 }
             }
