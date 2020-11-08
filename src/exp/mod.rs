@@ -75,7 +75,7 @@ pub fn run_van_driel_3d<'a>(
     van_driel_mechanism.explain(neighborhood_size)
 }
 
-pub fn run_normal_3d<'a>(point_container_3d: &'a PointContainer3D) -> Vec<NormalExplanation>{
+pub fn load_normals<'a>(point_container_3d: &'a mut PointContainer3D) {
     let normal_mechanism = normal::NormalState::new(point_container_3d);
     normal_mechanism.explain(Neighborhood::K(40))
 }

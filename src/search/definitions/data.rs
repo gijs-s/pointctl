@@ -10,10 +10,7 @@ use rstar::RTree;
 use vpsearch::Tree as VPTree;
 
 /// First party imports
-use crate::{
-    exp::{DaSilvaExplanation, VanDrielExplanation},
-    search::PointContainer,
-};
+use crate::{exp::{DaSilvaExplanation, NormalExplanation, VanDrielExplanation}, search::PointContainer};
 
 /// Generic point struct that can be used to
 #[derive(Clone, Debug)]
@@ -78,6 +75,7 @@ pub struct PointData3D {
     pub index: u32,
     pub low: na::Point3<f32>,
     pub high: Vec<f32>,
+    pub normal: Option<NormalExplanation>,
     pub driel_min: Option<VanDrielExplanation>,
     pub driel_total: Option<VanDrielExplanation>,
     pub silva_var: Option<DaSilvaExplanation>,
@@ -100,6 +98,7 @@ impl PointData3D {
             index,
             low: low_dimension_point,
             high: high_dimension_point,
+            normal: None,
             driel_min: None,
             driel_total: None,
             silva_var: None,
