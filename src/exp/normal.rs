@@ -17,6 +17,7 @@ use crate::{
 #[allow(dead_code)]
 pub struct NormalExplanation {
     normal: na::Point3<f32>,
+    eccentricity: f32,
 }
 
 /// Struct containing the state of the van driel explanation mechanism
@@ -40,23 +41,24 @@ impl<'a> Explanation<NormalExplanation> for NormalState<'a> {
                 let neighborhood = self
                     .point_container
                     .get_neighbor_indices(index as u32, neighborhood_size);
-                let minor_eigen_vector = self.get_minor_eigen_vector(neighborhood);
+                let (minor_eigen_vector, eccentricity) = self.get_minor_eigen_vector(neighborhood);
+
                 NormalExplanation {
                     normal: minor_eigen_vector,
+                    eccentricity,
                 }
             })
             .collect::<Vec<NormalExplanation>>()
     }
 }
 
-#[allow(dead_code)]
 impl<'a> NormalState<'a> {
     /// Create a new mechanism
     pub fn new(point_container: &'a PointContainer3D) -> NormalState<'a> {
         NormalState { point_container }
     }
 
-    fn get_minor_eigen_vector(&self, neighborhood_indices: Vec<u32>) -> na::Point3<f32> {
+    fn get_minor_eigen_vector(&self, neighborhood_indices: Vec<u32>) -> (na::Point3<f32>, f32) {
         // TODO: Clone is bad mkay move this into the trait!
         let neighbor_points: Vec<Vec<f32>> = neighborhood_indices
             .iter()
@@ -78,10 +80,16 @@ impl<'a> NormalState<'a> {
             .min_by(|(_, val_a), (_, val_b)| val_a.partial_cmp(&val_b).unwrap_or(Ordering::Equal))
             .unwrap();
 
-        na::Point3::<f32>::new(
-            vectors[(index, 0)],
-            vectors[(index, 1)],
-            vectors[(index, 2)],
+        let min = values.iter().fold(f32::INFINITY, |a, &b| a.min(b));
+        let max = values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+
+        (
+            na::Point3::<f32>::new(
+                vectors[(index, 0)],
+                vectors[(index, 1)],
+                vectors[(index, 2)],
+            ),
+            min / max,
         )
     }
 }

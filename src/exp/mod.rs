@@ -74,3 +74,8 @@ pub fn run_van_driel_3d<'a>(
         driel::VanDrielState::<PointContainer3D>::new(point_container_3d, theta, method);
     van_driel_mechanism.explain(neighborhood_size)
 }
+
+pub fn run_normal_3d<'a>(point_container_3d: &'a PointContainer3D) -> Vec<NormalExplanation>{
+    let normal_mechanism = normal::NormalState::new(point_container_3d);
+    normal_mechanism.explain(Neighborhood::K(40))
+}
