@@ -10,7 +10,9 @@ use kiss3d::{
 use na::{Matrix4, Point3};
 
 // Internal
+use crate::search::PointContainer3D;
 use super::{texture_creation::load_texture, PointRendererInteraction, RenderMode};
+
 pub struct PointRenderer3D {
     // The shader itself
     shader: Effect,
@@ -20,6 +22,7 @@ pub struct PointRenderer3D {
     /// Shader attributes
     pos_attribute: ShaderAttribute<Point3<f32>>,
     color_attribute: ShaderAttribute<Point3<f32>>,
+    normal_attribute: ShaderAttribute<Point3<f32>>,
     // Shader uniform
     proj_uniform: ShaderUniform<Matrix4<f32>>,
     view_uniform: ShaderUniform<Matrix4<f32>>,
@@ -27,6 +30,7 @@ pub struct PointRenderer3D {
     render_mode_uniform: ShaderUniform<i32>,
     size_uniform: ShaderUniform<f32>,
     gamma_uniform: ShaderUniform<f32>,
+    normal_enabled_uniform: ShaderUniform<i32>,
     // Normal variables
     alpha_texture: Texture,
     gamma: f32,
@@ -35,6 +39,7 @@ pub struct PointRenderer3D {
     blob_size: (f32, f32),
     visible: bool,
     pub render_mode: RenderMode,
+    normal_enabled: bool,
     // last transform and dirty bool. Used to determine
     // if the points needs to be resorted on the z axis
     last_transform: Matrix4<f32>,
@@ -45,11 +50,12 @@ pub struct PointRenderer3D {
 pub struct PointData {
     pub point: Point3<f32>,
     pub color: Point3<f32>,
+    pub normal: Option<Point3<f32>>,
     pub projected_z: f32,
 }
 
 impl PointRenderer3D {
-    pub fn new(default_point_size: f32, default_blob_size: f32) -> PointRenderer3D {
+    pub fn new(default_point_size: f32, default_blob_size: f32, point_container: &PointContainer3D) -> PointRenderer3D {
         let mut shader = Effect::new_from_str(VERTEX_SHADER_SRC_3D, FRAGMENT_SHADER_SRC_3D);
         shader.use_program();
 
@@ -65,6 +71,9 @@ impl PointRenderer3D {
             color_attribute: shader
                 .get_attrib::<Point3<f32>>("color")
                 .expect("Failed to get 'color' shader attribute."),
+            normal_attribute: shader
+                .get_attrib::<Point3<f32>>("normal")
+                .expect("Failed to get 'normal' shader attribute"),
             proj_uniform: shader
                 .get_uniform::<Matrix4<f32>>("proj")
                 .expect("Failed to get 'proj' shader attribute."),
@@ -80,6 +89,9 @@ impl PointRenderer3D {
             render_mode_uniform: shader
                 .get_uniform("renderMode")
                 .expect("Failed to get 'renderMode' uniform shader attribute"),
+            normal_enabled_uniform: shader
+                .get_uniform("normalEnabled")
+                .expect("Failed to get 'normalEnabled' uniform shader attribute"),
             gamma_uniform: shader
                 .get_uniform("gamma")
                 .expect("Failed to get 'gamma' uniform shader attribute"),
@@ -93,16 +105,18 @@ impl PointRenderer3D {
             visible: true,
             alpha_texture: load_texture(),
             render_mode: RenderMode::Continuous,
+            normal_enabled: false,
             last_transform: Matrix4::identity(),
             dirty: false,
         }
     }
 
     /// Insert a single point with a color
-    pub fn push(&mut self, point: Point3<f32>, color: Point3<f32>) {
+    pub fn push(&mut self, point: Point3<f32>, normal: Option<Point3<f32>>, color: Point3<f32>) {
         self.point_data.push(PointData {
             point,
             color,
+            normal,
             projected_z: 0.0f32,
         });
         self.dirty = true;
@@ -137,7 +151,7 @@ impl PointRenderer3D {
 
     // Retrieve the number of points
     pub fn num_points(&self) -> usize {
-        self.gpu_vec.len() / 2
+        self.gpu_vec.len() / if self.normal_enabled { 3 } else { 2 }
     }
 
     pub fn sort_point_if_needed(&mut self, camera: &dyn Camera) {
@@ -159,6 +173,9 @@ impl PointRenderer3D {
                 for _ in 0..6 {
                     points.push(point_data.point);
                     points.push(point_data.color);
+                    if self.normal_enabled {
+                        points.push(point_data.normal.expect("Normal not present while normals have been enabled"));
+                    }
                 }
             }
         }
@@ -293,10 +310,17 @@ impl Renderer for PointRenderer3D {
 
                 // Set the point size
                 self.size_uniform.upload(&self.get_point_size());
-
-                self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 11, 0);
-                self.color_attribute
-                    .bind_sub_buffer(&mut self.gpu_vec, 11, 1);
+                if self.normal_enabled {
+                    self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 17, 0);
+                    self.color_attribute
+                        .bind_sub_buffer(&mut self.gpu_vec, 17, 1);
+                    self.normal_attribute
+                        .bind_sub_buffer(&mut self.gpu_vec, 17, 1);
+                } else {
+                    self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 11, 0);
+                    self.color_attribute
+                        .bind_sub_buffer(&mut self.gpu_vec, 11, 1);
+                }
 
                 ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32 / 6);
             }
@@ -311,9 +335,11 @@ impl Renderer for PointRenderer3D {
                 self.sort_point_if_needed(camera);
 
                 // The points and colours are interleaved in the same buffer
-                self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 1, 0);
+                self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 2, 0);
                 self.color_attribute
-                    .bind_sub_buffer(&mut self.gpu_vec, 1, 1);
+                    .bind_sub_buffer(&mut self.gpu_vec, 2, 1);
+                self.normal_attribute.bind_sub_buffer(&mut self.gpu_vec, 2, 2);
+
 
                 // Set the correct drawing method of the polygons
                 let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));
@@ -344,12 +370,14 @@ const VERTEX_SHADER_SRC_3D: &str = "#version 460
     // Input to this shader
     layout (location = 0) in vec3 position;
     layout (location = 1) in vec3 color;
+    layout (location = 2) in vec3 normal;
 
     // Uniform variables for all vertices.
     uniform mat4 proj;
     uniform mat4 view;
     uniform float size;
     uniform int renderMode;
+    uniform int normalEnabled;
 
     // Passed on to the rest of the shader pipeline
     out vec2 TextureCoordinate;
