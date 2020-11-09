@@ -434,6 +434,21 @@ const VERTEX_SHADER_SRC_3D: &str = "#version 460
         }
     }
 
+    // Get the color after the point was shaded
+    vec3 get_shaded_color(vec3 point_position, vec3 normal) {
+        // Use of shading with normals is turned off
+        if (normalEnabled == 0) {
+            return color;
+        // Shading it turned on, compute the new color. here
+        // the camera position is used as light position.
+        } else {
+            vec3 camera_position = view[3].xyz;
+            vec3 dir = normalize(camera_position - point_position);
+            float shading = max(0, dot(normal, -dir));
+            return vec3(color.xy, shading * color.z);
+        }
+    }
+
     // Render method used when using the discreet representation
     void render_discreet() {
         // Transform the world coordinate to a screen coordinate.
@@ -443,22 +458,32 @@ const VERTEX_SHADER_SRC_3D: &str = "#version 460
         // shader because of a bug for intel igpus.
         gl_PointSize = size;
 
-        // Make the color and tex coordinate available to the fragment shader.
-        PointColor = color;
+        // Make the (shaded) color available to the fragment shader
+        if (normalEnabled == 0) {
+            PointColor = color;
+        } else {
+            PointColor = get_shaded_color(position, normal);
+        }
     }
 
     // Render method used when using the continous representation
     void render_continuos() {
         // Get the offset position to one of the triangle corners
         vec4 offset = vec4(getOffset(), 0.0, 1.0);
-        vec4 position = view * vec4(position, 1.0);
-        vec4 offset_position = position + offset;
+        vec4 view_position = view * vec4(position, 1.0);
+        vec4 offset_position = view_position + offset;
 
         // Transform the world coordinate to a screen coordinate.
         gl_Position = proj * offset_position;
 
-        // Make the color and tex coordinate available to the fragment shader.
-        PointColor = color;
+        // Make the (shaded) color available to the fragment shader
+        if (normalEnabled == 0) {
+            PointColor = color;
+        } else {
+            PointColor = get_shaded_color(position, normal);
+        }
+
+        // Make the texture coordinate available to the fragment shader.
         TextureCoordinate = getTextureCoordinate();
     }
 
