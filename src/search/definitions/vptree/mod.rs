@@ -1,9 +1,9 @@
-mod count;
-/// Module containing the code for finding neighbors using vantage point trees
-/// in ND. Vantage point trees only store the distances between points so it
-/// seems suited well to my needs.
+//! Module containing the code for finding neighbors using vantage point trees
+//! in ND. Vantage point trees only store the distances between points so it
+//! seems suited well to my needs.
 
 /// Sub modules
+mod count;
 mod radius;
 
 /// Structs that should be reexported from this module.

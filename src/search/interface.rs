@@ -1,4 +1,4 @@
-/// File containing the entire interface with the search structure.
+//! File containing the entire interface with the search structure.
 // build in imports
 use std::{fmt::Debug, path::Path, process::exit};
 
@@ -186,7 +186,7 @@ impl PointContainer for PointContainer2D {
         width
     }
 
-    /// todo: Clean this up
+    /// Retrieve the axis aligned bounding box for all the 3D points currently in the state
     fn axis_aligned_bounding_box(points: &Vec<Self::LDPoint>) -> (Self::LDPoint, Self::LDPoint) {
         let mut min = na::Point2::new(f32::INFINITY, f32::INFINITY);
         let mut max = na::Point2::new(f32::NEG_INFINITY, f32::NEG_INFINITY);
@@ -206,7 +206,11 @@ impl PointContainer for PointContainer2D {
         (min, max)
     }
 
-    /// Find the average nearest neighbor distance
+    /// Find the average distance to the first nearest neighbor.
+    ///
+    /// note: Currently this has an offset to this value to help my rendering engine,
+    /// here i draw circles that have radius 5x the average nn distance. This function
+    /// already includes this offset
     fn find_average_nearest_neighbor_distance(&self) -> f32 {
         let mut res = Vec::<f32>::new();
         for query_point in self.get_tree_low().iter() {
@@ -305,7 +309,7 @@ impl PointContainer for PointContainer3D {
         width
     }
 
-    /// todo: Clean this up
+    /// Retrieve the axis aligned bounding box for all the 2D points currently in the state
     fn axis_aligned_bounding_box(points: &Vec<Self::LDPoint>) -> (Self::LDPoint, Self::LDPoint) {
         let mut min = na::Point3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
         let mut max = na::Point3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
@@ -330,6 +334,11 @@ impl PointContainer for PointContainer3D {
         (min, max)
     }
 
+    /// Find the average distance to the first nearest neighbor.
+    ///
+    /// note: Currently this has an offset to this value to help my rendering engine,
+    /// here i draw circles that have radius 5x the average nn distance. This function
+    /// already includes this offset
     fn find_average_nearest_neighbor_distance(&self) -> f32 {
         let mut res = Vec::<f32>::new();
         for query_point in self.get_tree_low().iter() {

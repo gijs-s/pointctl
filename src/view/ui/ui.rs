@@ -1,3 +1,5 @@
+//! Huge file containing all the code used to render the entire UI. This contains a lot of boilerplate.
+
 // Third party
 use kiss3d::{
     conrod::{widget, Color, Colorable, Labelable, Positionable, Sizeable, UiCell, Widget},

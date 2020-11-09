@@ -1,5 +1,5 @@
-/// Module containing the implementations required to store indexed 2d/3d
-/// points in an r*-tree.
+//! Module containing the implementations required to store indexed 2d/3d
+//! points in an r*-tree.
 
 /// Third party imports
 use rstar;

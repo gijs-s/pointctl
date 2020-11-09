@@ -1,4 +1,4 @@
-// extern crate nalgebra as na;
+//! Helper for generating synthetic datasets from scratch.
 
 use rand::rngs::ThreadRng;
 use rand::Rng;

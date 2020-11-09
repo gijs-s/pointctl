@@ -42,7 +42,7 @@ impl VisualizationState3D {
         let nn_distance = point_container.find_average_nearest_neighbor_distance();
         let mut point_renderer = PointRenderer3D::new(4.0, nn_distance, &point_container);
         for p in point_container.point_data.iter() {
-            point_renderer.push(p.low, ColorMap::default_color());
+            point_renderer.push(p.low, None, ColorMap::default_color());
         }
         point_renderer.sync_gpu_vector();
 
@@ -164,7 +164,7 @@ impl VisualizationState3D {
                         color_map.get_color(explanation.dimension, explanation.confidence)
                     }
                 };
-                (point_data.low, point_data.normal, color)
+                (point_data.low, point_data.normal.and_then(|e| Some(e.normal)), color)
             })
             .collect::<Vec<(Point3<f32>, Option<Point3<f32>>, Point3<f32>)>>();
 

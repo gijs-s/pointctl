@@ -1,3 +1,5 @@
+//! File containing all the widget ids. Every single element in the UI needs an ID and these are defined here.
+
 // Third party
 use kiss3d::conrod::widget_ids;
 

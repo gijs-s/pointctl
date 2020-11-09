@@ -303,6 +303,12 @@ impl Renderer for PointRenderer3D {
         // Manually enable GL_VERTEX_PROGRAM_POINT_SIZE -> 8642_16 -> 34370_10
         verify!(ctxt.enable(34370u32));
 
+        // Set if the normals need to be used
+        self.normal_enabled_uniform.upload(match self.normal_enabled {
+            true => &1,
+            false => &0,
+        });
+
         match self.render_mode {
             RenderMode::Discreet => {
                 // set the correct render mode in the shader.
@@ -335,11 +341,16 @@ impl Renderer for PointRenderer3D {
                 self.sort_point_if_needed(camera);
 
                 // The points and colours are interleaved in the same buffer
-                self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 2, 0);
-                self.color_attribute
-                    .bind_sub_buffer(&mut self.gpu_vec, 2, 1);
-                self.normal_attribute.bind_sub_buffer(&mut self.gpu_vec, 2, 2);
-
+                if self.normal_enabled {
+                    self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 2, 0);
+                    self.color_attribute
+                        .bind_sub_buffer(&mut self.gpu_vec, 2, 1);
+                    self.normal_attribute.bind_sub_buffer(&mut self.gpu_vec, 2, 2);
+                } else {
+                    self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 1, 0);
+                    self.color_attribute
+                        .bind_sub_buffer(&mut self.gpu_vec, 1, 1);
+                }
 
                 // Set the correct drawing method of the polygons
                 let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));

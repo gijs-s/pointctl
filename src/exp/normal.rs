@@ -1,5 +1,6 @@
-/// For the process of shading the points we need to calculate PCA in local 3D regions and return the eigenvector
-/// of the principal competent with the lowest eigenvalue.
+//! Retrieve the normal for the process of shading the points. Here we need to calculate PCA in local 3D \
+//! regions and return the eigenvector of the principal competent with the lowest eigenvalue.
+
 // Build in imports
 use std::cmp::Ordering;
 
@@ -14,10 +15,11 @@ use crate::{
     util::math,
 };
 
-#[allow(dead_code)]
+/// Struct containing the output of the normal explanation for a single point
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct NormalExplanation {
-    normal: na::Point3<f32>,
-    eccentricity: f32,
+    pub normal: na::Point3<f32>,
+    pub eccentricity: f32,
 }
 
 /// Struct containing the state of the van driel explanation mechanism
