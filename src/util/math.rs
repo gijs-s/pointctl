@@ -1,7 +1,6 @@
-use std::cmp::Ordering;
+//! Module containing basic rust math functions.
 
-/// Module containing basic rust math utils, eigen values use lapack + openblas
-extern crate nalgebra as na;
+use std::cmp::Ordering;
 
 /// Get the mean of a vector of floats
 pub fn mean(data: &[f32]) -> Option<f32> {

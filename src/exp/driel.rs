@@ -1,5 +1,4 @@
-// The enhanced attributes based explanation mechanism based on the works of van Driel et al.
-
+//! The enhanced attributes based explanation mechanism based on the works of van Driel et al.
 // Abstract: Multidimensional projections (MPs) are established tools for exploring the structure of high-dimensional datasets to
 // reveal groups of similar observations. For optimal usage, MPs can be augmented with mechanisms that explain what such points have
 // in common that makes them similar. We extend the set of such explanatory instruments by two new techniques. First, we compute
@@ -75,6 +74,8 @@ impl VanDrielExplanation {
         (min, max)
     }
 }
+
+/// Enum for the types of thresholding used in the Van Driel explanation mechanism
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum VanDrielType {
     TotalVariance,
@@ -86,7 +87,6 @@ pub struct VanDrielState<'a, PC: PointContainer> {
     pub point_container: &'a PC,
     // theta value uses in the calculation
     pub theta: f32,
-    #[allow(dead_code)]
     explanation_type: VanDrielType,
 }
 

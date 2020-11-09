@@ -1,4 +1,4 @@
-/// Module containing the structs used throughout the search structure
+//! Module containing the structs used throughout the search structure
 
 /// Build in imports
 use std::fmt;
@@ -234,6 +234,7 @@ impl PointContainer3D {
                     index: index as u32,
                     low: low_point,
                     high: high.to_vec(),
+                    normal: None,
                     driel_min: None,
                     driel_total: None,
                     silva_var: None,

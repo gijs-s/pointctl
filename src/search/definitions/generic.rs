@@ -1,4 +1,4 @@
-/// Contains a generic distance calculation trait.
+//! Contains a generic distance calculation trait.
 
 // Distance calculation
 pub trait Distance {

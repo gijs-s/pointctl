@@ -1,9 +1,11 @@
-use super::widget_ids::*;
-/// Module that with a definition of the UI state.
+//! Module that with a definition of the UI state.
+
 // First party imports
+use super::widget_ids::*;
 use crate::exp::Neighborhood;
 
-// Move this into ui_state.rs
+/// The state of the UI. This tracks the widgets on screen, which menus are open, and values that
+/// have not been submitted yet.
 pub struct UIState {
     // All the widget ids seperated into different classes
     pub info_widgets: InfoWidgetId,
@@ -30,6 +32,7 @@ impl UIState {
     }
 }
 
+/// Enum that denotes which menu is currently open in the UI.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum OpenSettingsMenu {
     ViewerSettings,
@@ -37,6 +40,8 @@ pub enum OpenSettingsMenu {
     None,
 }
 
+/// Struct that tracks the state of the recompute button. Data from here
+/// is send to the explanation mechanism when you run it from the UI.
 pub struct RecomputeButtonState {
     pub neighborhood_type: NeighborhoodType,
     // Neighborhood size 10...50
@@ -92,7 +97,7 @@ impl From<&RecomputeButtonState> for Neighborhood {
     }
 }
 
-// Small enum used to denote which neighborhood type is currently being used.
+/// Small enum used to denote which neighborhood type is currently being used without actual values
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NeighborhoodType {
     K,

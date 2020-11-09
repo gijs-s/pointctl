@@ -1,4 +1,4 @@
-/// Trait / implementation of for loading in explanations into the data structure
+//! Trait / implementation of for loading in explanations into the data structure
 // First party imports
 use std::hash::Hash;
 

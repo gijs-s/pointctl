@@ -1,3 +1,5 @@
+//! Code containing the scene used by the future, this tracks the state of the entire program.
+
 // Build in imports
 use std::process::exit;
 

@@ -1,4 +1,4 @@
-/// A customer search method that returns the indexes of the k nearest points.
+//! A custom search method that returns the indexes of the k nearest points.
 
 /// Build in party imports
 use std::collections::HashSet;
