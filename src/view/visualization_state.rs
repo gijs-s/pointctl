@@ -168,9 +168,13 @@ impl VisualizationState3D {
             })
             .collect::<Vec<(Point3<f32>, Option<Point3<f32>>, Point3<f32>)>>();
 
+        // If all points have a normal we set the render to use normals.
+        self.renderer.set_shading(points_x_colors.iter().all(|(_, n, _)| n.is_some()));
+
         for (p, n, c) in points_x_colors {
             self.renderer.push(p, n,c);
         }
+
         self.renderer.sync_gpu_vector();
     }
 

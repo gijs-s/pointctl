@@ -26,6 +26,7 @@ pub struct PointRenderer3D {
     // Shader uniform
     proj_uniform: ShaderUniform<Matrix4<f32>>,
     view_uniform: ShaderUniform<Matrix4<f32>>,
+    eye_uniform: ShaderUniform<Point3<f32>>,
     alpha_texture_uniform: ShaderUniform<i32>,
     render_mode_uniform: ShaderUniform<i32>,
     size_uniform: ShaderUniform<f32>,
@@ -80,6 +81,9 @@ impl PointRenderer3D {
             view_uniform: shader
                 .get_uniform::<Matrix4<f32>>("view")
                 .expect("Failed to get 'view' shader attribute."),
+            eye_uniform: shader
+                .get_uniform::<Point3<f32>>("eye")
+                .expect("Failed to get 'eye' shader attribute."),
             size_uniform: shader
                 .get_uniform("size")
                 .expect("Failed to get 'size' uniform shader attribute"),
@@ -133,6 +137,10 @@ impl PointRenderer3D {
     /// Indicates whether some points have to be drawn.
     pub fn needs_rendering(&self) -> bool {
         self.gpu_vec.len() != 0 && self.visible
+    }
+
+    pub fn set_shading(&mut self, val: bool) {
+        self.normal_enabled = val;
     }
 
     // Turn off the rendering for this renderer and clear the screen.
@@ -284,6 +292,7 @@ impl Renderer for PointRenderer3D {
 
         // Load the current camera position to the shader
         camera.upload(pass, &mut self.proj_uniform, &mut self.view_uniform);
+        self.eye_uniform.upload(&camera.eye());
 
         // Set the texture
         self.alpha_texture_uniform.upload(&1);
@@ -321,7 +330,7 @@ impl Renderer for PointRenderer3D {
                     self.color_attribute
                         .bind_sub_buffer(&mut self.gpu_vec, 17, 1);
                     self.normal_attribute
-                        .bind_sub_buffer(&mut self.gpu_vec, 17, 1);
+                        .bind_sub_buffer(&mut self.gpu_vec, 17, 2);
                 } else {
                     self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 11, 0);
                     self.color_attribute
@@ -386,6 +395,7 @@ const VERTEX_SHADER_SRC_3D: &str = "#version 460
     // Uniform variables for all vertices.
     uniform mat4 proj;
     uniform mat4 view;
+    uniform vec3 eye;
     uniform float size;
     uniform int renderMode;
     uniform int normalEnabled;
@@ -438,13 +448,13 @@ const VERTEX_SHADER_SRC_3D: &str = "#version 460
     vec3 get_shaded_color(vec3 point_position, vec3 normal) {
         // Use of shading with normals is turned off
         if (normalEnabled == 0) {
-            return color;
+            return normal;
         // Shading it turned on, compute the new color. here
         // the camera position is used as light position.
         } else {
-            vec3 camera_position = view[3].xyz;
-            vec3 dir = normalize(camera_position - point_position);
-            float shading = max(0, dot(normal, -dir));
+            vec3 dir = normalize(eye - point_position);
+            vec3 norm = normalize(normal);
+            float shading = abs(dot(norm, -dir));
             return vec3(color.xy, shading * color.z);
         }
     }
