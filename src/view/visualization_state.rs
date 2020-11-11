@@ -40,7 +40,8 @@ impl VisualizationState3D {
 
         // Create the renderer and add all the points:
         let nn_distance = point_container.find_average_nearest_neighbor_distance();
-        let mut point_renderer = PointRenderer3D::new(4.0, nn_distance, &point_container);
+        let mut point_renderer = PointRenderer3D::new(4.0, nn_distance);
+        // This might not be needed when computing the normals
         for p in point_container.point_data.iter() {
             point_renderer.push(p.low, None, ColorMap::default_color());
         }
@@ -100,6 +101,12 @@ impl VisualizationState3D {
             eprintln!("Color map for {} is not yet loaded", mode.to_str());
             false
         }
+    }
+
+    pub fn calculate_normals(&mut self) {
+        let normals = exp::calculate_normals(&self.point_container);
+        self.point_container.load(normals, ());
+        self.reload_renderer_colors();
     }
 
     pub fn run_explanation_mode(
@@ -169,6 +176,7 @@ impl VisualizationState3D {
             .collect::<Vec<(Point3<f32>, Option<Point3<f32>>, Point3<f32>)>>();
 
         // If all points have a normal we set the render to use normals.
+        // TODO: Setting this here might not be that useful, we might want to disable it later.
         self.renderer.set_shading(points_x_colors.iter().all(|(_, n, _)| n.is_some()));
 
         for (p, n, c) in points_x_colors {

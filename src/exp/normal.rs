@@ -43,12 +43,7 @@ impl<'a> Explanation<NormalExplanation> for NormalState<'a> {
                 let neighborhood = self
                     .point_container
                     .get_neighbor_indices(index as u32, neighborhood_size);
-                let (minor_eigen_vector, eccentricity) = self.get_minor_eigen_vector(neighborhood);
-
-                NormalExplanation {
-                    normal: minor_eigen_vector,
-                    eccentricity,
-                }
+                self.get_explanation(neighborhood)
             })
             .collect::<Vec<NormalExplanation>>()
     }
@@ -60,7 +55,7 @@ impl<'a> NormalState<'a> {
         NormalState { point_container }
     }
 
-    fn get_minor_eigen_vector(&self, neighborhood_indices: Vec<u32>) -> (na::Point3<f32>, f32) {
+    fn get_explanation(&self, neighborhood_indices: Vec<u32>) -> NormalExplanation {
         // TODO: Clone is bad mkay move this into the trait!
         let neighbor_points: Vec<Vec<f32>> = neighborhood_indices
             .iter()
@@ -85,13 +80,13 @@ impl<'a> NormalState<'a> {
         let min = values.iter().fold(f32::INFINITY, |a, &b| a.min(b));
         let max = values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
 
-        (
-            na::Point3::<f32>::new(
+        NormalExplanation {
+            normal: na::Point3::<f32>::new(
                 vectors[(index, 0)],
                 vectors[(index, 1)],
                 vectors[(index, 2)],
             ),
-            min / max,
-        )
+            eccentricity: min / max,
+        }
     }
 }
