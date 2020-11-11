@@ -197,6 +197,13 @@ impl VisualizationState3D {
         self.renderer.sync_gpu_vector();
     }
 
+    /// Disable the shading
+    pub fn disable_shading(&mut self) {
+        self.renderer.set_shading(false);
+        self.color_maps.remove(&ExplanationMode::Normal);
+        self.reload_renderer_colors();
+    }
+
     pub fn get_default_camera() -> ArcBall {
         // Create arcball camera with custom FOV.
         let eye = Point3::new(0.0f32, 0.0, -1.5);

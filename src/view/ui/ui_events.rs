@@ -21,4 +21,5 @@ pub enum UIEvents {
     UpdateUISwitchNeighborhood,
     SwitchOpenMenu(OpenSettingsMenu),
     ToggleConfidenceNormalization,
+    DisableShading,
 }

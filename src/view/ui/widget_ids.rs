@@ -65,7 +65,9 @@ widget_ids! {
         button_explanation_2,
         button_explanation_3,
         button_explanation_4,
+        // - Compute the normals / shading
         button_normals,
+        button_disable_normals,
         // - Recompute the current metric
         text_recompute,
         button_recompute,

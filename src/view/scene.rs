@@ -415,6 +415,14 @@ impl Scene {
         self.current_render_mode().get_default_blob_size()
     }
 
+    /// Disable the shading if the 3D state is available
+    pub fn disable_shading(&mut self) {
+        match &mut self.state_3d {
+            Some(state) => state.disable_shading(),
+            None => ()
+        };
+    }
+
     fn handle_ui_input(&mut self, ui_events: Vec<UIEvents>) {
         for event in ui_events {
             match event {
@@ -449,6 +457,7 @@ impl Scene {
                 UIEvents::ToggleConfidenceNormalization => {
                     self.toggle_color_map_confidence_normalization()
                 }
+                UIEvents::DisableShading => self.disable_shading()
             }
         }
     }

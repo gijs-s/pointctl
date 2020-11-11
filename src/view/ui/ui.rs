@@ -438,7 +438,22 @@ fn draw_right_explanation_settings_menu<'a>(
     }
 
     // Show the compute normals button
-    let compute_mode_text = match scene.is_explanation_available(&ExplanationMode::Normal) {
+    let normal_enabled = scene.is_explanation_available(&ExplanationMode::Normal);
+
+    // Allow disabling the shading when it is turned on
+    if normal_enabled {
+        for _ in widget::Button::new()
+            .label("Disable shading")
+            .label_font_size(FONT_SIZE_SMALL)
+            .up_from(menu_ids.button_explanation_4, 7.0f64)
+            .w(BUTTON_WIDTH)
+            .h(BUTTON_HEIGHT - 2f64)
+            .set(menu_ids.button_disable_normals, &mut ui) {
+                event_queue.push(UIEvents::DisableShading);
+            }
+    }
+
+    let compute_mode_text = match normal_enabled {
         true => "Recompute the shading".to_string(),
         false => "Compute the shading".to_string()
     };
@@ -446,7 +461,7 @@ fn draw_right_explanation_settings_menu<'a>(
     for _ in widget::Button::new()
         .label(&compute_mode_text)
         .label_font_size(FONT_SIZE_SMALL)
-        .up_from(menu_ids.button_explanation_4, 3.0f64)
+        .up_from(if normal_enabled {menu_ids.button_disable_normals} else {menu_ids.button_explanation_4}, 3.0f64)
         .w(BUTTON_WIDTH)
         .h(BUTTON_HEIGHT - 2f64)
         .set(menu_ids.button_normals, &mut ui)
