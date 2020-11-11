@@ -419,7 +419,7 @@ impl Scene {
     pub fn disable_shading(&mut self) {
         match &mut self.state_3d {
             Some(state) => state.disable_shading(),
-            None => ()
+            None => (),
         };
     }
 
@@ -457,7 +457,7 @@ impl Scene {
                 UIEvents::ToggleConfidenceNormalization => {
                     self.toggle_color_map_confidence_normalization()
                 }
-                UIEvents::DisableShading => self.disable_shading()
+                UIEvents::DisableShading => self.disable_shading(),
             }
         }
     }

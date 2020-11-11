@@ -10,7 +10,10 @@ use rstar::RTree;
 use vpsearch::Tree as VPTree;
 
 /// First party imports
-use crate::{exp::{DaSilvaExplanation, NormalExplanation, VanDrielExplanation}, search::PointContainer};
+use crate::{
+    exp::{DaSilvaExplanation, NormalExplanation, VanDrielExplanation},
+    search::PointContainer,
+};
 
 /// Generic point struct that can be used to
 #[derive(Clone, Debug)]

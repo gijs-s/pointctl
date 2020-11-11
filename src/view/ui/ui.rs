@@ -407,7 +407,7 @@ fn draw_right_explanation_settings_menu<'a>(
         ExplanationMode::DaSilva(DaSilvaType::Variance) => 2usize,
         ExplanationMode::VanDriel(VanDrielType::MinimalVariance) => 3usize,
         ExplanationMode::VanDriel(VanDrielType::TotalVariance) => 4usize,
-        ExplanationMode::Normal => panic!("Scene cannot be explained by only the normals")
+        ExplanationMode::Normal => panic!("Scene cannot be explained by only the normals"),
     };
 
     button_texts.remove(drop_index);
@@ -448,30 +448,38 @@ fn draw_right_explanation_settings_menu<'a>(
             .up_from(menu_ids.button_explanation_4, 7.0f64)
             .w(BUTTON_WIDTH)
             .h(BUTTON_HEIGHT - 2f64)
-            .set(menu_ids.button_disable_normals, &mut ui) {
-                event_queue.push(UIEvents::DisableShading);
-            }
+            .set(menu_ids.button_disable_normals, &mut ui)
+        {
+            event_queue.push(UIEvents::DisableShading);
+        }
     }
 
     let compute_mode_text = match normal_enabled {
         true => "Recompute the shading".to_string(),
-        false => "Compute the shading".to_string()
+        false => "Compute the shading".to_string(),
     };
 
     for _ in widget::Button::new()
         .label(&compute_mode_text)
         .label_font_size(FONT_SIZE_SMALL)
-        .up_from(if normal_enabled {menu_ids.button_disable_normals} else {menu_ids.button_explanation_4}, 3.0f64)
+        .up_from(
+            if normal_enabled {
+                menu_ids.button_disable_normals
+            } else {
+                menu_ids.button_explanation_4
+            },
+            3.0f64,
+        )
         .w(BUTTON_WIDTH)
         .h(BUTTON_HEIGHT - 2f64)
         .set(menu_ids.button_normals, &mut ui)
-        {
-            event_queue.push(UIEvents::RunExplanationMode(
-                ExplanationMode::Normal,
-                Neighborhood::from(&scene.ui_state.recompute_state),
-                None
-            ));
-        }
+    {
+        event_queue.push(UIEvents::RunExplanationMode(
+            ExplanationMode::Normal,
+            Neighborhood::from(&scene.ui_state.recompute_state),
+            None,
+        ));
+    }
 
     // Allow recomputing the current metric if a explanation mode is set
     if scene.get_explanation_mode() != ExplanationMode::None {

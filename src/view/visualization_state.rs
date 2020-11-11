@@ -1,7 +1,7 @@
+use crate::exp;
 /// Module containing the current state of the 2D or 3D renderer.
 // Build in imports
 use crate::exp::NormalExplanation;
-use crate::exp;
 use std::collections::HashMap;
 
 // Third party imports
@@ -133,10 +133,12 @@ impl VisualizationState3D {
                 self.set_explanation_mode(mode);
             }
             (ExplanationMode::Normal, _) => {
-                let normal_explanation = exp::run_normals_calculation(&self.point_container, neighborhood_size);
+                let normal_explanation =
+                    exp::run_normals_calculation(&self.point_container, neighborhood_size);
                 self.load(normal_explanation, ());
                 // Insert the default color map so "is available" returns true for normals
-                self.color_maps.insert(ExplanationMode::Normal, ColorMap::default());
+                self.color_maps
+                    .insert(ExplanationMode::Normal, ColorMap::default());
                 self.renderer.set_shading(true);
                 self.reload_renderer_colors();
             }
@@ -177,10 +179,17 @@ impl VisualizationState3D {
                         let explanation: VanDrielExplanation = point_data.driel_total.unwrap();
                         color_map.get_color(explanation.dimension, explanation.confidence)
                     }
-                    ExplanationMode::Normal => panic!("The explanation mode should never be set to only normals")
+                    ExplanationMode::Normal => {
+                        panic!("The explanation mode should never be set to only normals")
+                    }
                 };
-                let normal = point_data.normal.and_then(|e|{
-                    Some(na::Point4::<f32>::new(e.normal.x, e.normal.y, e.normal.z, e.eccentricity))
+                let normal = point_data.normal.and_then(|e| {
+                    Some(na::Point4::<f32>::new(
+                        e.normal.x,
+                        e.normal.y,
+                        e.normal.z,
+                        e.eccentricity,
+                    ))
                 });
                 (point_data.low, normal, color)
             })
@@ -191,7 +200,7 @@ impl VisualizationState3D {
         // self.renderer.set_shading(points_x_colors.iter().all(|(_, n, _)| n.is_some()));
 
         for (p, n, c) in points_x_colors {
-            self.renderer.push(p, n,c);
+            self.renderer.push(p, n, c);
         }
 
         self.renderer.sync_gpu_vector();
@@ -340,7 +349,7 @@ impl VisualizationState2D {
             (ExplanationMode::DaSilva(method), _) => {
                 let da_silva_explanation =
                     exp::run_da_silva_2d(&self.point_container, neighborhood_size, method);
-            self.load(da_silva_explanation, method);
+                self.load(da_silva_explanation, method);
                 self.set_explanation_mode(mode);
             }
             (ExplanationMode::VanDriel(method), Some(t)) => {
@@ -386,7 +395,9 @@ impl VisualizationState2D {
                         let explanation: VanDrielExplanation = point_data.driel_total.unwrap();
                         color_map.get_color(explanation.dimension, explanation.confidence)
                     }
-                    ExplanationMode::Normal => panic!("Normals are never present in 2D Point containers")
+                    ExplanationMode::Normal => {
+                        panic!("Normals are never present in 2D Point containers")
+                    }
                 };
                 (point_data.low, color)
             })
