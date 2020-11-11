@@ -86,5 +86,5 @@ pub fn run_van_driel_3d<'a>(
 /// Calculate the normals of 3D points using its neighborhood
 pub fn calculate_normals<'a>(point_container_3d: &'a PointContainer3D) -> Vec<NormalExplanation> {
     let normal_mechanism = normal::NormalState::new(point_container_3d);
-    normal_mechanism.explain(Neighborhood::K(40))
+    normal_mechanism.explain(Neighborhood::K(50))
 }

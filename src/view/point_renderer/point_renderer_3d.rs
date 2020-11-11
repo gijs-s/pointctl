@@ -10,7 +10,6 @@ use kiss3d::{
 use na::{Matrix4, Point3};
 
 // Internal
-use crate::search::PointContainer3D;
 use super::{texture_creation::load_texture, PointRendererInteraction, RenderMode};
 
 pub struct PointRenderer3D {
@@ -19,6 +18,7 @@ pub struct PointRenderer3D {
     /// Data allocation
     point_data: Vec<PointData>,
     gpu_vec: GPUVec<Point3<f32>>,
+    normal_gpu_vec: GPUVec<Point3<f32>>,
     /// Shader attributes
     pos_attribute: ShaderAttribute<Point3<f32>>,
     color_attribute: ShaderAttribute<Point3<f32>>,
@@ -56,7 +56,7 @@ pub struct PointData {
 }
 
 impl PointRenderer3D {
-    pub fn new(default_point_size: f32, default_blob_size: f32, point_container: &PointContainer3D) -> PointRenderer3D {
+    pub fn new(default_point_size: f32, default_blob_size: f32) -> PointRenderer3D {
         let mut shader = Effect::new_from_str(VERTEX_SHADER_SRC_3D, FRAGMENT_SHADER_SRC_3D);
         shader.use_program();
 
@@ -65,6 +65,7 @@ impl PointRenderer3D {
             // 2 triangles in the continous render mode
             point_data: Vec::new(),
             gpu_vec: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
+            normal_gpu_vec: GPUVec::new(Vec::new(), BufferType::Array, AllocationType::StreamDraw),
             // Shader variables
             pos_attribute: shader
                 .get_attrib::<Point3<f32>>("position")
@@ -141,6 +142,7 @@ impl PointRenderer3D {
 
     pub fn set_shading(&mut self, val: bool) {
         self.normal_enabled = val;
+        self.dirty = true;
     }
 
     // Turn off the rendering for this renderer and clear the screen.
@@ -159,7 +161,7 @@ impl PointRenderer3D {
 
     // Retrieve the number of points
     pub fn num_points(&self) -> usize {
-        self.gpu_vec.len() / if self.normal_enabled { 3 } else { 2 }
+        self.gpu_vec.len() / 2
     }
 
     pub fn sort_point_if_needed(&mut self, camera: &dyn Camera) {
@@ -181,8 +183,18 @@ impl PointRenderer3D {
                 for _ in 0..6 {
                     points.push(point_data.point);
                     points.push(point_data.color);
-                    if self.normal_enabled {
-                        points.push(point_data.normal.expect("Normal not present while normals have been enabled"));
+                }
+            }
+        }
+
+        // If normals are enabled we add these to the normals vector
+        if self.normal_enabled {
+            for normals in self.normal_gpu_vec.data_mut().iter_mut() {
+                normals.clear();
+                for point_data in &self.point_data {
+                    for _ in 0..6 {
+                        let normal = point_data.normal.expect("Normal not present while normals have been enabled");
+                        normals.push(normal);
                     }
                 }
             }
@@ -289,6 +301,7 @@ impl Renderer for PointRenderer3D {
         // Enable the attributes
         self.pos_attribute.enable();
         self.color_attribute.enable();
+        self.normal_attribute.enable();
 
         // Load the current camera position to the shader
         camera.upload(pass, &mut self.proj_uniform, &mut self.view_uniform);
@@ -325,19 +338,14 @@ impl Renderer for PointRenderer3D {
 
                 // Set the point size
                 self.size_uniform.upload(&self.get_point_size());
-                if self.normal_enabled {
-                    self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 17, 0);
-                    self.color_attribute
-                        .bind_sub_buffer(&mut self.gpu_vec, 17, 1);
-                    self.normal_attribute
-                        .bind_sub_buffer(&mut self.gpu_vec, 17, 2);
-                } else {
-                    self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 11, 0);
-                    self.color_attribute
-                        .bind_sub_buffer(&mut self.gpu_vec, 11, 1);
-                }
 
-                ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32 / 6);
+                self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 11, 0);
+                self.color_attribute
+                    .bind_sub_buffer(&mut self.gpu_vec, 11, 1);
+                self.normal_attribute
+                    .bind_sub_buffer(&mut self.normal_gpu_vec, 5, 0);
+
+                verify!(ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32 / 6));
             }
             RenderMode::Continuous => {
                 // set the correct render mode in the shader.
@@ -350,16 +358,9 @@ impl Renderer for PointRenderer3D {
                 self.sort_point_if_needed(camera);
 
                 // The points and colours are interleaved in the same buffer
-                if self.normal_enabled {
-                    self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 2, 0);
-                    self.color_attribute
-                        .bind_sub_buffer(&mut self.gpu_vec, 2, 1);
-                    self.normal_attribute.bind_sub_buffer(&mut self.gpu_vec, 2, 2);
-                } else {
-                    self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 1, 0);
-                    self.color_attribute
-                        .bind_sub_buffer(&mut self.gpu_vec, 1, 1);
-                }
+                self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 1, 0);
+                self.color_attribute.bind_sub_buffer(&mut self.gpu_vec, 1, 1);
+                self.normal_attribute.bind_sub_buffer(&mut self.normal_gpu_vec, 0, 0);
 
                 // Set the correct drawing method of the polygons
                 let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));
@@ -380,13 +381,12 @@ impl Renderer for PointRenderer3D {
 
         self.pos_attribute.disable();
         self.color_attribute.disable();
+        self.normal_attribute.disable();
     }
 }
 
-/// The continous rendering needs work. The points are being drawn in an arbirary order, this causes trouble when blending.
-
 /// Vertex shader used by the point renderer
-const VERTEX_SHADER_SRC_3D: &str = "#version 460
+const VERTEX_SHADER_SRC_3D: &str = r#"#version 460
     // Input to this shader
     layout (location = 0) in vec3 position;
     layout (location = 1) in vec3 color;
@@ -445,18 +445,13 @@ const VERTEX_SHADER_SRC_3D: &str = "#version 460
     }
 
     // Get the color after the point was shaded
-    vec3 get_shaded_color(vec3 point_position, vec3 normal) {
-        // Use of shading with normals is turned off
-        if (normalEnabled == 0) {
-            return normal;
+    vec3 get_shaded_color(vec3 point_position) {
         // Shading it turned on, compute the new color. here
         // the camera position is used as light position.
-        } else {
-            vec3 dir = normalize(eye - point_position);
-            vec3 norm = normalize(normal);
-            float shading = abs(dot(norm, -dir));
-            return vec3(color.xy, shading * color.z);
-        }
+        vec3 dir = normalize(eye - point_position);
+        vec3 norm = normalize(normal);
+        float shading = abs(dot(norm, -dir));
+        return vec3(color.xy, color.z * shading);
     }
 
     // Render method used when using the discreet representation
@@ -472,7 +467,7 @@ const VERTEX_SHADER_SRC_3D: &str = "#version 460
         if (normalEnabled == 0) {
             PointColor = color;
         } else {
-            PointColor = get_shaded_color(position, normal);
+            PointColor = get_shaded_color(position);
         }
     }
 
@@ -490,7 +485,7 @@ const VERTEX_SHADER_SRC_3D: &str = "#version 460
         if (normalEnabled == 0) {
             PointColor = color;
         } else {
-            PointColor = get_shaded_color(position, normal);
+            PointColor = get_shaded_color(position);
         }
 
         // Make the texture coordinate available to the fragment shader.
@@ -503,10 +498,10 @@ const VERTEX_SHADER_SRC_3D: &str = "#version 460
         } else {
             render_continuos();
         }
-    }";
+    }"#;
 
 /// Fragment shader used by the point renderer
-const FRAGMENT_SHADER_SRC_3D: &str = "#version 460
+const FRAGMENT_SHADER_SRC_3D: &str = r#"#version 460
 #ifdef GL_FRAGMENT_PRECISION_HIGH
    precision highp float;
 #else
@@ -570,4 +565,4 @@ const FRAGMENT_SHADER_SRC_3D: &str = "#version 460
         } else {
             render_continuos();
         }
-    }";
+    }"#;
