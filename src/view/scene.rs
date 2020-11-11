@@ -70,6 +70,7 @@ impl Scene {
     /// Load the 3D visualization state using the da silva explanations
     pub fn load_3d(&mut self, points_container: PointContainer3D) {
         self.state_3d = Some(VisualizationState3D::new(points_container));
+        self.dimensionality_mode = DimensionalityMode::ThreeD;
         self.dirty = true;
     }
 
