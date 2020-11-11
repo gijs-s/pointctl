@@ -1223,7 +1223,7 @@ dependencies = [
 
 [[package]]
 name = "pointctl"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "approx",
  "clap",
