@@ -149,7 +149,7 @@ pub fn eigen_values(covariance_matrix: na::DMatrix<f32>) -> Option<(Vec<f32>, na
         return None;
     };
 
-    let eig = na::linalg::SymmetricEigen::new(covariance_matrix.clone());
+    let eig = na::linalg::SymmetricEigen::new(covariance_matrix);
     let eigen_values = eig.eigenvalues.data.as_vec().clone();
     let eigen_vectors = eig.eigenvectors;
 
