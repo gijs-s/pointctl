@@ -82,9 +82,9 @@ impl<'a> NormalState<'a> {
 
         NormalExplanation {
             normal: na::Point3::<f32>::new(
-                vectors[(index, 0)],
-                vectors[(index, 1)],
-                vectors[(index, 2)],
+                vectors[(0, index)],
+                vectors[(1, index)],
+                vectors[(2, index)],
             ),
             eccentricity: min / max,
         }

@@ -80,10 +80,17 @@ pub fn draw_info_text<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<
     let info_ids = &scene.ui_state.info_widgets;
 
     // Display the current explanation mode
-    let explanation_mode_text = format!(
-        "Explanation mode: {}",
-        scene.get_explanation_mode().to_str()
-    );
+    let explanation_mode_text = match scene.is_explanation_available(&ExplanationMode::Normal) {
+        true => format!(
+            "Explanation mode: {} (with shading)",
+            scene.get_explanation_mode().to_str()
+        ),
+        false => format!(
+            "Explanation mode: {}",
+            scene.get_explanation_mode().to_str()
+        ),
+    };
+
     widget::Text::new(&explanation_mode_text)
         .font_size(FONT_SIZE)
         .top_left()
@@ -392,6 +399,7 @@ fn draw_right_explanation_settings_menu<'a>(
         menu_ids.button_explanation_3,
         menu_ids.button_explanation_4,
     ];
+
     // find the index I should drop
     let drop_index = match scene.get_explanation_mode() {
         ExplanationMode::None => 0usize,
@@ -399,6 +407,7 @@ fn draw_right_explanation_settings_menu<'a>(
         ExplanationMode::DaSilva(DaSilvaType::Variance) => 2usize,
         ExplanationMode::VanDriel(VanDrielType::MinimalVariance) => 3usize,
         ExplanationMode::VanDriel(VanDrielType::TotalVariance) => 4usize,
+        ExplanationMode::Normal => panic!("Scene cannot be explained by only the normals")
     };
 
     button_texts.remove(drop_index);
@@ -428,12 +437,33 @@ fn draw_right_explanation_settings_menu<'a>(
         }
     }
 
+    // Show the compute normals button
+    let compute_mode_text = match scene.is_explanation_available(&ExplanationMode::Normal) {
+        true => "Recompute the shading".to_string(),
+        false => "Compute the shading".to_string()
+    };
+
+    for _ in widget::Button::new()
+        .label(&compute_mode_text)
+        .label_font_size(FONT_SIZE_SMALL)
+        .up_from(menu_ids.button_explanation_4, 3.0f64)
+        .w(BUTTON_WIDTH)
+        .h(BUTTON_HEIGHT - 2f64)
+        .set(menu_ids.button_normals, &mut ui)
+        {
+            event_queue.push(UIEvents::RunExplanationMode(
+                ExplanationMode::Normal,
+                Neighborhood::from(&scene.ui_state.recompute_state),
+                None
+            ));
+        }
+
     // Allow recomputing the current metric if a explanation mode is set
     if scene.get_explanation_mode() != ExplanationMode::None {
         for _ in widget::Button::new()
             .label("Recompute current metric")
             .label_font_size(FONT_SIZE - 2)
-            .up_from(menu_ids.button_explanation_4, 3.0f64)
+            .up_from(menu_ids.button_normals, 3.0f64)
             .w(BUTTON_WIDTH)
             .h(BUTTON_HEIGHT - 2f64)
             .set(menu_ids.button_recompute, &mut ui)
@@ -466,7 +496,7 @@ fn draw_right_explanation_settings_menu<'a>(
             if scene.get_explanation_mode() != ExplanationMode::None {
                 menu_ids.button_recompute
             } else {
-                menu_ids.button_explanation_4
+                menu_ids.button_normals
             },
             7.0f64,
         )

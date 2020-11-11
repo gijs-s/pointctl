@@ -1,5 +1,6 @@
 /// Module containing the current state of the 2D or 3D renderer.
 // Build in imports
+use crate::exp::NormalExplanation;
 use crate::exp;
 use std::collections::HashMap;
 
@@ -93,6 +94,10 @@ impl VisualizationState3D {
 
     /// Set the explanation mode and reload the points in the renderer using the correct coloring mode.
     pub fn set_explanation_mode(&mut self, mode: ExplanationMode) -> bool {
+        if mode == ExplanationMode::Normal {
+            panic!("Explanation mode should never be set to only normals, this can only be caused by a programming error");
+        }
+
         if self.is_explanation_available(&mode) {
             self.explanation = mode;
             self.reload_renderer_colors();
@@ -101,12 +106,6 @@ impl VisualizationState3D {
             eprintln!("Color map for {} is not yet loaded", mode.to_str());
             false
         }
-    }
-
-    pub fn calculate_normals(&mut self) {
-        let normals = exp::calculate_normals(&self.point_container);
-        self.point_container.load(normals, ());
-        self.reload_renderer_colors();
     }
 
     pub fn run_explanation_mode(
@@ -132,6 +131,14 @@ impl VisualizationState3D {
                     exp::run_van_driel_3d(&self.point_container, neighborhood_size, t, method);
                 self.load(van_driel_explanation, method);
                 self.set_explanation_mode(mode);
+            }
+            (ExplanationMode::Normal, _) => {
+                let normal_explanation = exp::run_normals_calculation(&self.point_container, neighborhood_size);
+                self.load(normal_explanation, ());
+                // Insert the default color map so "is available" returns true for normals
+                self.color_maps.insert(ExplanationMode::Normal, ColorMap::default());
+                self.renderer.set_shading(true);
+                self.reload_renderer_colors();
             }
             (ExplanationMode::VanDriel(_), None) => {
                 panic!("Tried to compute van driel without passing theta")
@@ -170,14 +177,18 @@ impl VisualizationState3D {
                         let explanation: VanDrielExplanation = point_data.driel_total.unwrap();
                         color_map.get_color(explanation.dimension, explanation.confidence)
                     }
+                    ExplanationMode::Normal => panic!("The explanation mode should never be set to only normals")
                 };
-                (point_data.low, point_data.normal.and_then(|e| Some(e.normal)), color)
+                let normal = point_data.normal.and_then(|e|{
+                    Some(na::Point4::<f32>::new(e.normal.x, e.normal.y, e.normal.z, e.eccentricity))
+                });
+                (point_data.low, normal, color)
             })
-            .collect::<Vec<(Point3<f32>, Option<Point3<f32>>, Point3<f32>)>>();
+            .collect::<Vec<(Point3<f32>, Option<na::Point4<f32>>, Point3<f32>)>>();
 
         // If all points have a normal we set the render to use normals.
         // TODO: Setting this here might not be that useful, we might want to disable it later.
-        self.renderer.set_shading(points_x_colors.iter().all(|(_, n, _)| n.is_some()));
+        // self.renderer.set_shading(points_x_colors.iter().all(|(_, n, _)| n.is_some()));
 
         for (p, n, c) in points_x_colors {
             self.renderer.push(p, n,c);
@@ -215,6 +226,12 @@ impl Load<Vec<VanDrielExplanation>, VanDrielType> for VisualizationState3D {
             .insert(ExplanationMode::VanDriel(mode), color_map);
         self.point_container.load(explanations, mode);
         self.set_explanation_mode(ExplanationMode::VanDriel(mode));
+    }
+}
+
+impl Load<Vec<NormalExplanation>, ()> for VisualizationState3D {
+    fn load(&mut self, explanations: Vec<NormalExplanation>, _: ()) {
+        self.point_container.load(explanations, ());
     }
 }
 
@@ -316,7 +333,7 @@ impl VisualizationState2D {
             (ExplanationMode::DaSilva(method), _) => {
                 let da_silva_explanation =
                     exp::run_da_silva_2d(&self.point_container, neighborhood_size, method);
-                self.load(da_silva_explanation, method);
+            self.load(da_silva_explanation, method);
                 self.set_explanation_mode(mode);
             }
             (ExplanationMode::VanDriel(method), Some(t)) => {
@@ -328,7 +345,7 @@ impl VisualizationState2D {
             (ExplanationMode::VanDriel(_), None) => {
                 panic!("Tried to compute van driel without passing theta")
             }
-            (ExplanationMode::None, _) => (),
+            (_, _) => (),
         }
     }
 
@@ -362,6 +379,7 @@ impl VisualizationState2D {
                         let explanation: VanDrielExplanation = point_data.driel_total.unwrap();
                         color_map.get_color(explanation.dimension, explanation.confidence)
                     }
+                    ExplanationMode::Normal => panic!("Normals are never present in 2D Point containers")
                 };
                 (point_data.low, color)
             })

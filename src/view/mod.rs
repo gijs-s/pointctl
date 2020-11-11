@@ -51,6 +51,7 @@ pub enum ExplanationMode {
     None,
     DaSilva(DaSilvaType),
     VanDriel(VanDrielType),
+    Normal,
 }
 
 impl ExplanationMode {
@@ -66,6 +67,7 @@ impl ExplanationMode {
             ExplanationMode::VanDriel(VanDrielType::TotalVariance) => {
                 "Van Driel (total)".to_string()
             }
+            ExplanationMode::Normal => "Normal".to_string(),
         }
     }
 }
@@ -80,6 +82,7 @@ impl TryFrom<&str> for ExplanationMode {
             "driel_sum" => Ok(ExplanationMode::VanDriel(VanDrielType::TotalVariance)),
             "driel_min" => Ok(ExplanationMode::VanDriel(VanDrielType::MinimalVariance)),
             "none" => Ok(ExplanationMode::None),
+            "normal" => Ok(ExplanationMode::Normal),
             v => Err(format!("Could not create explanation mode from '{}'", v)),
         }
     }

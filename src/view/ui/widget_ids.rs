@@ -65,6 +65,7 @@ widget_ids! {
         button_explanation_2,
         button_explanation_3,
         button_explanation_4,
+        button_normals,
         // - Recompute the current metric
         text_recompute,
         button_recompute,

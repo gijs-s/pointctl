@@ -7,7 +7,7 @@ use kiss3d::{
         AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform, Texture,
     },
 };
-use na::{Matrix4, Point3};
+use na::{Matrix4, Point3, Point4};
 
 // Internal
 use super::{texture_creation::load_texture, PointRendererInteraction, RenderMode};
@@ -18,11 +18,11 @@ pub struct PointRenderer3D {
     /// Data allocation
     point_data: Vec<PointData>,
     gpu_vec: GPUVec<Point3<f32>>,
-    normal_gpu_vec: GPUVec<Point3<f32>>,
+    normal_gpu_vec: GPUVec<Point4<f32>>,
     /// Shader attributes
     pos_attribute: ShaderAttribute<Point3<f32>>,
     color_attribute: ShaderAttribute<Point3<f32>>,
-    normal_attribute: ShaderAttribute<Point3<f32>>,
+    normal_attribute: ShaderAttribute<Point4<f32>>,
     // Shader uniform
     proj_uniform: ShaderUniform<Matrix4<f32>>,
     view_uniform: ShaderUniform<Matrix4<f32>>,
@@ -51,7 +51,8 @@ pub struct PointRenderer3D {
 pub struct PointData {
     pub point: Point3<f32>,
     pub color: Point3<f32>,
-    pub normal: Option<Point3<f32>>,
+    // 3D vector with eccentricity encoded into the 4th 'w' value
+    pub normal: Option<Point4<f32>>,
     pub projected_z: f32,
 }
 
@@ -74,7 +75,7 @@ impl PointRenderer3D {
                 .get_attrib::<Point3<f32>>("color")
                 .expect("Failed to get 'color' shader attribute."),
             normal_attribute: shader
-                .get_attrib::<Point3<f32>>("normal")
+                .get_attrib::<Point4<f32>>("normal")
                 .expect("Failed to get 'normal' shader attribute"),
             proj_uniform: shader
                 .get_uniform::<Matrix4<f32>>("proj")
@@ -117,7 +118,8 @@ impl PointRenderer3D {
     }
 
     /// Insert a single point with a color
-    pub fn push(&mut self, point: Point3<f32>, normal: Option<Point3<f32>>, color: Point3<f32>) {
+    /// Here the normal is a 3D vector with the eccentricity encoded into the 4th value
+    pub fn push(&mut self, point: Point3<f32>, normal: Option<Point4<f32>>, color: Point3<f32>) {
         self.point_data.push(PointData {
             point,
             color,
@@ -187,13 +189,12 @@ impl PointRenderer3D {
             }
         }
 
-        // If normals are enabled we add these to the normals vector
         if self.normal_enabled {
             for normals in self.normal_gpu_vec.data_mut().iter_mut() {
                 normals.clear();
                 for point_data in &self.point_data {
+                    let normal = point_data.normal.expect("Normal not present while normals have been enabled");
                     for _ in 0..6 {
-                        let normal = point_data.normal.expect("Normal not present while normals have been enabled");
                         normals.push(normal);
                     }
                 }
@@ -301,7 +302,10 @@ impl Renderer for PointRenderer3D {
         // Enable the attributes
         self.pos_attribute.enable();
         self.color_attribute.enable();
-        self.normal_attribute.enable();
+
+        if self.normal_enabled {
+            self.normal_attribute.enable();
+        }
 
         // Load the current camera position to the shader
         camera.upload(pass, &mut self.proj_uniform, &mut self.view_uniform);
@@ -342,9 +346,10 @@ impl Renderer for PointRenderer3D {
                 self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 11, 0);
                 self.color_attribute
                     .bind_sub_buffer(&mut self.gpu_vec, 11, 1);
-                self.normal_attribute
-                    .bind_sub_buffer(&mut self.normal_gpu_vec, 5, 0);
-
+                if self.normal_enabled {
+                    self.normal_attribute
+                        .bind_sub_buffer(&mut self.normal_gpu_vec, 5, 0);
+                }
                 verify!(ctxt.draw_arrays(Context::POINTS, 0, self.num_points() as i32 / 6));
             }
             RenderMode::Continuous => {
@@ -360,7 +365,10 @@ impl Renderer for PointRenderer3D {
                 // The points and colours are interleaved in the same buffer
                 self.pos_attribute.bind_sub_buffer(&mut self.gpu_vec, 1, 0);
                 self.color_attribute.bind_sub_buffer(&mut self.gpu_vec, 1, 1);
-                self.normal_attribute.bind_sub_buffer(&mut self.normal_gpu_vec, 0, 0);
+
+                if self.normal_enabled {
+                    self.normal_attribute.bind_sub_buffer(&mut self.normal_gpu_vec, 0, 0);
+                }
 
                 // Set the correct drawing method of the polygons
                 let _ = verify!(ctxt.polygon_mode(Context::FRONT_AND_BACK, Context::FILL));
@@ -381,7 +389,9 @@ impl Renderer for PointRenderer3D {
 
         self.pos_attribute.disable();
         self.color_attribute.disable();
-        self.normal_attribute.disable();
+        if self.normal_enabled {
+            self.normal_attribute.disable();
+        }
     }
 }
 
@@ -390,7 +400,8 @@ const VERTEX_SHADER_SRC_3D: &str = r#"#version 460
     // Input to this shader
     layout (location = 0) in vec3 position;
     layout (location = 1) in vec3 color;
-    layout (location = 2) in vec3 normal;
+    // 3D vector with the eccentricity encoded into the w
+    layout (location = 2) in vec4 normal;
 
     // Uniform variables for all vertices.
     uniform mat4 proj;
@@ -445,13 +456,21 @@ const VERTEX_SHADER_SRC_3D: &str = r#"#version 460
     }
 
     // Get the color after the point was shaded
+    // here the camera position is used as light position.
     vec3 get_shaded_color(vec3 point_position) {
-        // Shading it turned on, compute the new color. here
-        // the camera position is used as light position.
-        vec3 dir = normalize(eye - point_position);
-        vec3 norm = normalize(normal);
-        float shading = abs(dot(norm, -dir));
-        return vec3(color.xy, color.z * shading);
+        // We check the eccentricity before calculating the shading.
+        // Only if we are confident that the local area is like a plane
+        // we will shade it.
+        if (normal.w < 0.5) {
+            vec3 dir = normalize(eye - point_position);
+            vec3 norm = normalize(normal.xyz);
+            float shading = abs(dot(norm, -dir));
+            return vec3(color.xy, color.z * shading);
+        } else {
+            return color;
+        }
+
+
     }
 
     // Render method used when using the discreet representation
