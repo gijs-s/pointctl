@@ -1,3 +1,5 @@
+//! Code containing the scene used by the future, this tracks the state of the entire program.
+
 // Build in imports
 use std::process::exit;
 
@@ -68,7 +70,6 @@ impl Scene {
     /// Load the 3D visualization state using the da silva explanations
     pub fn load_3d(&mut self, points_container: PointContainer3D) {
         self.state_3d = Some(VisualizationState3D::new(points_container));
-        self.dimensionality_mode = DimensionalityMode::ThreeD;
         self.dirty = true;
     }
 
@@ -354,6 +355,7 @@ impl Scene {
                 },
             },
             ExplanationMode::VanDriel(_) => Some(format!("{} Dimension(s)", (index))),
+            ExplanationMode::Normal => None,
             ExplanationMode::None => None,
         }
     }
@@ -413,6 +415,14 @@ impl Scene {
         self.current_render_mode().get_default_blob_size()
     }
 
+    /// Disable the shading if the 3D state is available
+    pub fn disable_shading(&mut self) {
+        match &mut self.state_3d {
+            Some(state) => state.disable_shading(),
+            None => ()
+        };
+    }
+
     fn handle_ui_input(&mut self, ui_events: Vec<UIEvents>) {
         for event in ui_events {
             match event {
@@ -447,6 +457,7 @@ impl Scene {
                 UIEvents::ToggleConfidenceNormalization => {
                     self.toggle_color_map_confidence_normalization()
                 }
+                UIEvents::DisableShading => self.disable_shading()
             }
         }
     }

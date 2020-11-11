@@ -1,4 +1,4 @@
-// An enum that represents all possible actions that can originate from the UI
+//! File with an enum that represents all possible actions that can originate from the UI
 
 // Internal imports
 use super::ui_state::OpenSettingsMenu;
@@ -21,4 +21,5 @@ pub enum UIEvents {
     UpdateUISwitchNeighborhood,
     SwitchOpenMenu(OpenSettingsMenu),
     ToggleConfidenceNormalization,
+    DisableShading,
 }

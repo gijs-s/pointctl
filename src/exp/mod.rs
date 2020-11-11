@@ -1,4 +1,5 @@
-/// Module containing the explanation mechanisms used for the visualization.
+//! Module containing the explanation mechanisms used for the visualization.
+
 // Sub modules
 mod da_silva;
 mod driel;
@@ -18,6 +19,9 @@ use crate::search::{PointContainer2D, PointContainer3D};
 // First party imports
 use explanation::Explanation;
 
+/// The neighborhood used in the calculation, it could either be the radius
+/// or count based. Here the radius is normalized between 0 and 1 multiplied
+/// by the projection width. The count based just takes the K nearest neighbors
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Neighborhood {
     K(usize),
@@ -33,6 +37,7 @@ impl Neighborhood {
     }
 }
 
+/// Run the attribute based explanation in 2D
 pub fn run_da_silva_2d<'a>(
     point_container_2d: &'a PointContainer2D,
     neighborhood_size: Neighborhood,
@@ -43,6 +48,7 @@ pub fn run_da_silva_2d<'a>(
     da_silva_mechanism.explain(neighborhood_size)
 }
 
+/// Run the attribute based explanation in 3D
 pub fn run_da_silva_3d<'a>(
     point_container_3d: &'a PointContainer3D,
     neighborhood_size: Neighborhood,
@@ -53,6 +59,7 @@ pub fn run_da_silva_3d<'a>(
     da_silva_mechanism.explain(neighborhood_size)
 }
 
+/// Run the PCA based explanation in 2D
 pub fn run_van_driel_2d<'a>(
     point_container_2d: &'a PointContainer2D,
     neighborhood_size: Neighborhood,
@@ -64,6 +71,7 @@ pub fn run_van_driel_2d<'a>(
     van_driel_mechanism.explain(neighborhood_size)
 }
 
+/// Run the PCA based explanation in 3D
 pub fn run_van_driel_3d<'a>(
     point_container_3d: &'a PointContainer3D,
     neighborhood_size: Neighborhood,
@@ -75,7 +83,11 @@ pub fn run_van_driel_3d<'a>(
     van_driel_mechanism.explain(neighborhood_size)
 }
 
-pub fn run_normal_3d<'a>(point_container_3d: &'a PointContainer3D) -> Vec<NormalExplanation>{
+/// Calculate the normals of 3D points using its neighborhood
+pub fn run_normals_calculation<'a>(
+    point_container_3d: &'a PointContainer3D,
+    neighborhood_size: Neighborhood,
+) -> Vec<NormalExplanation> {
     let normal_mechanism = normal::NormalState::new(point_container_3d);
-    normal_mechanism.explain(Neighborhood::K(40))
+    normal_mechanism.explain(neighborhood_size)
 }

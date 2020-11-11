@@ -1,4 +1,5 @@
-extern crate nalgebra as na;
+//! All the code related to the color maps used in the program, these are used to convert a
+//! explanation to an actual color.
 
 // Buildin
 use crate::exp::{DaSilvaExplanation, VanDrielExplanation};

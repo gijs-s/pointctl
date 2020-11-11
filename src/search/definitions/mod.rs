@@ -1,6 +1,6 @@
+//! Module with all the data structures / definitions used throughout the search
+//! structures
 mod data;
-/// Module with all the data structures / definitions used throughout the search
-/// structures
 mod generic;
 mod rtree;
 mod vptree;

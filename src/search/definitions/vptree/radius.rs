@@ -1,5 +1,5 @@
-/// A customer search method that returns the indexes of all the points within a certain
-/// radius.
+//! A customer search method that returns the indexes of all the points within a certain
+//! radius.
 
 /// Build in party imports
 use std::collections::HashSet;

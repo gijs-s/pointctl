@@ -1,4 +1,5 @@
-/// Module pertaining to everything that happens in the viewer
+//! Module that wraps everything related to the viewer.
+
 // Sub modules
 mod color_map;
 mod point_renderer;
@@ -16,10 +17,10 @@ pub use self::{
 
 use crate::exp::{DaSilvaType, VanDrielType};
 
-//Build in imports
+// Build in imports
 use std::convert::TryFrom;
 
-// Dimensionality mode used by the program, determines which dimension the current viewer is in.
+/// Dimensionality mode used by the program, determines which dimension the current viewer is in.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum DimensionalityMode {
     ThreeD,
@@ -44,12 +45,13 @@ impl DimensionalityMode {
     }
 }
 
-// Explanation mode is used to denote which color map is currently being displayed
+/// Explanation mode is used to denote which color map is currently being displayed
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum ExplanationMode {
     None,
     DaSilva(DaSilvaType),
     VanDriel(VanDrielType),
+    Normal,
 }
 
 impl ExplanationMode {
@@ -65,6 +67,7 @@ impl ExplanationMode {
             ExplanationMode::VanDriel(VanDrielType::TotalVariance) => {
                 "Van Driel (total)".to_string()
             }
+            ExplanationMode::Normal => "Normal".to_string(),
         }
     }
 }
@@ -79,6 +82,7 @@ impl TryFrom<&str> for ExplanationMode {
             "driel_sum" => Ok(ExplanationMode::VanDriel(VanDrielType::TotalVariance)),
             "driel_min" => Ok(ExplanationMode::VanDriel(VanDrielType::MinimalVariance)),
             "none" => Ok(ExplanationMode::None),
+            "normal" => Ok(ExplanationMode::Normal),
             v => Err(format!("Could not create explanation mode from '{}'", v)),
         }
     }

@@ -1,3 +1,5 @@
+//! File containing all the widget ids. Every single element in the UI needs an ID and these are defined here.
+
 // Third party
 use kiss3d::conrod::widget_ids;
 
@@ -63,6 +65,9 @@ widget_ids! {
         button_explanation_2,
         button_explanation_3,
         button_explanation_4,
+        // - Compute the normals / shading
+        button_normals,
+        button_disable_normals,
         // - Recompute the current metric
         text_recompute,
         button_recompute,

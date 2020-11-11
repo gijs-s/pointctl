@@ -27,7 +27,7 @@ use crate::{
     util::math,
 };
 
-// Struct containing the outcome of the da Silva explanation for a single point
+/// Struct containing the outcome of the da Silva explanation for a single point
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct DaSilvaExplanation {
     // Attribute index is the index of which dimension in nD is most important for this point
@@ -90,14 +90,14 @@ impl DaSilvaExplanation {
     }
 }
 
-// Enum for the types of explanation metrics used in the da silva paper, Variance is beter.
+/// Enum for the types of explanation metrics used in the da silva paper, Variance is beter.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum DaSilvaType {
     Euclidean,
     Variance,
 }
 
-// Struct containing the state of the da silva mechanism
+/// Struct containing the state of the da silva mechanism
 pub struct DaSilvaState<'a, PC: PointContainer> {
     pub point_container: &'a PC,
     explanation_type: DaSilvaType,

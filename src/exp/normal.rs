@@ -1,5 +1,6 @@
-/// For the process of shading the points we need to calculate PCA in local 3D regions and return the eigenvector
-/// of the principal competent with the lowest eigenvalue.
+//! Retrieve the normal for the process of shading the points. Here we need to calculate PCA in local 3D \
+//! regions and return the eigenvector of the principal competent with the lowest eigenvalue.
+
 // Build in imports
 use std::cmp::Ordering;
 
@@ -14,10 +15,11 @@ use crate::{
     util::math,
 };
 
-#[allow(dead_code)]
+/// Struct containing the output of the normal explanation for a single point
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct NormalExplanation {
-    normal: na::Point3<f32>,
-    eccentricity: f32,
+    pub normal: na::Point3<f32>,
+    pub eccentricity: f32,
 }
 
 /// Struct containing the state of the van driel explanation mechanism
@@ -41,12 +43,7 @@ impl<'a> Explanation<NormalExplanation> for NormalState<'a> {
                 let neighborhood = self
                     .point_container
                     .get_neighbor_indices(index as u32, neighborhood_size);
-                let (minor_eigen_vector, eccentricity) = self.get_minor_eigen_vector(neighborhood);
-
-                NormalExplanation {
-                    normal: minor_eigen_vector,
-                    eccentricity,
-                }
+                self.get_explanation(neighborhood)
             })
             .collect::<Vec<NormalExplanation>>()
     }
@@ -58,7 +55,7 @@ impl<'a> NormalState<'a> {
         NormalState { point_container }
     }
 
-    fn get_minor_eigen_vector(&self, neighborhood_indices: Vec<u32>) -> (na::Point3<f32>, f32) {
+    fn get_explanation(&self, neighborhood_indices: Vec<u32>) -> NormalExplanation {
         // TODO: Clone is bad mkay move this into the trait!
         let neighbor_points: Vec<Vec<f32>> = neighborhood_indices
             .iter()
@@ -83,13 +80,13 @@ impl<'a> NormalState<'a> {
         let min = values.iter().fold(f32::INFINITY, |a, &b| a.min(b));
         let max = values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
 
-        (
-            na::Point3::<f32>::new(
-                vectors[(index, 0)],
-                vectors[(index, 1)],
-                vectors[(index, 2)],
+        NormalExplanation {
+            normal: na::Point3::<f32>::new(
+                vectors[(0, index)],
+                vectors[(1, index)],
+                vectors[(2, index)],
             ),
-            min / max,
-        )
+            eccentricity: min / max,
+        }
     }
 }
