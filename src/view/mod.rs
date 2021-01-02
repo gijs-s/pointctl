@@ -12,7 +12,9 @@ pub use self::{
     color_map::ColorMap,
     point_renderer::{PointRenderer2D, PointRenderer3D, PointRendererInteraction, RenderMode},
     scene::{display, Scene},
-    visualization_state::{VisualizationState2D, VisualizationState3D},
+    visualization_state::{
+        VisualizationState2D, VisualizationState3D, VisualizationStateInteraction,
+    },
 };
 
 use crate::exp::{DaSilvaType, VanDrielType};

@@ -15,7 +15,9 @@ use super::{
 };
 use crate::{
     exp::{DaSilvaType, Neighborhood, VanDrielType},
-    view::{ExplanationMode, RenderMode, Scene},
+    view::{
+        ExplanationMode, PointRendererInteraction, RenderMode, Scene, VisualizationStateInteraction,
+    },
 };
 
 // Font sizes

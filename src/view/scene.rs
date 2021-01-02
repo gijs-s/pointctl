@@ -23,8 +23,8 @@ use crate::{
     exp,
     search::{PointContainer, PointContainer2D, PointContainer3D},
     view::{
-        ui::draw_overlay, ColorMap, DimensionalityMode, PointRendererInteraction, RenderMode,
-        VisualizationState2D, VisualizationState3D,
+        ui::draw_overlay, ColorMap, DimensionalityMode, PointRendererInteraction,
+        VisualizationState2D, VisualizationState3D, VisualizationStateInteraction,
     },
 };
 
@@ -93,20 +93,6 @@ impl Scene {
         }
     }
 
-    /// Reset the camera view of the current rendering mode
-    pub fn reset_camera(&mut self) {
-        match self.dimensionality_mode {
-            DimensionalityMode::ThreeD => match &mut self.state_3d {
-                Some(state) => state.camera = VisualizationState3D::get_default_camera(),
-                None => (),
-            },
-            DimensionalityMode::TwoD => match &mut self.state_2d {
-                Some(state) => state.camera = VisualizationState2D::get_default_camera(),
-                None => (),
-            },
-        }
-    }
-
     /// Switch the render mode of the visualization if possible.
     /// You can not switch if the accompanying state is not available.
     pub fn switch_dimensionality(&mut self) {
@@ -130,18 +116,18 @@ impl Scene {
         }
     }
 
-    /// Check if a given explanation mode is already loaded for the current state
-    pub fn is_explanation_available(&self, mode: &ExplanationMode) -> bool {
+    /// Retrieve the current state
+    pub fn current_state(&self) -> &dyn VisualizationStateInteraction {
         match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &self.state_2d {
-                Some(state) => state.is_explanation_available(&mode),
+                Some(state) => state,
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
                 }
             },
             DimensionalityMode::ThreeD => match &self.state_3d {
-                Some(state) => state.is_explanation_available(&mode),
+                Some(state) => state,
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
@@ -150,64 +136,18 @@ impl Scene {
         }
     }
 
-    pub fn get_explanation_mode(&self) -> ExplanationMode {
+    /// Retrieve the current state as mutable
+    pub fn current_state_mut(&mut self) -> &mut dyn VisualizationStateInteraction {
         match self.dimensionality_mode {
-            DimensionalityMode::TwoD => match &self.state_2d {
-                Some(state) => state.get_explanation_mode(),
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-            DimensionalityMode::ThreeD => match &self.state_3d {
-                Some(state) => state.get_explanation_mode(),
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-        }
-    }
-
-    pub fn set_explanation_mode(&mut self, mode: ExplanationMode) {
-        let success = match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &mut self.state_2d {
-                Some(state) => state.set_explanation_mode(mode),
+                Some(state) => state,
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
                 }
             },
             DimensionalityMode::ThreeD => match &mut self.state_3d {
-                Some(state) => state.set_explanation_mode(mode),
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-        };
-        if !success {
-            println!("Switching to rendering mode failed")
-        };
-    }
-
-    /// TODO: Move running the explanation mode into the state
-    pub fn run_explanation_mode(
-        &mut self,
-        mode: ExplanationMode,
-        neighborhood: exp::Neighborhood,
-        theta: Option<f32>,
-    ) {
-        match self.dimensionality_mode {
-            DimensionalityMode::TwoD => match &mut self.state_2d {
-                Some(state) => state.run_explanation_mode(mode, neighborhood, theta),
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-            DimensionalityMode::ThreeD => match &mut self.state_3d {
-                Some(state) => state.run_explanation_mode(mode, neighborhood, theta),
+                Some(state) => state,
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
@@ -216,106 +156,8 @@ impl Scene {
         }
     }
 
-    /// Retrieve the current rendering mode for interaction.
-    pub fn current_render_mode(&self) -> &dyn PointRendererInteraction {
-        match self.dimensionality_mode {
-            DimensionalityMode::TwoD => match &self.state_2d {
-                Some(state) => &state.renderer,
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-            DimensionalityMode::ThreeD => match &self.state_3d {
-                Some(state) => &state.renderer,
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-        }
-    }
-
-    /// Retrieve the current rendering mode for interaction.
-    pub fn current_render_mode_mut(&mut self) -> &mut dyn PointRendererInteraction {
-        match self.dimensionality_mode {
-            DimensionalityMode::TwoD => match &mut self.state_2d {
-                Some(state) => &mut state.renderer,
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-            DimensionalityMode::ThreeD => match &mut self.state_3d {
-                Some(state) => &mut state.renderer,
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-        }
-    }
-
-    /// Get the color map that is currently in use
-    pub fn get_current_color_map(&self) -> &ColorMap {
-        match self.dimensionality_mode {
-            DimensionalityMode::TwoD => match &self.state_2d {
-                Some(state) => &state.get_color_map(),
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-            DimensionalityMode::ThreeD => match &self.state_3d {
-                Some(state) => &state.get_color_map(),
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-        }
-    }
-
-    /// Set the confidence bounds on the current color map
-    pub fn set_color_map_confidence_bounds(&mut self, min: f32, max: f32) {
-        match self.dimensionality_mode {
-            DimensionalityMode::TwoD => match &mut self.state_2d {
-                Some(state) => state.set_color_confidence_bounds(min, max),
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-            DimensionalityMode::ThreeD => match &mut self.state_3d {
-                Some(state) => state.set_color_confidence_bounds(min, max),
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-        }
-    }
-
-    /// Toggle the confidence normalization in the current color map
-    pub fn toggle_color_map_confidence_normalization(&mut self) {
-        match self.dimensionality_mode {
-            DimensionalityMode::TwoD => match &mut self.state_2d {
-                Some(state) => state.toggle_color_confidence_normalization(),
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-            DimensionalityMode::ThreeD => match &mut self.state_3d {
-                Some(state) => state.toggle_color_confidence_normalization(),
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-        }
-    }
-
+    /// TODO: Move into VisualizationStateInteraction
+    /// Get the point count of the currently used state
     pub fn get_point_count(&self) -> usize {
         match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &self.state_2d {
@@ -361,61 +203,6 @@ impl Scene {
         }
     }
 
-    /// Switch between rendering the continous and discreet point cloud representation
-    pub fn switch_render_mode(&mut self) {
-        self.current_render_mode_mut().switch_render_mode();
-    }
-
-    /// Get the current rendering mode
-    pub fn get_current_render_mode(&self) -> RenderMode {
-        self.current_render_mode().get_current_render_mode()
-    }
-
-    /// Get the gamma which will be used to next render loop
-    pub fn get_gamma(&self) -> f32 {
-        self.current_render_mode().get_gamma()
-    }
-
-    /// Set the gamma which will be used to next render loop
-    pub fn set_gamma(&mut self, gamma: f32) {
-        self.current_render_mode_mut().set_gamma(gamma);
-    }
-
-    /// Get the default gamma value
-    pub fn get_default_gamma(&self) -> f32 {
-        self.current_render_mode().get_default_gamma()
-    }
-
-    /// Get the current point size
-    pub fn get_point_size(&self) -> f32 {
-        self.current_render_mode().get_point_size()
-    }
-
-    /// Set the point size
-    pub fn set_point_size(&mut self, size: f32) {
-        self.current_render_mode_mut().set_point_size(size);
-    }
-
-    /// Get the current point size
-    pub fn get_default_point_size(&self) -> f32 {
-        self.current_render_mode().get_default_point_size()
-    }
-
-    /// Get the current blob size
-    pub fn get_blob_size(&self) -> f32 {
-        self.current_render_mode().get_blob_size()
-    }
-
-    /// Set the blob size
-    pub fn set_blob_size(&mut self, size: f32) {
-        self.current_render_mode_mut().set_blob_size(size);
-    }
-
-    /// Get the default blob size
-    pub fn get_default_blob_size(&self) -> f32 {
-        self.current_render_mode().get_default_blob_size()
-    }
-
     /// Disable the shading if the 3D state is available
     pub fn disable_shading(&mut self) {
         match &mut self.state_3d {
@@ -435,7 +222,9 @@ impl Scene {
                 UIEvents::SetBlobSize(size) => self.set_blob_size(size),
                 UIEvents::SetGamma(gamma) => self.set_gamma(gamma),
                 UIEvents::SetColorBound(min, max) => self.set_color_map_confidence_bounds(min, max),
-                UIEvents::SetExplanationMode(mode) => self.set_explanation_mode(mode),
+                UIEvents::SetExplanationMode(mode) => {
+                    self.set_explanation_mode(mode);
+                }
                 // Running the explanation method
                 UIEvents::RunExplanationMode(mode, neighborhood, theta) => {
                     self.ui_state.recompute_state.update(neighborhood);
@@ -513,6 +302,69 @@ impl Scene {
         // from becoming even more bloated
         let events = draw_overlay(self, window);
         self.handle_ui_input(events);
+    }
+}
+
+/// All the interaction steps that can be done on the scene and are propegated to the
+/// current state.
+impl VisualizationStateInteraction for Scene {
+    /// Retrieve the current renderer used to show the points
+    fn current_render_mode(&self) -> &dyn PointRendererInteraction {
+        self.current_state().current_render_mode()
+    }
+
+    /// Retrieve the current renderer used to show the points as mutable
+    fn current_render_mode_mut(&mut self) -> &mut dyn PointRendererInteraction {
+        self.current_state_mut().current_render_mode_mut()
+    }
+
+    /// Reset the camera view of the current rendering mode
+    fn reset_camera(&mut self) {
+        self.current_state_mut().reset_camera()
+    }
+
+    /// Run the explanation for this state and load it for the current state
+    fn run_explanation_mode(
+        &mut self,
+        mode: ExplanationMode,
+        neighborhood_size: exp::Neighborhood,
+        theta: Option<f32>,
+    ) {
+        self.current_state_mut()
+            .run_explanation_mode(mode, neighborhood_size, theta);
+    }
+
+    /// Check if a given explanation mode is already loaded for the state
+    fn is_explanation_available(&self, mode: &ExplanationMode) -> bool {
+        self.current_state().is_explanation_available(mode)
+    }
+    /// Get the current explanation mode
+    fn get_explanation_mode(&self) -> ExplanationMode {
+        self.current_state().get_explanation_mode()
+    }
+    /// Set the explanation mode of the state to `mode` for the current state
+    fn set_explanation_mode(&mut self, mode: ExplanationMode) -> bool {
+        self.current_state_mut().set_explanation_mode(mode)
+    }
+
+    /// Get the color map that is currently in use
+    fn get_current_color_map(&self) -> &ColorMap {
+        self.current_state().get_current_color_map()
+    }
+    /// Set the confidence bounds on the current color map
+    fn set_color_map_confidence_bounds(&mut self, min: f32, max: f32) {
+        self.current_state_mut()
+            .set_color_map_confidence_bounds(min, max)
+    }
+    /// Toggle the confidence normalization in the current color map
+    fn toggle_color_map_confidence_normalization(&mut self) {
+        self.current_state_mut()
+            .toggle_color_map_confidence_normalization()
+    }
+
+    /// Get the point count of the currently used state
+    fn get_point_count(&self) -> usize {
+        self.current_state().get_point_count()
     }
 }
 
