@@ -21,7 +21,7 @@ use super::{
 };
 use crate::{
     exp,
-    search::{PointContainer, PointContainer2D, PointContainer3D},
+    search::{PointContainer2D, PointContainer3D},
     view::{
         ui::draw_overlay, ColorMap, DimensionalityMode, PointRendererInteraction,
         VisualizationState2D, VisualizationState3D, VisualizationStateInteraction,

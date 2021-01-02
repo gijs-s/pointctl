@@ -16,7 +16,8 @@ use super::{
 use crate::{
     exp::{DaSilvaType, Neighborhood, VanDrielType},
     view::{
-        ExplanationMode, PointRendererInteraction, RenderMode, Scene, VisualizationStateInteraction,
+        DimensionalityMode, ExplanationMode, PointRendererInteraction, RenderMode, Scene,
+        VisualizationStateInteraction,
     },
 };
 
@@ -439,56 +440,64 @@ fn draw_right_explanation_settings_menu<'a>(
         }
     }
 
-    // Show the compute normals button
-    let normal_enabled = scene.is_explanation_available(&ExplanationMode::Normal);
+    // If we are in the 3D scene we will show the shading buttons, else we skip it.
+    let last_buttom_id = match scene.dimensionality_mode {
+        DimensionalityMode::ThreeD => {
+            // Show the compute normals button
+            let normal_enabled = scene.is_explanation_available(&ExplanationMode::Normal);
 
-    // Allow disabling the shading when it is turned on
-    if normal_enabled {
-        for _ in widget::Button::new()
-            .label("Disable shading")
-            .label_font_size(FONT_SIZE_SMALL)
-            .up_from(menu_ids.button_explanation_4, 7.0f64)
-            .w(BUTTON_WIDTH)
-            .h(BUTTON_HEIGHT - 2f64)
-            .set(menu_ids.button_disable_normals, &mut ui)
-        {
-            event_queue.push(UIEvents::DisableShading);
-        }
-    }
-
-    let compute_mode_text = match normal_enabled {
-        true => "Recompute the shading".to_string(),
-        false => "Compute the shading".to_string(),
-    };
-
-    for _ in widget::Button::new()
-        .label(&compute_mode_text)
-        .label_font_size(FONT_SIZE_SMALL)
-        .up_from(
+            // Allow disabling the shading when it is turned on
             if normal_enabled {
-                menu_ids.button_disable_normals
-            } else {
-                menu_ids.button_explanation_4
-            },
-            3.0f64,
-        )
-        .w(BUTTON_WIDTH)
-        .h(BUTTON_HEIGHT - 2f64)
-        .set(menu_ids.button_normals, &mut ui)
-    {
-        event_queue.push(UIEvents::RunExplanationMode(
-            ExplanationMode::Normal,
-            Neighborhood::from(&scene.ui_state.recompute_state),
-            None,
-        ));
-    }
+                for _ in widget::Button::new()
+                    .label("Disable shading")
+                    .label_font_size(FONT_SIZE_SMALL)
+                    .up_from(menu_ids.button_explanation_4, 7.0f64)
+                    .w(BUTTON_WIDTH)
+                    .h(BUTTON_HEIGHT - 2f64)
+                    .set(menu_ids.button_disable_normals, &mut ui)
+                {
+                    event_queue.push(UIEvents::DisableShading);
+                }
+            }
+
+            let compute_mode_text = match normal_enabled {
+                true => "Recompute the shading".to_string(),
+                false => "Compute the shading".to_string(),
+            };
+
+            for _ in widget::Button::new()
+                .label(&compute_mode_text)
+                .label_font_size(FONT_SIZE_SMALL)
+                .up_from(
+                    if normal_enabled {
+                        menu_ids.button_disable_normals
+                    } else {
+                        menu_ids.button_explanation_4
+                    },
+                    3.0f64,
+                )
+                .w(BUTTON_WIDTH)
+                .h(BUTTON_HEIGHT - 2f64)
+                .set(menu_ids.button_normals, &mut ui)
+            {
+                event_queue.push(UIEvents::RunExplanationMode(
+                    ExplanationMode::Normal,
+                    Neighborhood::from(&scene.ui_state.recompute_state),
+                    None,
+                ));
+            }
+
+            menu_ids.button_normals
+        }
+        DimensionalityMode::TwoD => menu_ids.button_explanation_4,
+    };
 
     // Allow recomputing the current metric if a explanation mode is set
     if scene.get_explanation_mode() != ExplanationMode::None {
         for _ in widget::Button::new()
             .label("Recompute current metric")
             .label_font_size(FONT_SIZE - 2)
-            .up_from(menu_ids.button_normals, 3.0f64)
+            .up_from(last_buttom_id, 3.0f64)
             .w(BUTTON_WIDTH)
             .h(BUTTON_HEIGHT - 2f64)
             .set(menu_ids.button_recompute, &mut ui)
@@ -521,7 +530,7 @@ fn draw_right_explanation_settings_menu<'a>(
             if scene.get_explanation_mode() != ExplanationMode::None {
                 menu_ids.button_recompute
             } else {
-                menu_ids.button_normals
+                last_buttom_id
             },
             7.0f64,
         )
