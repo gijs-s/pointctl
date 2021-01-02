@@ -96,23 +96,15 @@ impl Scene {
     /// Switch the render mode of the visualization if possible.
     /// You can not switch if the accompanying state is not available.
     pub fn switch_dimensionality(&mut self) {
-        match self.dimensionality_mode {
-            // Only switch to 2D if the 2d state is available
-            DimensionalityMode::TwoD => match self.state_3d.is_some() {
-                true => {
-                    self.dimensionality_mode = DimensionalityMode::ThreeD;
-                    self.dirty = true;
-                }
-                false => println!("Cannot switch to 3D since there is no 3D state loaded"),
-            },
-            // Only switch to 3D if the 3D state is available
-            DimensionalityMode::ThreeD => match self.state_2d.is_some() {
-                true => {
-                    self.dimensionality_mode = DimensionalityMode::TwoD;
-                    self.dirty = true
-                }
-                false => println!("Cannot switch to 2D since there is no 2D state loaded"),
-            },
+        match self.dimension_switch_available() {
+            true => {
+                self.dimensionality_mode = self.dimensionality_mode.inverse();
+                self.dirty = true;
+            }
+            false => println!(
+                "Cannot switch to {0} since there is no {0} state loaded",
+                self.dimensionality_mode.to_str()
+            ),
         }
     }
 
@@ -148,27 +140,6 @@ impl Scene {
             },
             DimensionalityMode::ThreeD => match &mut self.state_3d {
                 Some(state) => state,
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-        }
-    }
-
-    /// TODO: Move into VisualizationStateInteraction
-    /// Get the point count of the currently used state
-    pub fn get_point_count(&self) -> usize {
-        match self.dimensionality_mode {
-            DimensionalityMode::TwoD => match &self.state_2d {
-                Some(state) => state.point_container.get_point_count(),
-                None => {
-                    eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
-                    exit(41);
-                }
-            },
-            DimensionalityMode::ThreeD => match &self.state_3d {
-                Some(state) => state.point_container.get_point_count(),
                 None => {
                     eprint!("There is no state available for the Dimensionality the scene is set to, this should not be possible");
                     exit(41);
