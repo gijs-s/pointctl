@@ -38,6 +38,8 @@ mod buttons {
     pub const RESET_VIEW: Key = Key::R;
     pub const QUIT: Key = Key::Q;
     pub const ESC: Key = Key::Escape;
+    pub const INCREASE_SCROLL_SENS: Key = Key::RBracket;
+    pub const DECREASE_SCROLL_SENS: Key = Key::LBracket;
 }
 
 pub struct Scene {
@@ -243,6 +245,14 @@ impl Scene {
                         self.switch_render_mode()
                     }
                 }
+                WindowEvent::Key(buttons::INCREASE_SCROLL_SENS, Action::Release, _) => {
+                    println!("Increasing scrolling sensitivity");
+                    self.scale_camera_step(2.0);
+                }
+                | WindowEvent::Key(buttons::DECREASE_SCROLL_SENS, Action::Release, _) => {
+                    println!("Decreasing scrolling sensitivity");
+                    self.scale_camera_step(0.5);
+                }
                 WindowEvent::Key(buttons::ESC, Action::Release, _)
                 | WindowEvent::Key(buttons::QUIT, Action::Release, _)
                 | WindowEvent::Close => {
@@ -336,6 +346,11 @@ impl VisualizationStateInteraction for Scene {
     /// Get the point count of the currently used state
     fn get_point_count(&self) -> usize {
         self.current_state().get_point_count()
+    }
+
+    /// Scale the current camera step size
+    fn scale_camera_step(&mut self, scale: f32) {
+        self.current_state_mut().scale_camera_step(scale)
     }
 }
 

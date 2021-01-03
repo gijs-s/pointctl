@@ -45,6 +45,9 @@ pub trait VisualizationStateInteraction {
 
     /// Get the point count of the state
     fn get_point_count(&self) -> usize;
+
+    /// Scale the current camera step size
+    fn scale_camera_step(&mut self, scale: f32);
 }
 
 impl<T> PointRendererInteraction for T

@@ -203,6 +203,11 @@ impl VisualizationStateInteraction for VisualizationState2D {
     fn get_point_count(&self) -> usize {
         self.point_container.get_point_count()
     }
+
+    /// Scale the current camera step size
+    fn scale_camera_step(&mut self, scale: f32) {
+        self.camera.set_zoom_step(self.camera.zoom_step() * scale);
+    }
 }
 
 impl Load<Vec<DaSilvaExplanation>, DaSilvaType> for VisualizationState2D {
