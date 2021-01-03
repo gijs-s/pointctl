@@ -745,7 +745,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 [[package]]
 name = "kiss3d"
 version = "0.24.1"
-source = "git+https://github.com/gijs-s/kiss3d#dbdd3d4bbd3a9da5060761d1a713348fb231a52a"
+source = "git+https://github.com/gijs-s/kiss3d?branch=master#72ec7343300ad9eebd21d5347364285d7f47dbed"
 dependencies = [
  "bitflags",
  "conrod_core",
