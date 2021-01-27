@@ -7,7 +7,7 @@ use pc::search::{PointContainer2D, PointContainer3D};
 use std::{convert::TryFrom, path::Path, process::exit};
 
 // Third party imports
-use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
+use clap::{crate_version, App, Arg, ArgMatches, SubCommand, AppSettings};
 
 // Local imports
 use pc::{
@@ -179,6 +179,7 @@ fn main() {
                         .help("Sets the output file to use"),
                 ),
         )
+        .setting(AppSettings::SubcommandRequiredElseHelp)
         .get_matches();
 
     match matches.subcommand() {

@@ -21,8 +21,6 @@ pub struct ColorMap {
     // Dimension ranks (inverse map). This maps a color index to the dimension
     // TODO: store dimension name instead
     inverse_map: HashMap<usize, usize>,
-    // Ordinal map, convert rank to the sorted dimension order. Only used when set to ordinal
-    ordinal_map: HashMap<usize, usize>,
     // Min max values for the confidence, used for normalization
     static_normalization_bounds: (f32, f32),
     // Min max values actually used to render the images, this can be set to
@@ -62,7 +60,6 @@ impl Default for ColorMap {
         ColorMap {
             map: HashMap::<usize, usize>::new(),
             inverse_map: HashMap::<usize, usize>::new(),
-            ordinal_map: HashMap::<usize, usize>::new(),
             normalization_bounds: (0.0, 1.0),
             static_normalization_bounds: (0.0, 1.0),
             use_normalization: true,
@@ -78,30 +75,37 @@ impl ColorMap {
         dimension_ranking: Vec<usize>,
         mode: ColoringMode,
     ) -> ColorMap {
+        // Maps a rank to a dimension
+        // Maps a dimension to a rank.
         let mut map = HashMap::<usize, usize>::new();
         let mut inverse_map = HashMap::<usize, usize>::new();
-        for (index, &dim) in dimension_ranking.iter().enumerate() {
-            map.insert(dim, index);
-            inverse_map.insert(index, dim);
-        }
 
-        // For the first 7 find the ordinal ordering of the actual dimension number per rank.
-        // This ensures that the ordering of colors for dimensions is correct when ordinal mode is used.
-        let ordinal_map: HashMap<usize, usize> = {
-            let mut rankings: Vec<(usize, usize)> =
-                dimension_ranking.into_iter().take(8).enumerate().collect();
-            rankings.sort_by(|(_, a), (_, b)| a.cmp(&b));
-            rankings
-                .into_iter()
-                .enumerate()
-                .map(|(a, (b, _))| (b, a))
-                .collect::<HashMap<usize, usize>>()
+        match mode {
+            ColoringMode::Categorical => {
+                for (index, &dim) in dimension_ranking.iter().enumerate() {
+                    map.insert(dim, index);
+                    inverse_map.insert(index, dim);
+                }
+            },
+            // For the ordinal mapping we need to find the 8 dimensions that are
+            // used the most, then we will have to sort these based on the actual
+            // dimension numbers.
+            ColoringMode::Ordinal => {
+                let mut rankings: Vec<usize> = dimension_ranking.into_iter().take(8).collect();
+                rankings.sort_by(|a, b| a.cmp(&b));
+                for (index, &dim) in rankings.iter().enumerate() {
+                    map.insert(dim, index);
+                    inverse_map.insert(index, dim);
+                }
+            }
         };
+
+        println!("{:?}", map);
+        println!("{:?}", inverse_map);
 
         ColorMap {
             map,
             inverse_map,
-            ordinal_map,
             normalization_bounds: (min_confidence, max_confidence),
             static_normalization_bounds: (min_confidence, max_confidence),
             use_normalization: true,
@@ -128,32 +132,30 @@ impl ColorMap {
 
     /// Convert a dimension rank to a color. The ordering is as follows:
     /// Pink, Yellow, Dark red, Green, Blue, Orange, Purple and Crimson brown.
-    /// Grey is used for all ranks that are not in the top 8.
+    /// Grey is used for all ranks that are not in the top 8. When in ordinal
+    /// we simply use the rank as an index.
     pub fn rank_to_color(&self, rank: &usize) -> Point3<f32> {
         match self.mode {
             // Ordinal color mode
             ColoringMode::Ordinal => {
-                if rank > &7usize {
-                    Point3::new(0.00000, 0.00000, 0.60000)
-                } else {
-                    let colored_dimensions = (self.dimension_count()).min(8usize) as f32 - 1f32;
-                    let index = self
-                        .ordinal_map
-                        .get(rank)
-                        .expect("Could not find entry in ordinal map");
-                    {}
-                    let hue: f32 = (2f32 / 3f32)
-                        - if colored_dimensions == 0f32 {
-                            0f32
+                // Rank is zero based, we only color up to rank 7.
+                match rank {
+                    r if r > &7usize => Point3::new(0.00000, 0.00000, 0.60000),
+                    r => {
+                        let color_float: f32 = *r as f32;
+                        let colored_dimensions = (self.dimension_count()).min(8usize) as f32 - 1f32;
+                        if colored_dimensions == 0f32 {
+                            Point3::new(2f32 / 3f32, 1f32, 1f32)
                         } else {
-                            *index as f32 * ((2f32 / 3f32) / colored_dimensions)
-                        };
-                    if hue.is_nan() {
-                        println!("{} - {}", colored_dimensions, index);
+                            let hue = (2f32 / 3f32) -  (color_float * ((2f32 / 3f32) / colored_dimensions));
+                            if hue.is_nan() || hue < 0.0f32 || hue > 1.032 {
+                                println!("Faulty hue found, index: {}, colored_dims: {}", r, colored_dimensions)
+                            }
+                            Point3::new(hue, 1f32, 1f32)
+                        }
                     }
-                    Point3::new(hue, 1f32, 1f32)
                 }
-            }
+            },
             // Categorical color mode
             ColoringMode::Categorical => match rank {
                 0 => Point3::new(0.91243, 0.47774, 0.96863), // f781bf Pink

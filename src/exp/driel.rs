@@ -36,6 +36,7 @@ impl VanDrielExplanation {
             return Vec::<usize>::new();
         }
 
+        // Dimensions are 1 indexed, not 0
         let max_dimension_index = explanations.iter().map(|exp| exp.dimension).max().unwrap() + 1;
         let mut ranking_counts = explanations
             .iter()
@@ -46,9 +47,11 @@ impl VanDrielExplanation {
                 acc
             })
             .into_iter()
-            // Add an index to the count of each dimension
+            // Add an index to the count of each dimension and skip dimension 0.
             .enumerate()
+            .skip(1)
             .filter(|(_, count)| count != &0usize)
+            // .map(|(index, count)| (index, count))
             .collect::<Vec<(usize, usize)>>();
 
         // Sort desc

@@ -216,11 +216,12 @@ impl PointRenderer3D {
     }
 
     fn get_projected_z_value(point: &Point3<f32>, camera: &dyn Camera) -> f32 {
-        // TODO: This is very slow, it needs fixing.
         let h_world_coord = point.to_homogeneous();
         let h_camera_point = camera.transformation() * h_world_coord;
-        let projected_point = Point3::from_homogeneous(h_camera_point).unwrap();
-        projected_point.z
+        match  Point3::from_homogeneous(h_camera_point) {
+            Some(projected_point) => projected_point.z,
+            None => f32::NEG_INFINITY
+        }
     }
 }
 
@@ -472,7 +473,8 @@ const VERTEX_SHADER_SRC_3D: &str = r#"#version 460
             float shading = abs(dot(norm, -dir));
             return vec3(color.xy, color.z * shading);
         } else {
-            return color;
+            float shading = 0.5;
+            return vec3(color.xy, color.z * shading);
         }
 
 
