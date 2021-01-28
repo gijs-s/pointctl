@@ -191,15 +191,15 @@ impl<'a, PC: PointContainer> VanDrielState<'a, PC> {
             .map(|index| self.point_container.get_nd_point(*index).clone())
             .collect();
         // Get eigen values
-        let mut eigenvalues = math::eigen_values_from_points(&neighbor_points).unwrap();
+        let eigenvalues_raw = math::eigen_values_from_points(&neighbor_points).unwrap();
+
         // Get the absolute eigen values keeping only the finite values
-        // let mut eigenvalues: Vec<f32> = eigenvalues
-        //     .into_iter()
-        //     .map(|v| if v.is_finite() { v } else { 0.0 })
-        //     .collect();
+        let mut eigenvalues: Vec<f32> = eigenvalues_raw
+            .into_iter()
+            .map(|v| if v.is_finite() { v } else { 0.0 })
+            .collect();
         // Sort in descending order
         eigenvalues.sort_by(|a, b| b.partial_cmp(&a).unwrap_or(Ordering::Equal));
-        // println!("{:?}", eigenvalues);
         eigenvalues
     }
 

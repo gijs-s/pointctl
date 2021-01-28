@@ -16,10 +16,9 @@ enum ColoringMode {
 /// Everything related to the colors in the visualization
 #[derive(Debug, PartialEq, Clone)]
 pub struct ColorMap {
-    // Map of dimension to a color index
+    // Map of dimension index to a color index
     map: HashMap<usize, usize>,
     // Dimension ranks (inverse map). This maps a color index to the dimension
-    // TODO: store dimension name instead
     inverse_map: HashMap<usize, usize>,
     // Min max values for the confidence, used for normalization
     static_normalization_bounds: (f32, f32),
@@ -45,12 +44,14 @@ impl From<&Vec<DaSilvaExplanation>> for ColorMap {
 impl From<&Vec<VanDrielExplanation>> for ColorMap {
     fn from(explanations: &Vec<VanDrielExplanation>) -> Self {
         let (min, max) = VanDrielExplanation::confidence_bounds(&explanations);
-        ColorMap::new(
+        let mut map = ColorMap::new(
             min,
             max,
             VanDrielExplanation::calculate_dimension_rankings(&explanations),
             ColoringMode::Ordinal,
-        )
+        );
+        map.toggle_confidence_normalisation();
+        map
     }
 }
 
@@ -99,9 +100,6 @@ impl ColorMap {
                 }
             }
         };
-
-        println!("{:?}", map);
-        println!("{:?}", inverse_map);
 
         ColorMap {
             map,

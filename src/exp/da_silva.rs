@@ -224,10 +224,10 @@ impl<'a, PC: PointContainer> DaSilvaState<'a, PC> {
         // TODO: Do we include self in the confidence score? assume no for now.
         DaSilvaExplanation {
             attribute_index: point_dim,
-            confidence: if !neighborhood_indices.is_empty() {
-                correct_count as f32 / neighborhood_indices.len() as f32
-            } else {
+            confidence: if neighborhood_indices.is_empty() {
                 0.0f32
+            } else {
+                correct_count as f32 / neighborhood_indices.len() as f32
             },
         }
     }
