@@ -363,7 +363,7 @@ if __name__ == "__main__":
             raw_file_path=(
                 base_dir / "raw" / "default of credit card clients.xls"
             ).resolve(),
-            clean_file_path=(base_dir / "defaultcc.csv").resolve(),
+            clean_file_path=(base_dir / "defaultcc" / "defaultcc.csv").resolve(),
             processing_function=process_defaultcc,
         ),
         Dataset(
