@@ -43,7 +43,7 @@ pub trait PointRendererInteraction {
     fn reset_gamma(&mut self);
     /// Retrieve the default gamma value, alsmost always 2.2
     fn get_default_gamma(&self) -> f32 {
-        2.2f32
+        2.0f32
     }
 
     /// Get/set the point size used in the discreet rendering
@@ -63,4 +63,11 @@ pub trait PointRendererInteraction {
     fn reset_blob_size(&mut self);
     /// Retrieve the blob size's initial value
     fn get_default_blob_size(&self) -> f32;
+
+    /// Get the shading intensity
+    fn get_shading_intensity(&self) -> f32 { self.get_default_shading_intensity() }
+    /// Set the shading intensity
+    fn set_shading_intensity(&mut self, _intensity: f32) { }
+    /// Get the default shading intensity
+    fn get_default_shading_intensity(&self) -> f32 { 1.0f32 }
 }

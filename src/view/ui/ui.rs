@@ -769,8 +769,8 @@ fn draw_right_viewer_settings_menu<'a>(
     };
 
     let color_map = scene.get_current_color_map();
-    match (scene.get_explanation_mode(), color_map.use_normalization) {
-        (ExplanationMode::None, _) => (),
+    let last_id = match (scene.get_explanation_mode(), color_map.use_normalization) {
+        (ExplanationMode::None, _) => menu_ids.text_size_slider,
         // The current color map makes use of normalization
         (_, true) => {
             // Turn off the normalization
@@ -823,6 +823,10 @@ fn draw_right_viewer_settings_menu<'a>(
                 .up_from(menu_ids.slider_color_normalization, 3.0f64)
                 .w_of(menu_ids.button_size_reset)
                 .set(menu_ids.text_color_normalization_bounds, &mut ui);
+
+
+            // return the last id used so we can continue from it
+            menu_ids.text_color_normalization_bounds
         }
         (_, false) => {
             // Turn on the normalization
@@ -836,8 +840,40 @@ fn draw_right_viewer_settings_menu<'a>(
             {
                 event_queue.push(UIEvents::ToggleConfidenceNormalization);
             }
+
+            // return the last id used so we can continue from it
+            menu_ids.button_color_normalization_toggle
         }
-    }
+    };
+
+    // If the shading is available, allow the user to dial in the intensity
+    if scene.is_explanation_available(&ExplanationMode::Normal) {
+        // Slider for the shading intensity
+        let mut text_slider_value = scene.get_shading_intensity().to_string();
+        text_slider_value.truncate(5);
+
+        if let Some(intensity) = widget::Slider::new(
+                scene.get_shading_intensity(), 0f32, 1f32
+            )
+            .label(&text_slider_value)
+            .label_font_size(FONT_SIZE - 1)
+            .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
+            .h(SLIDER_HEIGHT)
+            .w(SLIDER_WIDTH)
+            .up_from(last_id, 7.0f64)
+            .set(menu_ids.slider_shading_intensity, &mut ui)
+            {
+                event_queue.push(UIEvents::SetShadingIntensity(intensity))
+            };
+
+        // Confidence bounds helper text
+        widget::Text::new("Shading intensity:")
+            .font_size(FONT_SIZE_SMALL)
+            .up_from(menu_ids.slider_shading_intensity, 3.0f64)
+            .w(BUTTON_WIDTH)
+            .set(menu_ids.text_shading_intensity, &mut ui);
+
+    };
 
     (ui, event_queue)
 }

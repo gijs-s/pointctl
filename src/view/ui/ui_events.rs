@@ -15,6 +15,8 @@ pub enum UIEvents {
     SetGamma(f32),
     SetColorBound(f32, f32),
     SetTheta(f32),
+    SetShadingIntensity(f32),
+    // SetShadingEccentricityBound(f32),
     SetExplanationMode(ExplanationMode),
     RunExplanationMode(ExplanationMode, Neighborhood, Option<f32>),
     UpdateUINeighborhood(Neighborhood),

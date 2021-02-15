@@ -30,6 +30,7 @@ pub struct PointRenderer3D {
     alpha_texture_uniform: ShaderUniform<i32>,
     render_mode_uniform: ShaderUniform<i32>,
     size_uniform: ShaderUniform<f32>,
+    shading_intensity_uniform: ShaderUniform<f32>,
     gamma_uniform: ShaderUniform<f32>,
     normal_enabled_uniform: ShaderUniform<i32>,
     // Normal variables
@@ -38,6 +39,7 @@ pub struct PointRenderer3D {
     // Tuple that in the first element stores the current value and in the second the initial value.
     point_size: (f32, f32),
     blob_size: (f32, f32),
+    shading_intensity: f32,
     visible: bool,
     pub render_mode: RenderMode,
     normal_enabled: bool,
@@ -89,6 +91,9 @@ impl PointRenderer3D {
             size_uniform: shader
                 .get_uniform("size")
                 .expect("Failed to get 'size' uniform shader attribute"),
+            shading_intensity_uniform: shader
+                .get_uniform("shading_intensity")
+                .expect("Failed to get 'shading_intensity' uniform shader attribute"),
             alpha_texture_uniform: shader
                 .get_uniform("alphaTexture")
                 .expect("Failed to get 'alphaTexture' uniform shader attribute"),
@@ -104,9 +109,10 @@ impl PointRenderer3D {
             // Shader itself
             shader,
             // GL variables with default values
-            gamma: 2.0,
+            gamma: 2.0f32,
             point_size: (default_point_size, default_point_size),
             blob_size: (default_blob_size, default_blob_size),
+            shading_intensity: 1.0f32,
             // Variable to set when skipping all rendering while keeping data loaded.
             visible: true,
             alpha_texture: load_texture(),
@@ -290,6 +296,16 @@ impl PointRendererInteraction for PointRenderer3D {
     fn get_default_blob_size(&self) -> f32 {
         self.blob_size.1
     }
+
+    /// Get the shading intensity
+    fn get_shading_intensity(&self) -> f32 {
+        self.shading_intensity
+    }
+
+    /// Set the shading intensity
+    fn set_shading_intensity(&mut self, intensity: f32) {
+        self.shading_intensity = intensity
+    }
 }
 
 impl Renderer for PointRenderer3D {
@@ -322,6 +338,9 @@ impl Renderer for PointRenderer3D {
 
         // Set the gamma
         self.gamma_uniform.upload(&self.gamma);
+
+        // Set the shading intensity
+        self.shading_intensity_uniform.upload(&self.shading_intensity);
 
         let ctxt = Context::get();
 
@@ -414,6 +433,7 @@ const VERTEX_SHADER_SRC_3D: &str = r#"#version 460
     uniform mat4 view;
     uniform vec3 eye;
     uniform float size;
+    uniform float shading_intensity;
     uniform int renderMode;
     uniform int normalEnabled;
 
@@ -471,13 +491,13 @@ const VERTEX_SHADER_SRC_3D: &str = r#"#version 460
             vec3 dir = normalize(eye - point_position);
             vec3 norm = normalize(normal.xyz);
             float shading = abs(dot(norm, -dir));
-            return vec3(color.xy, color.z * shading);
+            float z = mix(color.z * shading, color.z, 1 - shading_intensity);
+            return vec3(color.xy, z);
         } else {
             float shading = 0.5;
-            return vec3(color.xy, color.z * shading);
+            float z = mix(color.z * shading, color.z, 1 - shading_intensity);
+            return vec3(color.xy, z);
         }
-
-
     }
 
     // Render method used when using the discreet representation

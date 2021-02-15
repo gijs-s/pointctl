@@ -220,7 +220,14 @@ impl Scene {
                 UIEvents::ToggleConfidenceNormalization => {
                     self.toggle_color_map_confidence_normalization()
                 }
-                UIEvents::DisableShading => self.disable_shading(),
+                UIEvents::DisableShading => {
+                    self.set_shading_intensity(self.get_default_shading_intensity());
+                    self.disable_shading();
+                },
+                UIEvents::SetShadingIntensity(intensity) => self.set_shading_intensity({
+                    let t = intensity.max(0.0).min(1.0);
+                    (t * 200f32) as i32 as f32 / 200f32
+                }),
             }
         }
     }

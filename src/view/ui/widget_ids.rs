@@ -60,6 +60,9 @@ widget_ids! {
         text_gamma_slider,
         button_gamma_reset,
         slider_gamma,
+        // - Shading configuration
+        text_shading_intensity,
+        slider_shading_intensity,
         // - Calculate da silva / van driel button
         button_explanation_1,
         button_explanation_2,
