@@ -18,8 +18,8 @@ kiss3d = { git = "https://github.com/gijs-s/kiss3d", branch = "master", features
 # kiss3d = { path = '../kiss3d', features = ['conrod']}
 nalgebra = "0.21.1"
 # Used for generarting random points
-rand = "^0.7"
-rand_distr = "*"
+rand = "*"
+rand_distr = "0.4.0"
 # A n-dimensional r*-tree implementation. Used for fast nearest neighbors
 rstar = "0.8.2"
 # A fast vantage point tree implementation used for fast nearest neighbors

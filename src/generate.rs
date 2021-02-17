@@ -1,8 +1,7 @@
 //! Helper for generating synthetic datasets from scratch.
 
-use rand::rngs::ThreadRng;
-use rand::Rng;
-use rand_distr::{Distribution, Normal};
+use rand::{Rng, rngs::ThreadRng};
+use rand_distr::{Normal, Distribution};
 
 /// Create a vector of points that each have 0 zero axis.
 ///
@@ -28,7 +27,7 @@ pub fn generate_cube(points: i32, noise: f32) -> Vec<Vec<f32>> {
             normal.sample(&mut rng),
         ];
         // Rotate the vector so the zero axis differs
-        coords.rotate_left(rng.gen_range(0, 3));
+        coords.rotate_left(rng.gen_range(0..3));
         // Add new point to the result.
         res.push(coords);
     }
@@ -56,7 +55,7 @@ pub fn generate_hyper_cube(points: i32, noise: f32) -> Vec<Vec<f32>> {
             normal.sample(&mut rng),
         ];
         // Rotate the vector so the zero axis differs
-        coords.rotate_left(rng.gen_range(0, 4));
+        coords.rotate_left(rng.gen_range(0..4));
         // Add new point to the result.
         res.push(coords);
     }
