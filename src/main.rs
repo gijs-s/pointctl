@@ -25,9 +25,6 @@ fn main() {
         .author("Gijs van Steenpaal <g.j.vansteenpaal@students.uu.nl>")
         .about("Program for generating, processing and explaining point clouds")
         .subcommand(
-            SubCommand::with_name("reduce").about("Reduce a nD dataset to 2D or 3D"),
-        )
-        .subcommand(
             SubCommand::with_name("explain")
                 .alias("exp")
                 .about("Calculate a explanation given the original and reduced dataset. \
@@ -40,7 +37,7 @@ fn main() {
                         .long("input")
                         .required(true)
                         .takes_value(true)
-                        .help("The original dataset in ply or csv format"),
+                        .help("The original dataset in csv format (; as delimiter)"),
                 )
                 .arg(
                     Arg::with_name("reduced_data")
@@ -48,7 +45,7 @@ fn main() {
                         .long("reduced")
                         .required(true)
                         .takes_value(true)
-                        .help("The reduced dataset in ply or csv format"),
+                        .help("The reduced dataset in csv format (; as delimiter)"),
                 ).arg(
                     Arg::with_name("mechanism")
                         .short("m")
@@ -99,23 +96,23 @@ fn main() {
                     Arg::with_name("OUTPUT_FILE")
                     .index(1)
                     .required(true)
-                    .help("Set the file to output the explained data to")
+                    .help("Set the file to output the explained data to (ply or csv format)")
                 ),
         )
         .subcommand(
             SubCommand::with_name("view")
                 .about(
-                    "Allows you to view 3D data points given the original data, reduced points and \
-                    the annotations. This command assumes that the reduced points, original data and \
-                    annotations have matching indexes. The to start the viewer you need to provide the \
-                    original data and either a 2d or 3d reduced set.")
+                    "Allows you to view 3D data points given the original data and reduced points. This \
+                    command assumes that the reduced points, original data have matching indexes. \
+                    With the viewer running you can run the explanation algorithms and view them directly. \
+                    To start the viewer you need to provide the original data combined the 2d and/or 3d reduced set.")
                 .arg(
                     Arg::with_name("original_data")
                         .short("i")
                         .long("input")
                         .required(true)
                         .takes_value(true)
-                        .help("The original dataset in ply or csv format"),
+                        .help("The original dataset in csv format (; as delimiter)"),
                 )
                 .arg(
                     Arg::with_name("reduced_data_2d")
@@ -123,7 +120,7 @@ fn main() {
                         .long("r2d")
                         .required_unless("reduced_data_3d")
                         .takes_value(true)
-                        .help("The 2D reduced dataset in ply or csv format"),
+                        .help("The 2D reduced dataset in csv format (; as delimiter)"),
                 )
                 .arg(
                     Arg::with_name("reduced_data_3d")
@@ -131,7 +128,7 @@ fn main() {
                         .long("r3d")
                         .required_unless("reduced_data_2d")
                         .takes_value(true)
-                        .help("The 3D reduced dataset in ply or csv format"),
+                        .help("The 3D reduced dataset in csv format (; as delimiter)"),
                 )
                 .arg(
                     Arg::with_name("jobs")

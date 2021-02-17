@@ -34,7 +34,7 @@ For the rendering library you will also need `libxcb-xinput-dev` and `libxcb1-de
 
 ## Python
 
-My program also uses a python 3.{7,8} and `pipenv` for the python packages. To use this you might need to install the `deadsnakes` ppa if you are not on Ubuntu 20.04. Instruction on can be found here: https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa. After you can install `pipenv` according to this guide: https://pipenv-fork.readthedocs.io/en/latest/install.html#installing-pipenv.
+This is not needed for the main program, it is used for quick debugging and prepoccesing of datasets. If you do want to make use of this offline part of the pipeline you wil need python 3.7/3.8 for the scripts and `pipenv` for the python packages. To use this you might need to install the `deadsnakes` ppa which includes if you are not on Ubuntu 20.04. Instruction on can be found here: https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa. After you can install `pipenv` according to this guide: https://pipenv-fork.readthedocs.io/en/latest/install.html#installing-pipenv.
 
 When this installed running `pipenv sync` in the `jupyter/` will create a virtual python environment that contains all the dependencies. This directory is currently used for some quick protyping and to call ScikitLearn functions. Running the `./run.sh` script will start a jupyter interactive python site that you can use for this.
 

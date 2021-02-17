@@ -1,3 +1,5 @@
+//! Build addition that allows us to compile the nvidia kernels into ptx files that can be
+//! used for FFI calls later. This is currently not in use.
 use std::process::Command;
 
 fn main() {

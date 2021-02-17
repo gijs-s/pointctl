@@ -1,6 +1,6 @@
 [package]
 name = "pointctl"
-version = "0.6.2"
+version = "0.7.0"
 authors = ["Gijs van Steenpaal <gijs.van.steenpaal@gmail.com>"]
 edition = "2018"
 readme = "README.md"
@@ -32,7 +32,6 @@ num-traits = "*"
 indicatif = { version = "^0.15", features = ["rayon"]}
 # Used for data-parallelism in some explanation mechanisms
 rayon = "1.5.0"
-
 
 # Used for calling CUDA FFI
 # rustacuda = "0.1"
