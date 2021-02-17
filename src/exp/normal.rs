@@ -64,29 +64,41 @@ impl<'a> NormalState<'a> {
                 vec![p.x, p.y, p.z]
             })
             .collect();
-        // Get the covariance matrix and the eigen values / vectors
-        let cov_matrix = math::covariance_matrix(&neighbor_points)
-            .expect("Could not calculate the covariance matrix");
-        let (values, vectors) =
-            math::eigen_values(cov_matrix).expect("Could not calculate the eigen values");
 
-        // Return the minimal 3D eigen vector.
-        let (index, _) = values
-            .iter()
-            .enumerate()
-            .min_by(|(_, val_a), (_, val_b)| val_a.partial_cmp(&val_b).unwrap_or(Ordering::Equal))
-            .unwrap();
 
-        let min = values.iter().fold(f32::INFINITY, |a, &b| a.min(b));
-        let max = values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+        match neighbor_points.len() {
+            // We cannot do anything without a neighborhood
+            0 => NormalExplanation {
+                 normal: na::Point3::<f32>::new(1f32, 0f32,0f32),
+                 eccentricity: 1f32
+            },
+            _ => {
+                // Get the covariance matrix and the eigen values / vectors
+                let cov_matrix = math::covariance_matrix(&neighbor_points)
+                    .expect("Could not calculate the covariance matrix");
+                let (values, vectors) =
+                    math::eigen_values(cov_matrix).expect("Could not calculate the eigen values");
 
-        NormalExplanation {
-            normal: na::Point3::<f32>::new(
-                vectors[(0, index)],
-                vectors[(1, index)],
-                vectors[(2, index)],
-            ),
-            eccentricity: min / max,
+                // Return the minimal 3D eigen vector.
+                let (index, _) = values
+                    .iter()
+                    .enumerate()
+                    .min_by(|(_, val_a), (_, val_b)| val_a.partial_cmp(&val_b).unwrap_or(Ordering::Equal))
+                    .unwrap();
+
+                let min = values.iter().fold(f32::INFINITY, |a, &b| a.min(b));
+                let max = values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+
+                NormalExplanation {
+                    normal: na::Point3::<f32>::new(
+                        vectors[(0, index)],
+                        vectors[(1, index)],
+                        vectors[(2, index)],
+                    ),
+                    eccentricity: min / max,
+                }
+            }
         }
+
     }
 }
