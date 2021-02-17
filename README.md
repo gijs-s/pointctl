@@ -68,13 +68,13 @@ The project is build up from multiple separate modules and might seems like a me
 
 The rust project itself is all contained in the `src` folder. Here we have the following modules:
 
-- exp: Module containing the explanation mechanisms
-- filesystem: Module for reading and writing files
-- search: Module for the internal data structure used to track points and search
-- util: Module with some useful code used throughout more modules
-- view: Module containing everyhing pertaining to the actual viewer and renderer
-- main.rs: The command line definition.
-- generate.rs: Code used for generating synthetic datasets like the cube
+- `exp/`: Module containing the explanation mechanisms
+- `filesystem/`: Module for reading and writing files
+- `search/`: Module for the internal data structure used to track points and search
+- `util/`: Module with some useful code used throughout more modules
+- `view/`: Module containing everyhing pertaining to the actual viewer and renderer
+- `main.rs`: The command line definition.
+- `generate.rs`: Code used for generating synthetic datasets like the cube
 
 ## Python
 
