@@ -4,7 +4,7 @@ The tool is very much directed at people that have knowledge of the underlying m
 
 ## Continuous representation (Blob size)
 
-For the continuos representation we default to the average first nearest neighbor distance as size. This _should_ approximate the blob size required for all points to just touch each other. This however might always be true set correctly, we allow the user to change the actual blob size as well! For this the goal is to get most points to just touch each other, below we have an example. The first two images show a blob size just a little to low, the bottom left is the correct size and the bottom right is far to large.
+For the continuos representation we default to the average first nearest neighbor distance as size. This _should_ approximate the blob size required for all points to just touch each other. This however might always be true set correctly, we allow the user to change the actual blob size as well! For this the goal is to get most points to just touch each other, below we have an example. The first two images show a blob size just a little to low, the third is the correct size and the fourth is far to large.
 
 When collecting data tune the blob size so we in the areas with numerous white points you cannot see the white background anymore.
 
@@ -37,9 +37,9 @@ Generally the default value will look a little bit to small, upping it a bit wil
 
 The second point of configuration is related to the brightness of points, very important as this is used to encode the confidence of our explanations. We make use of an isoluminant categorical color encoding, very nice in theory but it sadly also limits the color space we can use. We allow the user to override the gamma to attempt and unify the images with generally darker or lighter images.
 
-Lets look at a use case with 4 examples. This is an explanation that generally has high confidence but has some outliers with very low confidence. The 1st image shows a washed out picture with far to high a gamma value, the second is much better and arguably the bottom left is best.
+Lets look at a use case with 4 examples. This is an explanation that generally has high confidence but has some outliers with very low confidence. The 1st image shows a washed out picture with far to high a gamma value, the second is much better and arguably the third is best.
 
-The last step here is to handle the low confidence outliers, we can do this by tweaking the lower normalization bounds resulting in the bottom right image.
+The last step here is to handle the low confidence outliers, we can do this by tweaking the lower normalization bounds resulting in the fourth image.
 
 <div>
     <img
@@ -76,7 +76,7 @@ When directly comparing 2D with 3D you ought to select a slightly higher radius 
 
 When we are running the 3D explanation another aspect comes into play, namely pseudo shading. This is implemented in the form on another explanation mechanism,it will attempt to find an approximate normal based on the neighborhood. It is best to tune this with only grey points, this is again best illustrated with some images.
 
-The top left shows now shading at all, the top right shows shading with a tiny neighborhood resulting in noisy normals. Bottom left we see a proper shading but and te bottom left we tuned down the shading intensity. This last feature is nice when we are looking an a explanation as we then try to convey both confidence and orientation using the brightness.
+The first shows now shading at all, the second shows shading with a tiny neighborhood resulting in noisy normals. For the third we see a proper shading but and with the fourth we tuned down the shading intensity. This last feature is nice when we are looking an a explanation as we then try to convey both confidence and orientation using the brightness.
 
 <div>
     <img
@@ -101,4 +101,4 @@ The top left shows now shading at all, the top right shows shading with a tiny n
     />
 </div>
 
-Generally a radius of about 0.2 yields good results, when looking at explanations a shading intensity of about 0.9 is adviced.
+Generally a radius of about 0.2 yields good results, when looking at explanations a shading intensity of about 0.9 is advised.
