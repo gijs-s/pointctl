@@ -1,1 +1,10 @@
 *.csv -text
+AirQuality/ filter=lfs diff=lfs merge=lfs -text
+Concrete/ filter=lfs diff=lfs merge=lfs -text
+nd-fade/ filter=lfs diff=lfs merge=lfs -text
+CityPollution/ filter=lfs diff=lfs merge=lfs -text
+defaultcc/ filter=lfs diff=lfs merge=lfs -text
+nd-clusters/ filter=lfs diff=lfs merge=lfs -text
+Software/ filter=lfs diff=lfs merge=lfs -text
+Wine/ filter=lfs diff=lfs merge=lfs -text
+WisconsinBreastCancer/ filter=lfs diff=lfs merge=lfs -text
