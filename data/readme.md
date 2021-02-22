@@ -126,12 +126,18 @@ And 7 categories without (CID) patient follow-up (22), medical consultation (23)
 
 ### AirQuality
 
-Predicting the age of abalone from physical measurements. The age of abalone is
-determined by cutting the shell through the cone, staining it, and counting the
-number of rings through a microscope -- a boring and time-consuming task. Other
-measurements, which are easier to obtain, are used to predict the age. Further
-information, such as weather patterns and location (hence food availability) may
-be required to solve the problem.
+The dataset contains 9358 instances of hourly averaged responses from an array
+of 5 metal oxide chemical sensors embedded in an Air Quality Chemical
+Multisensor Device. The device was located on the field in a significantly
+polluted area, at road level,within an Italian city. Data were recorded from
+March 2004 to February 2005 (one year)representing the longest freely available
+recordings of on field deployed air quality chemical sensor devices responses.
+Ground Truth hourly averaged concentrations for CO, Non Metanic Hydrocarbons,
+Benzene, Total Nitrogen Oxides (NOx) and Nitrogen Dioxide (NO2) and were
+provided by a co-located reference certified analyzer. Evidences of
+cross-sensitivities as well as both concept and sensor drifts are present as
+described in De Vito et al., Sens. And Act. B, Vol. 129,2,2008 (citation
+required) eventually affecting sensors concentration estimation capabilities
 
 URL: https://archive.ics.uci.edu/ml/datasets/Air+Quality
 
