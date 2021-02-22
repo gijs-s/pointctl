@@ -284,10 +284,10 @@ impl PlanarRenderer for PointRenderer2D {
     }
 }
 
-const VERTEX_SHADER_SRC_2D: &str = "#version 460
+const VERTEX_SHADER_SRC_2D: &str = "#version 150
     // Input to this shader
-    layout (location = 0) in vec2 position;
-    layout (location = 1) in vec3 color;
+    in vec2 position;
+    in vec3 color;
 
     // Uniform variables over all the inputs
     uniform mat3 proj;
@@ -383,7 +383,7 @@ const VERTEX_SHADER_SRC_2D: &str = "#version 460
     }";
 
 /// Fragment shader used by the point renderer
-const FRAGMENT_SHADER_SRC_2D: &str = "#version 460
+const FRAGMENT_SHADER_SRC_2D: &str = "#version 150
 #ifdef GL_FRAGMENT_PRECISION_HIGH
    precision highp float;
 #else
@@ -400,7 +400,7 @@ const FRAGMENT_SHADER_SRC_2D: &str = "#version 460
     uniform sampler2D alphaTexture;
 
     // output color
-    layout( location = 0 ) out vec4 FragColor;
+    out vec4 FragColor;
 
     // Transfrom a HSV color to an RGB color (0..1)
     vec3 hsv2rgb(vec3 c)
