@@ -356,16 +356,16 @@ if __name__ == "__main__":
             clean_file_path=(base_dir / "banknote" / "banknote.csv").resolve(),
             processing_function=process_banknote,
         ),
-        Dataset(
-            name="defaultcc",
-            url="https://archive.ics.uci.edu/ml/machine-learning-databases/00350/default of credit card clients.xls",
-            hash="30c6be3abd8dcfd3e6096c828bad8c2f011238620f5369220bd60cfc82700933",
-            raw_file_path=(
-                base_dir / "raw" / "default of credit card clients.xls"
-            ).resolve(),
-            clean_file_path=(base_dir / "defaultcc" / "defaultcc.csv").resolve(),
-            processing_function=process_defaultcc,
-        ),
+        # Dataset(
+        #     name="defaultcc",
+        #     url="https://archive.ics.uci.edu/ml/machine-learning-databases/00350/default of credit card clients.xls",
+        #     hash="30c6be3abd8dcfd3e6096c828bad8c2f011238620f5369220bd60cfc82700933",
+        #     raw_file_path=(
+        #         base_dir / "raw" / "default of credit card clients.xls"
+        #     ).resolve(),
+        #     clean_file_path=(base_dir / "defaultcc" / "defaultcc.csv").resolve(),
+        #     processing_function=process_defaultcc,
+        # ),
         Dataset(
             name="diabetes",
             url="https://archive.ics.uci.edu/ml/machine-learning-databases/00529/diabetes_data_upload.csv",
@@ -400,14 +400,14 @@ if __name__ == "__main__":
             clean_file_path=(base_dir / "seismic" / "seismic.csv").resolve(),
             processing_function=process_seismic,
         ),
-        Dataset(
-            name="wbc",
-            url="https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/breast-cancer-wisconsin.data",
-            hash="402c585309c399237740f635ef9919dc512cca12cbeb20de5e563a4593f22b64",
-            raw_file_path=(base_dir / "wbc" / "raw" / "breast-cancer-wisconsin.data").resolve(),
-            clean_file_path=(base_dir / "wbc" /"wbc.csv").resolve(),
-            processing_function=process_wbc,
-        ),
+        # Dataset(
+        #     name="wbc",
+        #     url="https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/breast-cancer-wisconsin.data",
+        #     hash="402c585309c399237740f635ef9919dc512cca12cbeb20de5e563a4593f22b64",
+        #     raw_file_path=(base_dir / "wbc" / "raw" / "breast-cancer-wisconsin.data").resolve(),
+        #     clean_file_path=(base_dir / "wbc" /"wbc.csv").resolve(),
+        #     processing_function=process_wbc,
+        # ),
     ]
 
     # If the base directory does not exist yet create it.

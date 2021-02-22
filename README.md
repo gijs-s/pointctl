@@ -38,6 +38,21 @@ This is not needed for the main program, it is used for quick debugging and prep
 
 When this installed running `pipenv sync` in the `jupyter/` will create a virtual python environment that contains all the dependencies. This directory is currently used for some quick protyping and to call ScikitLearn functions. Running the `./run.sh` script will start a jupyter interactive python site that you can use for this.
 
+## Datasets
+
+Included with this repo there are 8 datasets each with numerous projections into 2D and 3D. To fetch these you will need to install git lfs by following this guide: https://docs.github.com/en/github/managing-large-files/installing-git-large-file-storage.
+
+After that you can run these commands to download all the datasets:
+
+```sh
+# Install the pre and post commit lfs hooks
+git lfs install
+# Manually fetch the files once
+git lfs pull
+```
+
+For information on each dataset view the `readme.md` file in the `data/` folder!
+
 ## Quick navigation (Optional)
 
 Because in this repository we are working with many datasets and a pretty nested storage structure I have a few tools that can greatly improve the quality of life while working with in it.
