@@ -1,17 +1,21 @@
 extern crate kiss3d;
 extern crate nalgebra as na;
 
-use kiss3d::camera::Camera;
-use kiss3d::context::Context;
-use kiss3d::planar_camera::PlanarCamera;
-use kiss3d::post_processing::PostProcessingEffect;
-use kiss3d::renderer::Renderer;
-use kiss3d::resource::{
-    AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform,
+use kiss3d::{
+    camera::Camera,
+    context::Context,
+    planar_camera::PlanarCamera,
+    post_processing::PostProcessingEffect,
+    renderer::Renderer,
+    resource::{
+        AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform,
+    },
+    window::{State, Window},
+    text::Font
 };
-use kiss3d::text::Font;
-use kiss3d::window::{State, Window};
+
 use na::{Matrix4, Point2, Point3, Vector3};
+use rand::{Rng, rngs::ThreadRng};
 
 // Custom renderers are used to allow rendering objects that are not necessarily
 // represented as meshes. In this example, we will render a large, growing, point cloud
@@ -23,6 +27,14 @@ use na::{Matrix4, Point2, Point3, Vector3};
 
 struct AppState {
     point_cloud_renderer: PointCloudRenderer,
+    rng: ThreadRng,
+}
+
+impl AppState {
+    fn get_random_point(&mut self) -> Point3<f32> {
+        let (x, y, z): (f32, f32, f32) = self.rng.gen();
+        Point3::<f32>::new(x, y, z)
+    }
 }
 
 impl State for AppState {
@@ -43,9 +55,10 @@ impl State for AppState {
         if self.point_cloud_renderer.num_points() < 1_000_000 {
             // Add some random points to the point cloud.
             for _ in 0..1_000 {
-                let random: Point3<f32> = rand::random();
+                let loc: Point3<f32> = self.get_random_point();
+                let color: Point3<f32> = self.get_random_point();
                 self.point_cloud_renderer
-                    .push((random - Vector3::repeat(0.5)) * 0.5, rand::random());
+                    .push((loc - Vector3::repeat(0.5)) * 0.5, color);
             }
         }
 
@@ -67,6 +80,7 @@ fn main() {
     let window = Window::new("Kiss3d: persistent_point_cloud");
     let app = AppState {
         point_cloud_renderer: PointCloudRenderer::new(4.0),
+        rng: rand::thread_rng()
     };
 
     window.render_loop(app)

@@ -1,6 +1,6 @@
 [package]
 name = "pointctl"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Gijs van Steenpaal <gijs.van.steenpaal@gmail.com>"]
 edition = "2018"
 readme = "README.md"
@@ -16,7 +16,8 @@ clap = "^2.33.1"
 # Used for visualization
 kiss3d = { git = "https://github.com/gijs-s/kiss3d", branch = "master", features= ['conrod']}
 # kiss3d = { path = '../kiss3d', features = ['conrod']}
-nalgebra = "0.21.1"
+# glutin = "*"
+nalgebra = "*"
 # Used for generarting random points
 rand = "*"
 rand_distr = "0.4.0"
@@ -31,7 +32,7 @@ num-traits = "*"
 # Used for showing nice progres bars
 indicatif = { version = "^0.15", features = ["rayon"]}
 # Used for data-parallelism in some explanation mechanisms
-rayon = "1.5.0"
+rayon = "^1.5.0"
 
 # Used for calling CUDA FFI
 # rustacuda = "0.1"
