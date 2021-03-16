@@ -15,14 +15,16 @@ widget_ids! {
         text,
         canvas_label,
         canvas,
-        expand_button,
-        expand_labe
+        dropdown_menu,
+        dropdown_menu_2,
     }
 }
 
 struct State {
     open: bool,
+    selected: usize,
     ids: Ids,
+
 }
 
 // Main display function
@@ -30,12 +32,13 @@ pub fn main() {
     const WINDOW_WIDTH: u32 = 1024;
     const WINDOW_HEIGHT: u32 = 768;
     let mut window = Window::new_with_size("Pointctl visualizer", WINDOW_WIDTH, WINDOW_HEIGHT);
-    window.set_background_color(1.0, 1.0, 1.0);
+    window.set_background_color(0.9, 1.0, 0.9);
     window.set_light(Light::StickToCamera);
     window.set_point_size(4.);
 
     let mut state = State {
         open: false,
+        selected: 0usize,
         ids: Ids::new(window.conrod_ui_mut().widget_id_generator()),
     };
     // Start the render loop, this will _not_ work with 2D scenes yet.
@@ -53,8 +56,8 @@ fn set_colllabsible_area(
     let (area, status) = widget::CollapsibleArea::new(state.open, "foobar")
         .label_font_size(10u32)
         .bottom_left_with_margin(1.0f64)
-        .w(200f64)
-        .h(25f64)
+        .w(400f64)
+        .h(50f64)
         .color(Color::Rgba(0.0, 0.0, 0.0, 0.10))
         .set(state.ids.canvas, &mut ui);
 
@@ -72,5 +75,26 @@ fn set_colllabsible_area(
         }
         None => (),
     };
+
+    let items = vec!["Foo", "Bar", "Baz"];
+    let event = widget::DropDownList::new(items.as_slice(), Some(state.selected))
+        .top_left_with_margin(1.0f64)
+        .w(400f64)
+        .h(30f64)
+        // .color(Color::Rgba(1.0, 1.0, 1.0, 1.0))
+        .set(state.ids.dropdown_menu, &mut ui);
+
+    let _ = widget::DropDownList::new(items.as_slice(), Some(state.selected))
+        .down_from(state.ids.dropdown_menu, 5.0f64)
+        .w(400f64)
+        .h(30f64)
+        // .color(Color::Rgba(1.0, 1.0, 1.0, 1.0))
+        .set(state.ids.dropdown_menu_2, &mut ui);
+
+    match event {
+        Some(id) => state.selected = id,
+        None => (),
+    };
+
     (ui, state)
 }
