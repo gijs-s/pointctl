@@ -1606,7 +1606,7 @@ dependencies = [
 
 [[package]]
 name = "pointctl"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "approx 0.3.2",
  "bimap",
