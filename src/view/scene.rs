@@ -150,30 +150,41 @@ impl Scene {
         }
     }
 
-    pub fn get_dimension_name(&self, index: &usize) -> Option<String> {
-        match self.get_explanation_mode() {
-            ExplanationMode::DaSilva(_) => match self.dimensionality_mode {
-                DimensionalityMode::TwoD => match &self.state_2d {
-                    Some(state) => state
-                        .point_container
-                        .dimension_names
-                        .get(*index)
-                        .and_then(|v| Some(v.clone())),
-                    None => None,
-                },
-                DimensionalityMode::ThreeD => match &self.state_3d {
-                    Some(state) => state
-                        .point_container
-                        .dimension_names
-                        .get(*index)
-                        .and_then(|v| Some(v.clone())),
-                    None => None,
-                },
+    /// Get the all the dimension names
+    pub fn get_dimension_names(&self) -> Vec<String> {
+        let dimension_names: Vec<String> = match self.dimensionality_mode {
+            DimensionalityMode::TwoD => match &self.state_2d {
+                None => vec![],
+                Some(state) => {
+                    let values = &state.point_container.dimension_names;
+                    values.clone()
+                }
             },
-            ExplanationMode::VanDriel(_) => Some(format!("{} Dimension(s)", (index))),
-            ExplanationMode::Normal => None,
-            ExplanationMode::None => None,
+            DimensionalityMode::ThreeD => match &self.state_3d {
+                None => vec![],
+                Some(state) => {
+                    let values = &state.point_container.dimension_names;
+                    values.clone()
+                }
+            },
+        };
+
+        match self.get_explanation_mode() {
+            ExplanationMode::DaSilva(_) => dimension_names,
+            ExplanationMode::VanDriel(_) => (1..=dimension_names.len())
+                .into_iter()
+                .map(|index| format!("{} Dimension(s)", (index)))
+                .collect(),
+            ExplanationMode::Normal => vec![],
+            ExplanationMode::None => vec![],
         }
+    }
+
+    /// Get the name of a dimension based on the index
+    pub fn get_dimension_name(&self, index: &usize) -> Option<String> {
+        self.get_dimension_names()
+            .get(*index)
+            .and_then(|v| Some(v.clone()))
     }
 
     /// Disable the shading if the 3D state is available
@@ -223,11 +234,13 @@ impl Scene {
                 UIEvents::DisableShading => {
                     self.set_shading_intensity(self.get_default_shading_intensity());
                     self.disable_shading();
-                },
+                }
                 UIEvents::SetShadingIntensity(intensity) => self.set_shading_intensity({
                     let t = intensity.max(0.0).min(1.0);
                     (t * 200f32) as i32 as f32 / 200f32
                 }),
+                UIEvents::SetRankOverride(rank, dim) => self.set_rank_dimension_override(rank, dim),
+                UIEvents::ResetRankOverrides => self.reset_rank_overrides(),
             }
         }
     }
@@ -256,7 +269,7 @@ impl Scene {
                     println!("Increasing scrolling sensitivity");
                     self.scale_camera_step(2.0);
                 }
-                | WindowEvent::Key(buttons::DECREASE_SCROLL_SENS, Action::Release, _) => {
+                WindowEvent::Key(buttons::DECREASE_SCROLL_SENS, Action::Release, _) => {
                     println!("Decreasing scrolling sensitivity");
                     self.scale_camera_step(0.5);
                 }
@@ -349,6 +362,19 @@ impl VisualizationStateInteraction for Scene {
         self.current_state_mut()
             .toggle_color_map_confidence_normalization()
     }
+
+
+    /// Set an override to from rank to a dimension in the current color map
+    fn set_rank_dimension_override(&mut self, rank: usize, dimension: usize) {
+        self.current_state_mut()
+            .set_rank_dimension_override(rank, dimension)
+    }
+
+    /// Reset the overrides made for the current color map
+    fn reset_rank_overrides(&mut self) {
+        self.current_state_mut().reset_rank_overrides();
+    }
+
 
     /// Get the point count of the currently used state
     fn get_point_count(&self) -> usize {
