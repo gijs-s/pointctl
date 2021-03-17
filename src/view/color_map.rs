@@ -3,6 +3,7 @@
 
 // Buildin
 use crate::exp::{DaSilvaExplanation, VanDrielExplanation};
+use bimap::BiHashMap;
 use kiss3d::conrod::color::{rgba, Color, Rgba};
 use na::Point3;
 use std::collections::HashMap;
@@ -17,9 +18,12 @@ enum ColoringMode {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ColorMap {
     // Map of dimension index to a color index
-    map: HashMap<usize, usize>,
-    // Dimension ranks (inverse map). This maps a color index to the dimension
-    inverse_map: HashMap<usize, usize>,
+    map: BiHashMap<usize, usize>,
+    // Dimension rank overrides, we allow the user to override the actual mapping
+    // from the UI. This will overlay the rank -> dimension conversion.
+    // No bimap since multiple ranks might point towards the same dim.
+    rank_dimension_overrides: HashMap<usize, usize>,
+    dimension_rank_overrides: HashMap<usize, usize>,
     // Min max values for the confidence, used for normalization
     static_normalization_bounds: (f32, f32),
     // Min max values actually used to render the images, this can be set to
@@ -59,8 +63,9 @@ impl Default for ColorMap {
     /// Create a dummy default color map that is completely empty
     fn default() -> Self {
         ColorMap {
-            map: HashMap::<usize, usize>::new(),
-            inverse_map: HashMap::<usize, usize>::new(),
+            map: BiHashMap::<usize, usize>::new(),
+            rank_dimension_overrides: HashMap::<usize, usize>::new(),
+            dimension_rank_overrides: HashMap::<usize, usize>::new(),
             normalization_bounds: (0.0, 1.0),
             static_normalization_bounds: (0.0, 1.0),
             use_normalization: true,
@@ -76,34 +81,24 @@ impl ColorMap {
         dimension_ranking: Vec<usize>,
         mode: ColoringMode,
     ) -> ColorMap {
-        // Maps a rank to a dimension
-        // Maps a dimension to a rank.
-        let mut map = HashMap::<usize, usize>::new();
-        let mut inverse_map = HashMap::<usize, usize>::new();
-
-        match mode {
-            ColoringMode::Categorical => {
-                for (index, &dim) in dimension_ranking.iter().enumerate() {
-                    map.insert(dim, index);
-                    inverse_map.insert(index, dim);
-                }
-            },
+        // Maps a rank to a dimension and vise versa
+        let map: BiHashMap<usize, usize> = match mode {
+            ColoringMode::Categorical => dimension_ranking.into_iter().enumerate().collect(),
             // For the ordinal mapping we need to find the 8 dimensions that are
             // used the most, then we will have to sort these based on the actual
             // dimension numbers.
             ColoringMode::Ordinal => {
-                let mut rankings: Vec<usize> = dimension_ranking.into_iter().take(8).collect();
+                // XXX: get 8?
+                let mut rankings: Vec<usize> = dimension_ranking.into_iter().collect();
                 rankings.sort_by(|a, b| a.cmp(&b));
-                for (index, &dim) in rankings.iter().enumerate() {
-                    map.insert(dim, index);
-                    inverse_map.insert(index, dim);
-                }
+                rankings.into_iter().enumerate().collect()
             }
         };
 
         ColorMap {
             map,
-            inverse_map,
+            rank_dimension_overrides: HashMap::<usize, usize>::new(),
+            dimension_rank_overrides: HashMap::<usize, usize>::new(),
             normalization_bounds: (min_confidence, max_confidence),
             static_normalization_bounds: (min_confidence, max_confidence),
             use_normalization: true,
@@ -118,14 +113,51 @@ impl ColorMap {
 
     /// Retrieve the amount of dimensions in the ranking map
     pub fn dimension_count(&self) -> usize {
-        assert_eq!(self.map.len(), self.inverse_map.len());
         self.map.len()
     }
 
     /// Retrieve the dimension from the rank (0 indexed)
     pub fn get_dimension_from_rank(&self, rank: &usize) -> Option<&usize> {
-        assert_eq!(self.map.len(), self.inverse_map.len());
-        self.inverse_map.get(rank)
+        // Retrieve the value from the overlay, if it is not present get it from
+        // the inverse map
+        match self.rank_dimension_overrides.get(rank) {
+            None => match self.map.get_by_left(rank)
+            v => v,
+        }
+    }
+
+    /// Retrieve the rank for a dimension
+    pub fn get_rank_from_dimension(&self, dim: &usize) -> Option<&usize> {
+        // retrieve value form the overlay, if it is not present get it from the
+        // inverse map
+        match self.dimension_rank_overrides.get(dim) {
+            None => self.map.get_by_right(dim),
+            v => v,
+        }
+    }
+
+    /// Add an override for the standard color map from a color to rank.
+    pub fn set_rank_override(&mut self, rank: usize, dim: usize) {
+        self.dimension_rank_overrides.insert(dim, rank);
+        self.rank_dimension_overrides.insert(rank, dim);
+        println!("Dim -> Rank: {:?}\nRank -> Dim {:?}\n", self.dimension_rank_overrides, self.rank_dimension_overrides);
+    }
+
+    /// Remove an override from the rank
+    pub fn remove_rank_override(&mut self, rank: &usize) {
+        self.rank_dimension_overrides.remove(rank);
+        self.dimension_rank_overrides = self
+            .dimension_rank_overrides
+            .clone()
+            .into_iter()
+            .filter(|&(_, v)| v != *rank)
+            .collect();
+    }
+
+    /// Clear the overrides to the rank
+    pub fn clear_rank_overrides(&mut self) {
+        self.dimension_rank_overrides.clear();
+        self.rank_dimension_overrides.clear();
     }
 
     /// Convert a dimension rank to a color. The ordering is as follows:
@@ -145,15 +177,19 @@ impl ColorMap {
                         if colored_dimensions == 0f32 {
                             Point3::new(2f32 / 3f32, 1f32, 1f32)
                         } else {
-                            let hue = (2f32 / 3f32) -  (color_float * ((2f32 / 3f32) / colored_dimensions));
+                            let hue = (2f32 / 3f32)
+                                - (color_float * ((2f32 / 3f32) / colored_dimensions));
                             if hue.is_nan() || hue < 0.0f32 || hue > 1.032 {
-                                println!("Faulty hue found, index: {}, colored_dims: {}", r, colored_dimensions)
+                                println!(
+                                    "Faulty hue found, index: {}, colored_dims: {}",
+                                    r, colored_dimensions
+                                )
                             }
                             Point3::new(hue, 1f32, 1f32)
                         }
                     }
                 }
-            },
+            }
             // Categorical color mode
             ColoringMode::Categorical => match rank {
                 0 => Point3::new(0.91243, 0.47774, 0.96863), // f781bf Pink
@@ -195,7 +231,7 @@ impl ColorMap {
 
         // Retrieve the color that used for that dimension
         // First we get the rank of that dimension, than we convert that rank to a color.
-        let base_color = match self.map.get(&dimension) {
+        let base_color = match self.get_rank_from_dimension(&dimension) {
             Some(rank) => self.rank_to_color(rank),
             _ => Point3::new(0.00000, 0.00000, 0.60000), // 999999 Grey
         };

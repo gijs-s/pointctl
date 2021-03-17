@@ -241,6 +241,22 @@ impl VisualizationStateInteraction for VisualizationState3D {
         self.reload_renderer_colors();
     }
 
+    /// Set an override to from rank to a dimension in the current color map
+    fn set_rank_dimension_override(&mut self, rank: usize, dimension: usize) {
+        if let Some(map) = self.color_maps.get_mut(&self.get_explanation_mode()) {
+            map.set_rank_override(rank, dimension);
+            self.reload_renderer_colors();
+        };
+    }
+
+    /// Reset the overrides made for the current color map
+    fn reset_rank_overrides(&mut self) {
+        if let Some(map) = self.color_maps.get_mut(&self.get_explanation_mode()) {
+            map.clear_rank_overrides();
+            self.reload_renderer_colors();
+        };
+    }
+
     /// Get the point count of the state
     fn get_point_count(&self) -> usize {
         self.point_container.get_point_count()

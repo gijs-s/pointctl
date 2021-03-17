@@ -51,12 +51,14 @@ pub fn draw_overlay(scene: &mut Scene, window: &mut CustomWindow) -> Vec<UIEvent
         return Vec::new();
     }
 
-    // Render the current legends
-    let ui = draw_legends(ui, &scene);
-
     // Render the menus and buttons, these can produce UI events each which
     // we will handle after rendering everything.
     let event_queue: Vec<UIEvents> = Vec::new();
+
+    // Render the current legends
+    let (ui, event_queue) = draw_legends(ui, event_queue, &scene);
+
+    // Render the button menu
     let (ui, event_queue) = draw_bottom_menu(ui, event_queue, &scene);
 
     // draw the left menu buttons
@@ -138,10 +140,16 @@ pub fn draw_info_text<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<
 }
 
 /// Draw the color legend in the top right
-pub fn draw_legends<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<'a>> {
+pub fn draw_legends<'a>(
+    mut ui: Box<UiCell<'a>>,
+    mut event_queue: Vec<UIEvents>,
+    scene: &Scene,
+) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
     let legend_ids = &scene.ui_state.legend_widgets;
     // Retrieve the color map currently in use
     let color_map = scene.get_current_color_map();
+
+    let dimension_names: Vec<String> = scene.get_dimension_names();
 
     // No need to render the color legend if the color map is empty
     if !color_map.is_initialized() {
@@ -159,12 +167,14 @@ pub fn draw_legends<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<'a
             .set(legend_ids.color_block_0, &mut ui);
 
         let dim = color_map.get_dimension_from_rank(&0usize).unwrap();
-        let text = format!("[{}] {}", dim, scene.get_dimension_name(dim).unwrap());
-        widget::Text::new(&text)
-            .font_size(FONT_SIZE_SMALL)
+        if let Some(index) = widget::DropDownList::new(dimension_names.as_slice(), Some(*dim))
             .left_from(legend_ids.color_block_0, 2.0f64)
+            .label_font_size(FONT_SIZE_SMALL)
             .w(BUTTON_WIDTH)
-            .set(legend_ids.text_dim_0, &mut ui);
+            .set(legend_ids.dropdown_dim_0, &mut ui)
+        {
+            event_queue.push(UIEvents::SetRankOverride(0usize, index))
+        }
 
         // All the legend_ids used from drawing
         // Here the first entry is the one we offset the current ui element from
@@ -173,37 +183,37 @@ pub fn draw_legends<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<'a
             (
                 legend_ids.color_block_0,
                 legend_ids.color_block_1,
-                legend_ids.text_dim_1,
+                legend_ids.dropdown_dim_1,
             ),
             (
                 legend_ids.color_block_1,
                 legend_ids.color_block_2,
-                legend_ids.text_dim_2,
+                legend_ids.dropdown_dim_2,
             ),
             (
                 legend_ids.color_block_2,
                 legend_ids.color_block_3,
-                legend_ids.text_dim_3,
+                legend_ids.dropdown_dim_3,
             ),
             (
                 legend_ids.color_block_3,
                 legend_ids.color_block_4,
-                legend_ids.text_dim_4,
+                legend_ids.dropdown_dim_4,
             ),
             (
                 legend_ids.color_block_4,
                 legend_ids.color_block_5,
-                legend_ids.text_dim_5,
+                legend_ids.dropdown_dim_5,
             ),
             (
                 legend_ids.color_block_5,
                 legend_ids.color_block_6,
-                legend_ids.text_dim_6,
+                legend_ids.dropdown_dim_6,
             ),
             (
                 legend_ids.color_block_6,
                 legend_ids.color_block_7,
-                legend_ids.text_dim_7,
+                legend_ids.dropdown_dim_7,
             ),
             (
                 legend_ids.color_block_7,
@@ -212,7 +222,7 @@ pub fn draw_legends<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<'a
             ),
         ];
 
-        for (index, &(offset_id, preview_id, text_id)) in dimensions
+        for (index, &(offset_id, preview_id, dropdown_id)) in dimensions
             .iter()
             // The first dimension is already drawn
             .take(color_map.dimension_count() - 1)
@@ -230,23 +240,28 @@ pub fn draw_legends<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<'a
                 .color(color)
                 .set(preview_id, &mut ui);
 
-            let text = {
-                if index == 7usize {
-                    "Other dimensions".to_string()
-                } else {
-                    let dim = color_map.get_dimension_from_rank(&rank).unwrap();
-                    format!("[{}] {}", dim, scene.get_dimension_name(dim).unwrap())
+            if index == 7usize {
+                widget::Text::new("Other dimensions")
+                    .font_size(FONT_SIZE_SMALL)
+                    .left_from(preview_id, 2.0f64)
+                    .w(BUTTON_WIDTH)
+                    .set(dropdown_id, &mut ui);
+            } else {
+                let dim = color_map.get_dimension_from_rank(&rank).unwrap();
+                if let Some(index) =
+                    widget::DropDownList::new(dimension_names.as_slice(), Some(*dim))
+                        .left_from(preview_id, 2.0f64)
+                        .label_font_size(FONT_SIZE_SMALL)
+                        .w(BUTTON_WIDTH)
+                        .set(dropdown_id, &mut ui)
+                {
+                    event_queue.push(UIEvents::SetRankOverride(rank, index))
                 }
-            };
-
-            widget::Text::new(&text)
-                .font_size(FONT_SIZE_SMALL)
-                .left_from(preview_id, 2.0f64)
-                .w(BUTTON_WIDTH)
-                .set(text_id, &mut ui);
+            }
         }
     };
-    ui
+
+    (ui, event_queue)
 }
 
 /// Draw the menu buttons at the bottom of the display
@@ -325,7 +340,7 @@ fn draw_left_general_menu<'a>(
             .w(BUTTON_WIDTH)
             .h(BUTTON_HEIGHT - 2f64)
             .set(menu_ids.button_dimension_switch, &mut ui)
-        {
+    {
             event_queue.push(UIEvents::DimensionalitySwitch)
         }
     }
@@ -824,7 +839,6 @@ fn draw_right_viewer_settings_menu<'a>(
                 .w_of(menu_ids.button_size_reset)
                 .set(menu_ids.text_color_normalization_bounds, &mut ui);
 
-
             // return the last id used so we can continue from it
             menu_ids.text_color_normalization_bounds
         }
@@ -852,9 +866,7 @@ fn draw_right_viewer_settings_menu<'a>(
         let mut text_slider_value = scene.get_shading_intensity().to_string();
         text_slider_value.truncate(5);
 
-        if let Some(intensity) = widget::Slider::new(
-                scene.get_shading_intensity(), 0f32, 1f32
-            )
+        if let Some(intensity) = widget::Slider::new(scene.get_shading_intensity(), 0f32, 1f32)
             .label(&text_slider_value)
             .label_font_size(FONT_SIZE - 1)
             .label_color(Color::Rgba(1.0, 0.0, 0.0, 1.0))
@@ -862,9 +874,9 @@ fn draw_right_viewer_settings_menu<'a>(
             .w(SLIDER_WIDTH)
             .up_from(last_id, 7.0f64)
             .set(menu_ids.slider_shading_intensity, &mut ui)
-            {
-                event_queue.push(UIEvents::SetShadingIntensity(intensity))
-            };
+        {
+            event_queue.push(UIEvents::SetShadingIntensity(intensity))
+        };
 
         // Confidence bounds helper text
         widget::Text::new("Shading intensity:")
@@ -872,7 +884,6 @@ fn draw_right_viewer_settings_menu<'a>(
             .up_from(menu_ids.slider_shading_intensity, 3.0f64)
             .w(BUTTON_WIDTH)
             .set(menu_ids.text_shading_intensity, &mut ui);
-
     };
 
     (ui, event_queue)

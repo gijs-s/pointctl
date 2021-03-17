@@ -43,6 +43,11 @@ pub trait VisualizationStateInteraction {
     /// Toggle the confidence normalization in the current color map
     fn toggle_color_map_confidence_normalization(&mut self);
 
+    /// Set an override to from rank to a dimension
+    fn set_rank_dimension_override(&mut self, rank: usize, dimension: usize);
+    /// reset the overrides
+    fn reset_rank_overrides(&mut self);
+
     /// Get the point count of the state
     fn get_point_count(&self) -> usize;
 
