@@ -149,7 +149,11 @@ pub fn draw_legends<'a>(
     // Retrieve the color map currently in use
     let color_map = scene.get_current_color_map();
 
-    let dimension_names: Vec<String> = scene.get_dimension_names();
+    let mut dimension_names: Vec<String> = scene.get_dimension_names();
+    dimension_names.push("Unmapped".to_string());
+
+    // Default to other.
+    let other_rank = dimension_names.len() - 1;
 
     // No need to render the color legend if the color map is empty
     if !color_map.is_initialized() {
@@ -166,7 +170,8 @@ pub fn draw_legends<'a>(
             .color(color)
             .set(legend_ids.color_block_0, &mut ui);
 
-        let dim = color_map.get_dimension_from_rank(&0usize).unwrap();
+
+        let dim = color_map.get_dimension_from_rank(&0usize).unwrap_or(&other_rank);
         if let Some(index) = widget::DropDownList::new(dimension_names.as_slice(), Some(*dim))
             .left_from(legend_ids.color_block_0, 2.0f64)
             .label_font_size(FONT_SIZE_SMALL)
@@ -247,7 +252,7 @@ pub fn draw_legends<'a>(
                     .w(BUTTON_WIDTH)
                     .set(dropdown_id, &mut ui);
             } else {
-                let dim = color_map.get_dimension_from_rank(&rank).unwrap();
+                let dim = color_map.get_dimension_from_rank(&rank).unwrap_or(&other_rank);
                 if let Some(index) =
                     widget::DropDownList::new(dimension_names.as_slice(), Some(*dim))
                         .left_from(preview_id, 2.0f64)

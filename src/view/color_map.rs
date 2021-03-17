@@ -6,7 +6,6 @@ use crate::exp::{DaSilvaExplanation, VanDrielExplanation};
 use bimap::BiHashMap;
 use kiss3d::conrod::color::{rgba, Color, Rgba};
 use na::Point3;
-use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone)]
 enum ColoringMode {
@@ -20,10 +19,8 @@ pub struct ColorMap {
     // Map of dimension index to a color index
     map: BiHashMap<usize, usize>,
     // Dimension rank overrides, we allow the user to override the actual mapping
-    // from the UI. This will overlay the rank -> dimension conversion.
-    // No bimap since multiple ranks might point towards the same dim.
-    rank_dimension_overrides: HashMap<usize, usize>,
-    dimension_rank_overrides: HashMap<usize, usize>,
+    // from the UI. This will change the mapping from dimension to a rank.
+    rank_overrides: BiHashMap<usize, usize>,
     // Min max values for the confidence, used for normalization
     static_normalization_bounds: (f32, f32),
     // Min max values actually used to render the images, this can be set to
@@ -64,8 +61,7 @@ impl Default for ColorMap {
     fn default() -> Self {
         ColorMap {
             map: BiHashMap::<usize, usize>::new(),
-            rank_dimension_overrides: HashMap::<usize, usize>::new(),
-            dimension_rank_overrides: HashMap::<usize, usize>::new(),
+            rank_overrides: BiHashMap::<usize, usize>::new(),
             normalization_bounds: (0.0, 1.0),
             static_normalization_bounds: (0.0, 1.0),
             use_normalization: true,
@@ -97,8 +93,7 @@ impl ColorMap {
 
         ColorMap {
             map,
-            rank_dimension_overrides: HashMap::<usize, usize>::new(),
-            dimension_rank_overrides: HashMap::<usize, usize>::new(),
+            rank_overrides: BiHashMap::<usize, usize>::new(),
             normalization_bounds: (min_confidence, max_confidence),
             static_normalization_bounds: (min_confidence, max_confidence),
             use_normalization: true,
@@ -120,8 +115,14 @@ impl ColorMap {
     pub fn get_dimension_from_rank(&self, rank: &usize) -> Option<&usize> {
         // Retrieve the value from the overlay, if it is not present get it from
         // the inverse map
-        match self.rank_dimension_overrides.get(rank) {
-            None => match self.map.get_by_left(rank)
+        match self.rank_overrides.get_by_right(rank) {
+            None => match self.map.get_by_left(rank) {
+                Some(dim) => match self.rank_overrides.get_by_left(dim) {
+                    Some(_) => None,
+                    None => Some(dim)
+                },
+                None => None,
+            }
             v => v,
         }
     }
@@ -130,34 +131,39 @@ impl ColorMap {
     pub fn get_rank_from_dimension(&self, dim: &usize) -> Option<&usize> {
         // retrieve value form the overlay, if it is not present get it from the
         // inverse map
-        match self.dimension_rank_overrides.get(dim) {
-            None => self.map.get_by_right(dim),
+        match self.rank_overrides.get_by_left(dim) {
+            // If the rank is not also pointed towards in the overlay.
+            None => match self.map.get_by_right(dim) {
+                Some(rank) => match self.rank_overrides.get_by_right(rank) {
+                    Some(_) => None,
+                    None => Some(rank)
+                },
+                None => None,
+            },
+            // If the override indexrank is out of bounds, consider it the be no color
+            // TODO: Is this needed?
+            Some(r) if r == &self.map.len() => {
+                println!("--> {:?}", self.map);
+                None
+            },
             v => v,
         }
     }
 
     /// Add an override for the standard color map from a color to rank.
     pub fn set_rank_override(&mut self, rank: usize, dim: usize) {
-        self.dimension_rank_overrides.insert(dim, rank);
-        self.rank_dimension_overrides.insert(rank, dim);
-        println!("Dim -> Rank: {:?}\nRank -> Dim {:?}\n", self.dimension_rank_overrides, self.rank_dimension_overrides);
+        self.rank_overrides.insert(dim, rank);
+        println!("Dim <> Rank: {:?}", self.rank_overrides);
     }
 
     /// Remove an override from the rank
     pub fn remove_rank_override(&mut self, rank: &usize) {
-        self.rank_dimension_overrides.remove(rank);
-        self.dimension_rank_overrides = self
-            .dimension_rank_overrides
-            .clone()
-            .into_iter()
-            .filter(|&(_, v)| v != *rank)
-            .collect();
+        self.rank_overrides.remove_by_left(rank);
     }
 
     /// Clear the overrides to the rank
     pub fn clear_rank_overrides(&mut self) {
-        self.dimension_rank_overrides.clear();
-        self.rank_dimension_overrides.clear();
+        self.rank_overrides.clear();
     }
 
     /// Convert a dimension rank to a color. The ordering is as follows:
