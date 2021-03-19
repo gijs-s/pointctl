@@ -53,6 +53,7 @@ widget_ids! {
         button_reset,
         buttom_render_mode,
         button_dimension_switch,
+        button_reset_color_map_overrides,
         // - size of the blobs / points
         text_size_slider,
         button_size_reset,
@@ -85,6 +86,5 @@ widget_ids! {
         // - Theta slider for van driel
         text_theta,
         slider_theta,
-
     }
 }

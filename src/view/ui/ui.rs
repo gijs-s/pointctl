@@ -335,13 +335,32 @@ fn draw_left_general_menu<'a>(
         event_queue.push(UIEvents::ResetButtonPress)
     }
 
+    // Button for reseting the current view
+    let prev_id = {
+        if scene.get_current_color_map().uses_rank_overrides() {
+            for _ in widget::Button::new()
+                .label("Reset color map")
+                .label_font_size(FONT_SIZE - 2)
+                .up_from(menu_ids.button_reset, 3.0f64)
+                .w(BUTTON_WIDTH)
+                .h(BUTTON_HEIGHT - 2f64)
+                .set(menu_ids.button_reset_color_map_overrides, &mut ui)
+            {
+                event_queue.push(UIEvents::ResetRankOverrides)
+            }
+            menu_ids.button_reset_color_map_overrides
+        } else {
+            menu_ids.button_reset
+        }
+    };
+
     // Button for switching 2D/3D if available
     if scene.dimension_switch_available() {
         let text = format!("Switch to {}", scene.dimensionality_mode.inverse().to_str());
         for _ in widget::Button::new()
             .label(&text)
             .label_font_size(FONT_SIZE - 2)
-            .up_from(menu_ids.button_reset, 3.0f64)
+            .up_from(prev_id, 3.0f64)
             .w(BUTTON_WIDTH)
             .h(BUTTON_HEIGHT - 2f64)
             .set(menu_ids.button_dimension_switch, &mut ui)

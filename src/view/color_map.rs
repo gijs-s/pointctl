@@ -153,12 +153,11 @@ impl ColorMap {
     /// Add an override for the standard color map from a color to rank.
     pub fn set_rank_override(&mut self, rank: usize, dim: usize) {
         self.rank_overrides.insert(dim, rank);
-        println!("Dim <> Rank: {:?}", self.rank_overrides);
     }
 
-    /// Remove an override from the rank
-    pub fn remove_rank_override(&mut self, rank: &usize) {
-        self.rank_overrides.remove_by_left(rank);
+    /// Returns if rank overrides are being used an override from the rank
+    pub fn uses_rank_overrides(&self) -> bool {
+        self.rank_overrides.len() != 0usize
     }
 
     /// Clear the overrides to the rank
