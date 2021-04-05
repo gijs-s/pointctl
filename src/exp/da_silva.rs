@@ -191,22 +191,33 @@ impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a
             })
             .collect();
 
-        // Create a fancy progres bar
-        let pb = ProgressBar::new(self.point_container.get_point_count() as u64);
-        pb.set_style(ProgressStyle::default_bar()
+        match self.explanation_type {
+            DaSilvaType::EuclideanSingle(_) | DaSilvaType::VarianceSingle(_) => ranking_vectors
+                .into_iter()
+                .map(|(attr, contribution)| DaSilvaExplanation {
+                    attribute_index: attr,
+                    confidence: contribution,
+                })
+                .collect::<Vec<DaSilvaExplanation>>(),
+            _ => {
+                // Create a fancy progres bar
+                let pb = ProgressBar::new(self.point_container.get_point_count() as u64);
+                pb.set_style(ProgressStyle::default_bar()
             .template("[{elapsed_precise}] Calculating annotations [{bar:40.cyan/blue}] {pos}/{len} ({eta} left at {per_sec})")
             .progress_chars("#>-"));
 
-        (0..self.point_container.get_point_count())
-            .into_par_iter()
-            .progress_with(pb)
-            .map(|index| {
-                let neighborhood = self
-                    .point_container
-                    .get_neighbor_indices(index as u32, neighborhood_size);
-                Self::calculate_annotation(index, &ranking_vectors, &neighborhood)
-            })
-            .collect::<Vec<DaSilvaExplanation>>()
+                (0..self.point_container.get_point_count())
+                    .into_par_iter()
+                    .progress_with(pb)
+                    .map(|index| {
+                        let neighborhood = self
+                            .point_container
+                            .get_neighbor_indices(index as u32, neighborhood_size);
+                        Self::calculate_annotation(index, &ranking_vectors, &neighborhood)
+                    })
+                    .collect::<Vec<DaSilvaExplanation>>()
+            }
+        }
     }
 }
 
