@@ -31,6 +31,8 @@ pub enum UIEvents {
     SetExplanationMode(ExplanationMode),
     // Run an explanation
     RunExplanationMode(ExplanationMode, Neighborhood, Option<f32>),
+    // Run / Load a single explanation
+    SetSingleExplanationMode(ExplanationMode, Neighborhood),
     // Update the neighborhood in the UI menus
     UpdateUINeighborhood(Neighborhood),
     // Update the neighborhood in the UI menus

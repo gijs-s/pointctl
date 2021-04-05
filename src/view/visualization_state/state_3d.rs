@@ -77,6 +77,14 @@ impl VisualizationState3D {
                         let explanation: DaSilvaExplanation = point_data.silva_euclidean.unwrap();
                         color_map.get_color(explanation.attribute_index, explanation.confidence)
                     }
+                    ExplanationMode::DaSilva(DaSilvaType::VarianceSingle(attr)) => {
+                        let conf = point_data.silva_single[&attr];
+                        color_map.get_color(attr, conf)
+                    }
+                    ExplanationMode::DaSilva(DaSilvaType::EuclideanSingle(attr)) => {
+                        let conf = point_data.silva_single[&attr];
+                        color_map.get_color(attr, conf)
+                    }
                     ExplanationMode::VanDriel(VanDrielType::MinimalVariance) => {
                         let explanation: VanDrielExplanation = point_data.driel_min.unwrap();
                         color_map.get_color(explanation.dimension, explanation.confidence)
@@ -153,11 +161,24 @@ impl VisualizationStateInteraction for VisualizationState3D {
         neighborhood_size: exp::Neighborhood,
         theta: Option<f32>,
     ) {
-        // render mode is already loaded, first remove it
-        if self.is_explanation_available(&mode) {
-            self.explanation = ExplanationMode::None;
-            self.color_maps.remove(&mode);
-        }
+        // Remove the entries that already exist before computing the new entry.
+        self.explanation = ExplanationMode::None;
+        self.color_maps.retain(|&k, _| match (k, mode) {
+            // If the explanation is the same as it was before we remove it.
+            (existing, new) if existing == new => false,
+            // Remove the single explanations if we recompute the complete images
+            (
+                ExplanationMode::DaSilva(DaSilvaType::VarianceSingle(_)),
+                ExplanationMode::DaSilva(DaSilvaType::Variance),
+            ) => false,
+            (
+                ExplanationMode::DaSilva(DaSilvaType::EuclideanSingle(_)),
+                ExplanationMode::DaSilva(DaSilvaType::Euclidean),
+            ) => false,
+            // All other cases should be preserved
+            (_, _) => true,
+        });
+
         match (mode, theta) {
             (ExplanationMode::DaSilva(method), _) => {
                 let da_silva_explanation =
@@ -209,7 +230,7 @@ impl VisualizationStateInteraction for VisualizationState3D {
             self.reload_renderer_colors();
             true
         } else {
-            eprintln!("Color map for {} is not yet loaded", mode.to_str());
+            eprintln!("Color map for {} is not yet loaded", mode.to_string());
             false
         }
     }
@@ -271,7 +292,17 @@ impl VisualizationStateInteraction for VisualizationState3D {
 impl Load<Vec<DaSilvaExplanation>, DaSilvaType> for VisualizationState3D {
     fn load(&mut self, explanations: Vec<DaSilvaExplanation>, mode: DaSilvaType) {
         // Create the color map
-        let color_map = ColorMap::from(&explanations);
+        let color_map = match mode {
+            DaSilvaType::Euclidean | DaSilvaType::Variance => ColorMap::from(&explanations),
+            DaSilvaType::EuclideanSingle(_) | DaSilvaType::VarianceSingle(_) => {
+                let conf_values = &explanations
+                    .iter()
+                    .map(|e| e.confidence)
+                    .collect::<Vec<f32>>();
+                ColorMap::from(conf_values)
+            }
+        };
+
         self.color_maps
             .insert(ExplanationMode::DaSilva(mode), color_map);
         self.point_container.load(explanations, mode);

@@ -1,7 +1,4 @@
 /// An abstraction that handles the search of neighborhoods for you.
-// Build in imports
-use std::cmp::Ordering;
-
 // First party imports
 use super::Neighborhood;
 
@@ -11,7 +8,7 @@ pub type GlobalContribution = Vec<f32>;
 pub type Ranking = (usize, f32);
 
 pub trait Explanation<T> {
-    // Explain the points using the current method, all variables should be set in the state
+    /// Explain the points using the current method, all variables should be set in the state
     fn explain(&self, neighborhood_size: Neighborhood) -> Vec<T>;
 
     // Normalize a local contrib of a dimension using the global contrib of said dimension.
@@ -46,18 +43,6 @@ pub trait Explanation<T> {
                 }
             })
             .collect()
-    }
-
-    // From the sorted vector of local contributions and find the dimension than
-    // contributes most. Read as: Find the lowest ranking given a the local
-    // contribution.
-    fn calculate_top_ranking(local_contributions: LocalContributions) -> Ranking {
-        local_contributions
-            .iter()
-            .enumerate()
-            .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
-            .map(|(index, &f)| (index, f))
-            .unwrap()
     }
 }
 

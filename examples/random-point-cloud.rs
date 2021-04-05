@@ -7,15 +7,13 @@ use kiss3d::{
     planar_camera::PlanarCamera,
     post_processing::PostProcessingEffect,
     renderer::Renderer,
-    resource::{
-        AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform,
-    },
+    resource::{AllocationType, BufferType, Effect, GPUVec, ShaderAttribute, ShaderUniform},
+    text::Font,
     window::{State, Window},
-    text::Font
 };
 
 use na::{Matrix4, Point2, Point3, Vector3};
-use rand::{Rng, rngs::ThreadRng};
+use rand::{rngs::ThreadRng, Rng};
 
 // Custom renderers are used to allow rendering objects that are not necessarily
 // represented as meshes. In this example, we will render a large, growing, point cloud
@@ -80,7 +78,7 @@ fn main() {
     let window = Window::new("Kiss3d: persistent_point_cloud");
     let app = AppState {
         point_cloud_renderer: PointCloudRenderer::new(4.0),
-        rng: rand::thread_rng()
+        rng: rand::thread_rng(),
     };
 
     window.render_loop(app)

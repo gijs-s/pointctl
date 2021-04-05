@@ -95,6 +95,19 @@ impl DaSilvaExplanation {
 pub enum DaSilvaType {
     Euclidean,
     Variance,
+    EuclideanSingle(usize),
+    VarianceSingle(usize),
+}
+
+impl ToString for DaSilvaType {
+    fn to_string(&self) -> String {
+        match self {
+            DaSilvaType::Euclidean => "Euclidean".to_string(),
+            DaSilvaType::Variance => "Variance".to_string(),
+            DaSilvaType::EuclideanSingle(attr) => format!("Euclidian for attribute {}", attr),
+            DaSilvaType::VarianceSingle(attr) => format!("Variance for attribute {}", attr),
+        }
+    }
 }
 
 /// Struct containing the state of the da silva mechanism
@@ -116,13 +129,27 @@ impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a
                 "Running Da Silva's euclidean explanation with neighborhood: {}",
                 neighborhood_size.to_string()
             ),
+            DaSilvaType::VarianceSingle(attribute) => println!(
+                "Running Da Silva's variance explanation with neighborhood: {} for attribute: {}",
+                neighborhood_size.to_string(),
+                &attribute
+            ),
+            DaSilvaType::EuclideanSingle(attribute) => println!(
+                "Running Da Silva's euclidean explanation with neighborhood: {} for attribute: {}",
+                neighborhood_size.to_string(),
+                &attribute
+            ),
         };
 
         // Calculate the global contribution of each point (centroid of the nD space and
         //_every_ point in its neighborhood)
         let global_contribution: GlobalContribution = match self.explanation_type {
-            DaSilvaType::Euclidean => self.calculate_global_distance_contribution(),
-            DaSilvaType::Variance => self.calculate_global_variance(),
+            DaSilvaType::Euclidean | DaSilvaType::EuclideanSingle(_) => {
+                self.calculate_global_distance_contribution()
+            }
+            DaSilvaType::Variance | DaSilvaType::VarianceSingle(_) => {
+                self.calculate_global_variance()
+            }
         };
 
         // Create a fancy progres bar wen calculating the contributions
@@ -141,15 +168,26 @@ impl<'a, PC: PointContainer> Explanation<DaSilvaExplanation> for DaSilvaState<'a
                 // Calculate the distance contribution / variance lc_j between each point p_i and all its neighbors
                 // v_i for every dimension j. Then average it for every dimension within the neighborhood
                 let lc: LocalContributions = match self.explanation_type {
-                    DaSilvaType::Euclidean => {
+                    DaSilvaType::Euclidean | DaSilvaType::EuclideanSingle(_) => {
                         self.calculate_local_distance_contributions(index, &neighborhood)
                     }
-                    DaSilvaType::Variance => self.calculate_local_variance(index, &neighborhood),
+                    DaSilvaType::Variance | DaSilvaType::VarianceSingle(_) => {
+                        self.calculate_local_variance(index, &neighborhood)
+                    }
                 };
                 // Normalize the local contribution by dividing by the global contribution (per dimension)
                 let nlc: LocalContributions = Self::normalize_rankings(lc, &global_contribution);
-                // Create a ranking vector from the normalized local contribution
-                Self::calculate_top_ranking(nlc)
+
+                match self.explanation_type {
+                    // Create a ranking vector from the normalized local contribution
+                    DaSilvaType::Euclidean | DaSilvaType::Variance => {
+                        Self::calculate_top_ranking(nlc)
+                    }
+                    DaSilvaType::EuclideanSingle(attribute)
+                    | DaSilvaType::VarianceSingle(attribute) => {
+                        Self::calculate_single_ranking(nlc, attribute)
+                    }
+                }
             })
             .collect();
 
@@ -195,6 +233,29 @@ impl<'a> DaSilvaState<'a, PointContainer3D> {
             point_container,
             explanation_type,
         }
+    }
+}
+
+impl<'a, PC: PointContainer> DaSilvaState<'a, PC> {
+    /// From the sorted vector of local contributions and find the dimension than
+    /// contributes most. Read as: Find the lowest ranking given a the local
+    /// contribution.
+    fn calculate_top_ranking(local_contributions: LocalContributions) -> Ranking {
+        local_contributions
+            .iter()
+            .enumerate()
+            .min_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(Ordering::Equal))
+            .map(|(index, &f)| (index, f))
+            .unwrap()
+    }
+
+    /// Based on the attribute retrieve its contribution
+    fn calculate_single_ranking(
+        local_contributions: LocalContributions,
+        attribute: usize,
+    ) -> Ranking {
+        let conf = local_contributions[attribute];
+        (attribute, conf)
     }
 }
 

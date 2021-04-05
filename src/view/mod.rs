@@ -31,13 +31,15 @@ pub enum DimensionalityMode {
 
 impl DimensionalityMode {
     // Convert the current value to a string
-    pub fn to_str(self) -> String {
-        match self {
+    pub fn to_string(&self) -> String {
+        match &self {
             DimensionalityMode::TwoD => "2D".to_string(),
             DimensionalityMode::ThreeD => "3D".to_string(),
         }
     }
+}
 
+impl DimensionalityMode {
     /// Get the inverse of the current value
     pub fn inverse(self) -> Self {
         match self {
@@ -56,13 +58,12 @@ pub enum ExplanationMode {
     Normal,
 }
 
-impl ExplanationMode {
+impl ToString for ExplanationMode {
     // Convert the current value to a string
-    pub fn to_str(self) -> String {
-        match self {
+    fn to_string(&self) -> String {
+        match &self {
             ExplanationMode::None => "None".to_string(),
-            ExplanationMode::DaSilva(DaSilvaType::Euclidean) => "Da Silva (euclidean)".to_string(),
-            ExplanationMode::DaSilva(DaSilvaType::Variance) => "Da Silva (variance)".to_string(),
+            ExplanationMode::DaSilva(t) => format!("Da Silva ({})", t.to_string()),
             ExplanationMode::VanDriel(VanDrielType::MinimalVariance) => {
                 "Van Driel (min)".to_string()
             }

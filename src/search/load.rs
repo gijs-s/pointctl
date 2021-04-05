@@ -1,6 +1,6 @@
 //! Trait / implementation of for loading in explanations into the data structure
 // First party imports
-use std::hash::Hash;
+use std::{collections::HashMap, hash::Hash};
 
 use super::definitions::{PointContainer2D, PointContainer3D};
 use crate::exp::{
@@ -21,8 +21,20 @@ impl Load<Vec<DaSilvaExplanation>, DaSilvaType> for PointContainer2D {
         assert!(self.point_data.len() == explanations.len());
         for (point_data, exp) in self.point_data.iter_mut().zip(explanations.into_iter()) {
             match mode {
-                DaSilvaType::Variance => point_data.silva_var = Some(exp),
-                DaSilvaType::Euclidean => point_data.silva_euclidean = Some(exp),
+                DaSilvaType::Variance => {
+                    // The single explanations are no longer correct, remove them
+                    point_data.silva_single = HashMap::new();
+                    point_data.silva_var = Some(exp);
+                }
+                DaSilvaType::Euclidean => {
+                    // The single explanations are no longer correct, remove them
+                    point_data.silva_single = HashMap::new();
+                    point_data.silva_euclidean = Some(exp);
+                }
+                DaSilvaType::EuclideanSingle(attribute)
+                | DaSilvaType::VarianceSingle(attribute) => {
+                    point_data.silva_single.insert(attribute, exp.confidence);
+                }
             };
         }
     }
@@ -51,8 +63,20 @@ impl Load<Vec<DaSilvaExplanation>, DaSilvaType> for PointContainer3D {
         assert!(self.point_data.len() == explanations.len());
         for (point_data, exp) in self.point_data.iter_mut().zip(explanations.into_iter()) {
             match mode {
-                DaSilvaType::Variance => point_data.silva_var = Some(exp),
-                DaSilvaType::Euclidean => point_data.silva_euclidean = Some(exp),
+                DaSilvaType::Variance => {
+                    // The single explanations are no longer correct, remove them
+                    point_data.silva_single = HashMap::new();
+                    point_data.silva_var = Some(exp);
+                }
+                DaSilvaType::Euclidean => {
+                    // The single explanations are no longer correct, remove them
+                    point_data.silva_single = HashMap::new();
+                    point_data.silva_euclidean = Some(exp);
+                }
+                DaSilvaType::EuclideanSingle(attribute)
+                | DaSilvaType::VarianceSingle(attribute) => {
+                    point_data.silva_single.insert(attribute, exp.confidence);
+                }
             };
         }
     }

@@ -1,7 +1,7 @@
 //! Helper for generating synthetic datasets from scratch.
 
-use rand::{Rng, rngs::ThreadRng};
-use rand_distr::{Normal, Distribution};
+use rand::{rngs::ThreadRng, Rng};
+use rand_distr::{Distribution, Normal};
 
 /// Create a vector of points that each have 0 zero axis.
 ///

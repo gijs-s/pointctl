@@ -38,6 +38,7 @@ widget_ids! {
         text_dim_other,
         color_block_other,
         button_reset_overrides,
+        back_button,
     }
 }
 

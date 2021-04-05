@@ -88,11 +88,11 @@ pub fn draw_info_text<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<
     let explanation_mode_text = match scene.is_explanation_available(&ExplanationMode::Normal) {
         true => format!(
             "Explanation mode: {} (with shading)",
-            scene.get_explanation_mode().to_str()
+            scene.get_explanation_mode().to_string()
         ),
         false => format!(
             "Explanation mode: {}",
-            scene.get_explanation_mode().to_str()
+            scene.get_explanation_mode().to_string()
         ),
     };
 
@@ -103,7 +103,7 @@ pub fn draw_info_text<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<
         .set(info_ids.text_explanation_mode, &mut ui);
 
     // Display the current rendering mode
-    let render_mode = scene.get_current_render_mode().to_str();
+    let render_mode = scene.get_current_render_mode().to_string();
     let render_mode_text = format!("Render mode: {}", render_mode);
     widget::Text::new(&render_mode_text)
         .font_size(FONT_SIZE)
@@ -112,7 +112,7 @@ pub fn draw_info_text<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<
         .set(info_ids.text_render_mode, &mut ui);
 
     // Display the current reduction dimensionality
-    let dimensionality_text = format!("Reduced to: {}", scene.dimensionality_mode.to_str());
+    let dimensionality_text = format!("Reduced to: {}", scene.dimensionality_mode.to_string());
     widget::Text::new(&dimensionality_text)
         .font_size(FONT_SIZE)
         .down_from(info_ids.text_render_mode, 5.0f64)
@@ -145,6 +145,34 @@ pub fn draw_legends<'a>(
     mut event_queue: Vec<UIEvents>,
     scene: &Scene,
 ) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
+    // Retrieve the color map currently in use
+    let color_map = scene.get_current_color_map();
+
+    // No need to render the color legend if the color map is empty
+    if !color_map.is_initialized() {
+        let legend_ids = &scene.ui_state.legend_widgets;
+        widget::Text::new("No explanation loaded\nall points are grey")
+            .font_size(FONT_SIZE)
+            .top_right()
+            .set(legend_ids.text_dim_0, &mut ui);
+        (ui, event_queue)
+    } else {
+        if color_map.single_attribute_mode() {
+            draw_single_legend(ui, event_queue, &scene)
+        } else {
+            draw_default_legends(ui, event_queue, &scene)
+        }
+    }
+
+    // (ui, event_queue)
+}
+
+/// Draw the color legend in the top right
+pub fn draw_default_legends<'a>(
+    mut ui: Box<UiCell<'a>>,
+    event_queue: Vec<UIEvents>,
+    scene: &Scene,
+) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
     let legend_ids = &scene.ui_state.legend_widgets;
     // Retrieve the color map currently in use
     let color_map = scene.get_current_color_map();
@@ -155,89 +183,105 @@ pub fn draw_legends<'a>(
     // Default to other.
     let other_rank = dimension_names.len() - 1;
 
-    // No need to render the color legend if the color map is empty
-    if !color_map.is_initialized() {
-        widget::Text::new("No explanation loaded\nall points are grey")
-            .font_size(FONT_SIZE)
-            .top_right()
-            .set(legend_ids.text_dim_0, &mut ui);
-    } else {
-        let color = color_map.get_conrod_color_with_gamma(&0usize, scene.get_gamma());
-        widget::Canvas::new()
-            .top_right_with_margin(5.0f64)
-            .w(COLOR_PREVIEW_SIZE)
-            .h(COLOR_PREVIEW_SIZE)
-            .color(color)
-            .set(legend_ids.color_block_0, &mut ui);
+    let color = color_map.get_conrod_color_with_gamma(&0usize, scene.get_gamma());
+    let dim = color_map.get_dimension_from_rank(&0usize);
 
-
-        let dim = color_map.get_dimension_from_rank(&0usize).unwrap_or(&other_rank);
-        if let Some(index) = widget::DropDownList::new(dimension_names.as_slice(), Some(*dim))
-            .left_from(legend_ids.color_block_0, 2.0f64)
-            .label_font_size(FONT_SIZE_SMALL)
-            .w(BUTTON_WIDTH)
-            .set(legend_ids.dropdown_dim_0, &mut ui)
-        {
-            event_queue.push(UIEvents::SetRankOverride(0usize, index))
+    for _ in widget::Button::new()
+        .top_right_with_margin(5.0f64)
+        .w(COLOR_PREVIEW_SIZE)
+        .h(COLOR_PREVIEW_SIZE)
+        .color(color)
+        .set(legend_ids.color_block_0, &mut ui)
+    {
+        match scene.get_explanation_mode() {
+            ExplanationMode::DaSilva(DaSilvaType::Variance) => {
+                if let Some(d) = dim {
+                    event_queue.push(UIEvents::SetSingleExplanationMode(
+                        ExplanationMode::DaSilva(DaSilvaType::VarianceSingle(*d)),
+                        Neighborhood::from(&scene.ui_state.recompute_state),
+                    ))
+                }
+            }
+            ExplanationMode::DaSilva(DaSilvaType::Euclidean) => {
+                if let Some(d) = dim {
+                    event_queue.push(UIEvents::SetSingleExplanationMode(
+                        ExplanationMode::DaSilva(DaSilvaType::VarianceSingle(*d)),
+                        Neighborhood::from(&scene.ui_state.recompute_state),
+                    ))
+                }
+            }
+            _ => {}
         }
+    }
 
-        // All the legend_ids used from drawing
-        // Here the first entry is the one we offset the current ui element from
-        // the second and third are the actual ui element legend_ids.
-        let dimensions = vec![
-            (
-                legend_ids.color_block_0,
-                legend_ids.color_block_1,
-                legend_ids.dropdown_dim_1,
-            ),
-            (
-                legend_ids.color_block_1,
-                legend_ids.color_block_2,
-                legend_ids.dropdown_dim_2,
-            ),
-            (
-                legend_ids.color_block_2,
-                legend_ids.color_block_3,
-                legend_ids.dropdown_dim_3,
-            ),
-            (
-                legend_ids.color_block_3,
-                legend_ids.color_block_4,
-                legend_ids.dropdown_dim_4,
-            ),
-            (
-                legend_ids.color_block_4,
-                legend_ids.color_block_5,
-                legend_ids.dropdown_dim_5,
-            ),
-            (
-                legend_ids.color_block_5,
-                legend_ids.color_block_6,
-                legend_ids.dropdown_dim_6,
-            ),
-            (
-                legend_ids.color_block_6,
-                legend_ids.color_block_7,
-                legend_ids.dropdown_dim_7,
-            ),
-            (
-                legend_ids.color_block_7,
-                legend_ids.color_block_other,
-                legend_ids.text_dim_other,
-            ),
-        ];
+    let dim_dropdown = dim.unwrap_or(&other_rank);
+    if let Some(index) = widget::DropDownList::new(dimension_names.as_slice(), Some(*dim_dropdown))
+        .left_from(legend_ids.color_block_0, 2.0f64)
+        .label_font_size(FONT_SIZE_SMALL)
+        .w(BUTTON_WIDTH)
+        .set(legend_ids.dropdown_dim_0, &mut ui)
+    {
+        event_queue.push(UIEvents::SetRankOverride(0usize, index))
+    }
 
-        for (index, &(offset_id, preview_id, dropdown_id)) in dimensions
-            .iter()
-            // The first dimension is already drawn
-            .take(color_map.dimension_count() - 1)
-            .enumerate()
-        {
-            // Enumerate is 0 indexed, so we add 1 to get the correct offset.
-            let rank = &index + 1usize;
-            // First draw the color preview with the correct color.
-            let color = color_map.get_conrod_color_with_gamma(&rank, scene.get_gamma());
+    // All the legend_ids used from drawing
+    // Here the first entry is the one we offset the current ui element from
+    // the second and third are the actual ui element legend_ids.
+    let dimensions = vec![
+        (
+            legend_ids.color_block_0,
+            legend_ids.color_block_1,
+            legend_ids.dropdown_dim_1,
+        ),
+        (
+            legend_ids.color_block_1,
+            legend_ids.color_block_2,
+            legend_ids.dropdown_dim_2,
+        ),
+        (
+            legend_ids.color_block_2,
+            legend_ids.color_block_3,
+            legend_ids.dropdown_dim_3,
+        ),
+        (
+            legend_ids.color_block_3,
+            legend_ids.color_block_4,
+            legend_ids.dropdown_dim_4,
+        ),
+        (
+            legend_ids.color_block_4,
+            legend_ids.color_block_5,
+            legend_ids.dropdown_dim_5,
+        ),
+        (
+            legend_ids.color_block_5,
+            legend_ids.color_block_6,
+            legend_ids.dropdown_dim_6,
+        ),
+        (
+            legend_ids.color_block_6,
+            legend_ids.color_block_7,
+            legend_ids.dropdown_dim_7,
+        ),
+        (
+            legend_ids.color_block_7,
+            legend_ids.color_block_other,
+            legend_ids.text_dim_other,
+        ),
+    ];
 
+    for (index, &(offset_id, preview_id, dropdown_id)) in dimensions
+        .iter()
+        // The first dimension is already drawn
+        .take(color_map.dimension_count() - 1)
+        .enumerate()
+    {
+        // Enumerate is 0 indexed, so we add 1 to get the correct offset.
+        let rank = &index + 1usize;
+        // First draw the color preview with the correct color.
+        let color = color_map.get_conrod_color_with_gamma(&rank, scene.get_gamma());
+
+        if index == 7usize {
             widget::Canvas::new()
                 .down_from(offset_id, 3.0)
                 .w(COLOR_PREVIEW_SIZE)
@@ -245,27 +289,125 @@ pub fn draw_legends<'a>(
                 .color(color)
                 .set(preview_id, &mut ui);
 
-            if index == 7usize {
-                widget::Text::new("Other dimensions")
-                    .font_size(FONT_SIZE_SMALL)
-                    .left_from(preview_id, 2.0f64)
-                    .w(BUTTON_WIDTH)
-                    .set(dropdown_id, &mut ui);
-            } else {
-                let dim = color_map.get_dimension_from_rank(&rank).unwrap_or(&other_rank);
-                if let Some(index) =
-                    widget::DropDownList::new(dimension_names.as_slice(), Some(*dim))
-                        .left_from(preview_id, 2.0f64)
-                        .label_font_size(FONT_SIZE_SMALL)
-                        .w(BUTTON_WIDTH)
-                        .set(dropdown_id, &mut ui)
-                {
-                    event_queue.push(UIEvents::SetRankOverride(rank, index))
+            widget::Text::new("Other dimensions")
+                .font_size(FONT_SIZE_SMALL)
+                .left_from(preview_id, 2.0f64)
+                .w(BUTTON_WIDTH)
+                .set(dropdown_id, &mut ui);
+        } else {
+            let dim = color_map.get_dimension_from_rank(&rank);
+
+            for _ in widget::Button::new()
+                .down_from(offset_id, 5.0f64)
+                .w(COLOR_PREVIEW_SIZE)
+                .h(COLOR_PREVIEW_SIZE)
+                .color(color)
+                .set(preview_id, &mut ui)
+            {
+                match scene.get_explanation_mode() {
+                    ExplanationMode::DaSilva(DaSilvaType::Variance) => {
+                        if let Some(d) = dim {
+                            event_queue.push(UIEvents::SetSingleExplanationMode(
+                                ExplanationMode::DaSilva(DaSilvaType::VarianceSingle(*d)),
+                                Neighborhood::from(&scene.ui_state.recompute_state),
+                            ))
+                        }
+                    }
+                    ExplanationMode::DaSilva(DaSilvaType::Euclidean) => {
+                        if let Some(d) = dim {
+                            event_queue.push(UIEvents::SetSingleExplanationMode(
+                                ExplanationMode::DaSilva(DaSilvaType::VarianceSingle(*d)),
+                                Neighborhood::from(&scene.ui_state.recompute_state),
+                            ))
+                        }
+                    }
+                    _ => {}
                 }
             }
-        }
-    };
 
+            let dim_dropdown = dim.unwrap_or(&other_rank);
+            if let Some(index) =
+                widget::DropDownList::new(dimension_names.as_slice(), Some(*dim_dropdown))
+                    .left_from(preview_id, 2.0f64)
+                    .label_font_size(FONT_SIZE_SMALL)
+                    .w(BUTTON_WIDTH)
+                    .set(dropdown_id, &mut ui)
+            {
+                event_queue.push(UIEvents::SetRankOverride(rank, index))
+            }
+        }
+    }
+
+    (ui, event_queue)
+}
+
+pub fn draw_single_legend<'a>(
+    mut ui: Box<UiCell<'a>>,
+    mut event_queue: Vec<UIEvents>,
+    scene: &Scene,
+) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
+    let legend_ids = &scene.ui_state.legend_widgets;
+    // Retrieve the color map currently in use
+    let color_map = scene.get_current_color_map();
+    let color = color_map.get_conrod_color_with_gamma(&0usize, scene.get_gamma());
+
+    widget::Button::new()
+        .top_right_with_margin(5.0f64)
+        .w(COLOR_PREVIEW_SIZE)
+        .h(COLOR_PREVIEW_SIZE)
+        .color(color)
+        .set(legend_ids.color_block_0, &mut ui);
+
+    widget::DropDownList::new(&["Low contribution".to_string()], Some(0))
+        .left_from(legend_ids.color_block_0, 2.0f64)
+        .label_font_size(FONT_SIZE_SMALL)
+        .w(BUTTON_WIDTH)
+        .set(legend_ids.dropdown_dim_0, &mut ui);
+
+    widget::Button::new()
+        .down_from(legend_ids.color_block_0, 2.0f64)
+        .w(COLOR_PREVIEW_SIZE)
+        .h(COLOR_PREVIEW_SIZE)
+        .color(color_map.get_conrod_color_with_gamma(&1usize, scene.get_gamma()))
+        .set(legend_ids.color_block_1, &mut ui);
+
+    widget::DropDownList::new(&["High contribution".to_string()], Some(0))
+        .left_from(legend_ids.color_block_1, 2.0f64)
+        .label_font_size(FONT_SIZE_SMALL)
+        .w(BUTTON_WIDTH)
+        .set(legend_ids.dropdown_dim_1, &mut ui);
+
+    match scene.get_explanation_mode() {
+        ExplanationMode::DaSilva(DaSilvaType::VarianceSingle(_)) => {
+            for _ in widget::Button::new()
+                .label("Back to all dimension")
+                .label_font_size(FONT_SIZE_SMALL)
+                .down_from(legend_ids.dropdown_dim_1, 5.0f64)
+                .w(BUTTON_WIDTH)
+                .h(BUTTON_HEIGHT - 2f64)
+                .set(legend_ids.back_button, &mut ui)
+            {
+                event_queue.push(UIEvents::SetExplanationMode(ExplanationMode::DaSilva(
+                    DaSilvaType::Variance,
+                )));
+            }
+        }
+        ExplanationMode::DaSilva(DaSilvaType::EuclideanSingle(_)) => {
+            for _ in widget::Button::new()
+                .label("Back to all dimension")
+                .label_font_size(FONT_SIZE_SMALL)
+                .down_from(legend_ids.dropdown_dim_1, 5.0f64)
+                .w(BUTTON_WIDTH)
+                .h(BUTTON_HEIGHT - 2f64)
+                .set(legend_ids.back_button, &mut ui)
+            {
+                event_queue.push(UIEvents::SetExplanationMode(ExplanationMode::DaSilva(
+                    DaSilvaType::Euclidean,
+                )));
+            }
+        }
+        _ => {}
+    };
     (ui, event_queue)
 }
 
@@ -356,7 +498,10 @@ fn draw_left_general_menu<'a>(
 
     // Button for switching 2D/3D if available
     if scene.dimension_switch_available() {
-        let text = format!("Switch to {}", scene.dimensionality_mode.inverse().to_str());
+        let text = format!(
+            "Switch to {}",
+            scene.dimensionality_mode.inverse().to_string()
+        );
         for _ in widget::Button::new()
             .label(&text)
             .label_font_size(FONT_SIZE - 2)
@@ -364,7 +509,7 @@ fn draw_left_general_menu<'a>(
             .w(BUTTON_WIDTH)
             .h(BUTTON_HEIGHT - 2f64)
             .set(menu_ids.button_dimension_switch, &mut ui)
-    {
+        {
             event_queue.push(UIEvents::DimensionalitySwitch)
         }
     }
@@ -389,11 +534,11 @@ fn draw_right_explanation_settings_menu<'a>(
     fn get_text_and_event(expl: ExplanationMode, scene: &Scene) -> (String, UIEvents) {
         match scene.is_explanation_available(&expl) {
             true => (
-                format!("View to {}", expl.to_str()),
+                format!("View to {}", expl.to_string()),
                 UIEvents::SetExplanationMode(expl),
             ),
             false => (
-                format!("Calculate {}", expl.to_str()),
+                format!("Calculate {}", expl.to_string()),
                 UIEvents::RunExplanationMode(
                     expl,
                     Neighborhood::from(&scene.ui_state.recompute_state),
@@ -444,7 +589,9 @@ fn draw_right_explanation_settings_menu<'a>(
 
     // find the index I should drop
     let drop_index = match scene.get_explanation_mode() {
-        ExplanationMode::None => 0usize,
+        ExplanationMode::None
+        | ExplanationMode::DaSilva(DaSilvaType::EuclideanSingle(_))
+        | ExplanationMode::DaSilva(DaSilvaType::VarianceSingle(_)) => 0usize,
         ExplanationMode::DaSilva(DaSilvaType::Euclidean) => 1usize,
         ExplanationMode::DaSilva(DaSilvaType::Variance) => 2usize,
         ExplanationMode::VanDriel(VanDrielType::MinimalVariance) => 3usize,
@@ -673,7 +820,7 @@ fn draw_right_viewer_settings_menu<'a>(
     // Button for switching render mode
     let text = format!(
         "Switch to {}",
-        scene.get_current_render_mode().inverse().to_str()
+        scene.get_current_render_mode().inverse().to_string()
     );
     for _ in widget::Button::new()
         .label(&text)

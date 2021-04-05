@@ -224,9 +224,9 @@ impl PointRenderer3D {
     fn get_projected_z_value(point: &Point3<f32>, camera: &dyn Camera) -> f32 {
         let h_world_coord = point.to_homogeneous();
         let h_camera_point = camera.transformation() * h_world_coord;
-        match  Point3::from_homogeneous(h_camera_point) {
+        match Point3::from_homogeneous(h_camera_point) {
             Some(projected_point) => projected_point.z,
-            None => f32::NEG_INFINITY
+            None => f32::NEG_INFINITY,
         }
     }
 }
@@ -340,7 +340,8 @@ impl Renderer for PointRenderer3D {
         self.gamma_uniform.upload(&self.gamma);
 
         // Set the shading intensity
-        self.shading_intensity_uniform.upload(&self.shading_intensity);
+        self.shading_intensity_uniform
+            .upload(&self.shading_intensity);
 
         let ctxt = Context::get();
 

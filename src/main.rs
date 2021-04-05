@@ -7,7 +7,7 @@ use pc::search::{PointContainer2D, PointContainer3D};
 use std::{convert::TryFrom, path::Path, process::exit};
 
 // Third party imports
-use clap::{crate_version, App, Arg, ArgMatches, SubCommand, AppSettings};
+use clap::{crate_version, App, AppSettings, Arg, ArgMatches, SubCommand};
 
 // Local imports
 use pc::{

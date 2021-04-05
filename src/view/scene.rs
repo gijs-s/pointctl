@@ -105,7 +105,7 @@ impl Scene {
             }
             false => println!(
                 "Cannot switch to {0} since there is no {0} state loaded",
-                self.dimensionality_mode.to_str()
+                self.dimensionality_mode.to_string()
             ),
         }
     }
@@ -213,6 +213,14 @@ impl Scene {
                 UIEvents::RunExplanationMode(mode, neighborhood, theta) => {
                     self.ui_state.recompute_state.update(neighborhood);
                     self.run_explanation_mode(mode, neighborhood, theta)
+                }
+                UIEvents::SetSingleExplanationMode(mode, neighborhood) => {
+                    self.ui_state.recompute_state.update(neighborhood);
+                    if self.is_explanation_available(&mode) {
+                        self.set_explanation_mode(mode);
+                    } else {
+                        self.run_explanation_mode(mode, neighborhood, None);
+                    };
                 }
                 // UI specific
                 UIEvents::UpdateUINeighborhood(neighborhood) => {
@@ -363,7 +371,6 @@ impl VisualizationStateInteraction for Scene {
             .toggle_color_map_confidence_normalization()
     }
 
-
     /// Set an override to from rank to a dimension in the current color map
     fn set_rank_dimension_override(&mut self, rank: usize, dimension: usize) {
         self.current_state_mut()
@@ -374,7 +381,6 @@ impl VisualizationStateInteraction for Scene {
     fn reset_rank_overrides(&mut self) {
         self.current_state_mut().reset_rank_overrides();
     }
-
 
     /// Get the point count of the currently used state
     fn get_point_count(&self) -> usize {

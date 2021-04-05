@@ -1,9 +1,9 @@
 //! Module containing the structs used throughout the search structure
 
-/// Build in imports
-use std::fmt;
 use std::path::Path;
 use std::process::exit;
+/// Build in imports
+use std::{collections::HashMap, fmt};
 
 /// Third party imports
 use rstar::RTree;
@@ -47,6 +47,8 @@ pub struct PointData2D {
     pub driel_total: Option<VanDrielExplanation>,
     pub silva_var: Option<DaSilvaExplanation>,
     pub silva_euclidean: Option<DaSilvaExplanation>,
+    // Stores the explanation based on a single attribute.
+    pub silva_single: HashMap<usize, f32>,
 }
 
 impl Into<na::Point2<f32>> for PointData2D {
@@ -69,6 +71,7 @@ impl PointData2D {
             driel_total: None,
             silva_var: None,
             silva_euclidean: None,
+            silva_single: HashMap::new(),
         }
     }
 }
@@ -83,6 +86,8 @@ pub struct PointData3D {
     pub driel_total: Option<VanDrielExplanation>,
     pub silva_var: Option<DaSilvaExplanation>,
     pub silva_euclidean: Option<DaSilvaExplanation>,
+    // Stores the explanation based on a single attribute.
+    pub silva_single: HashMap<usize, f32>,
 }
 
 impl Into<na::Point3<f32>> for PointData3D {
@@ -106,6 +111,7 @@ impl PointData3D {
             driel_total: None,
             silva_var: None,
             silva_euclidean: None,
+            silva_single: HashMap::new(),
         }
     }
 }
@@ -163,16 +169,7 @@ impl PointContainer2D {
                     [x, y] => na::Point2::<f32>::new(x, y),
                     _ => panic!("Point have an incorrect length"),
                 };
-
-                PointData2D {
-                    index: index as u32,
-                    low: low_point,
-                    high: high.to_vec(),
-                    driel_min: None,
-                    driel_total: None,
-                    silva_var: None,
-                    silva_euclidean: None,
-                }
+                PointData2D::new(index as u32, low_point, high.to_vec())
             })
             .collect::<Vec<PointData2D>>();
 
@@ -233,16 +230,7 @@ impl PointContainer3D {
                     _ => panic!("Point have an incorrect length"),
                 };
 
-                PointData3D {
-                    index: index as u32,
-                    low: low_point,
-                    high: high.to_vec(),
-                    normal: None,
-                    driel_min: None,
-                    driel_total: None,
-                    silva_var: None,
-                    silva_euclidean: None,
-                }
+                PointData3D::new(index as u32, low_point, high.to_vec())
             })
             .collect::<Vec<PointData3D>>();
 

@@ -12,14 +12,16 @@ pub enum RenderMode {
     Continuous,
 }
 
-impl RenderMode {
-    pub fn to_str(self) -> String {
+impl ToString for RenderMode {
+    fn to_string(&self) -> String {
         match self {
             RenderMode::Discreet => "Discreet".to_string(),
             RenderMode::Continuous => "Continous".to_string(),
         }
     }
+}
 
+impl RenderMode {
     /// Get the inverse of the current value
     pub fn inverse(self) -> Self {
         match self {
@@ -65,9 +67,13 @@ pub trait PointRendererInteraction {
     fn get_default_blob_size(&self) -> f32;
 
     /// Get the shading intensity
-    fn get_shading_intensity(&self) -> f32 { self.get_default_shading_intensity() }
+    fn get_shading_intensity(&self) -> f32 {
+        self.get_default_shading_intensity()
+    }
     /// Set the shading intensity
-    fn set_shading_intensity(&mut self, _intensity: f32) { }
+    fn set_shading_intensity(&mut self, _intensity: f32) {}
     /// Get the default shading intensity
-    fn get_default_shading_intensity(&self) -> f32 { 1.0f32 }
+    fn get_default_shading_intensity(&self) -> f32 {
+        1.0f32
+    }
 }

@@ -65,12 +65,11 @@ impl<'a> NormalState<'a> {
             })
             .collect();
 
-
         match neighbor_points.len() {
             // We cannot do anything without a neighborhood
             0 => NormalExplanation {
-                 normal: na::Point3::<f32>::new(1f32, 0f32,0f32),
-                 eccentricity: 1f32
+                normal: na::Point3::<f32>::new(1f32, 0f32, 0f32),
+                eccentricity: 1f32,
             },
             _ => {
                 // Get the covariance matrix and the eigen values / vectors
@@ -83,7 +82,9 @@ impl<'a> NormalState<'a> {
                 let (index, _) = values
                     .iter()
                     .enumerate()
-                    .min_by(|(_, val_a), (_, val_b)| val_a.partial_cmp(&val_b).unwrap_or(Ordering::Equal))
+                    .min_by(|(_, val_a), (_, val_b)| {
+                        val_a.partial_cmp(&val_b).unwrap_or(Ordering::Equal)
+                    })
                     .unwrap();
 
                 let min = values.iter().fold(f32::INFINITY, |a, &b| a.min(b));
@@ -99,6 +100,5 @@ impl<'a> NormalState<'a> {
                 }
             }
         }
-
     }
 }

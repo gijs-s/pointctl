@@ -24,7 +24,6 @@ struct State {
     open: bool,
     selected: usize,
     ids: Ids,
-
 }
 
 // Main display function

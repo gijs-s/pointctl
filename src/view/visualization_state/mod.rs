@@ -136,7 +136,8 @@ where
 
     /// Set the shading intensity
     fn set_shading_intensity(&mut self, intensity: f32) {
-        self.current_render_mode_mut().set_shading_intensity(intensity);
+        self.current_render_mode_mut()
+            .set_shading_intensity(intensity);
     }
 
     /// Get the default shading intensity

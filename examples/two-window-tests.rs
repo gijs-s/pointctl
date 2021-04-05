@@ -1,6 +1,5 @@
 //! having raw gl windows works, 2 kiss3d windows does not. kiss3d does some dark
 /// incantations with the framebuffer that seems to corrupt when multiple windows are in use.
-
 extern crate kiss3d;
 extern crate nalgebra as na;
 
