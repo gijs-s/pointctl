@@ -142,7 +142,7 @@ pub fn draw_info_text<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<
 /// Draw the color legend in the top right
 pub fn draw_legends<'a>(
     mut ui: Box<UiCell<'a>>,
-    mut event_queue: Vec<UIEvents>,
+    event_queue: Vec<UIEvents>,
     scene: &Scene,
 ) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
     // Retrieve the color map currently in use
@@ -170,7 +170,7 @@ pub fn draw_legends<'a>(
 /// Draw the color legend in the top right
 pub fn draw_default_legends<'a>(
     mut ui: Box<UiCell<'a>>,
-    event_queue: Vec<UIEvents>,
+    mut event_queue: Vec<UIEvents>,
     scene: &Scene,
 ) -> (Box<UiCell<'a>>, Vec<UIEvents>) {
     let legend_ids = &scene.ui_state.legend_widgets;
