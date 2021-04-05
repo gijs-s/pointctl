@@ -358,7 +358,7 @@ pub fn draw_single_legend<'a>(
         .color(color)
         .set(legend_ids.color_block_0, &mut ui);
 
-    widget::DropDownList::new(&["Low contribution".to_string()], Some(0))
+    widget::DropDownList::new(&["Low local contribution".to_string()], Some(0))
         .left_from(legend_ids.color_block_0, 2.0f64)
         .label_font_size(FONT_SIZE_SMALL)
         .w(BUTTON_WIDTH)
@@ -371,7 +371,7 @@ pub fn draw_single_legend<'a>(
         .color(color_map.get_conrod_color_with_gamma(&1usize, scene.get_gamma()))
         .set(legend_ids.color_block_1, &mut ui);
 
-    widget::DropDownList::new(&["High contribution".to_string()], Some(0))
+    widget::DropDownList::new(&["High local contribution".to_string()], Some(0))
         .left_from(legend_ids.color_block_1, 2.0f64)
         .label_font_size(FONT_SIZE_SMALL)
         .w(BUTTON_WIDTH)

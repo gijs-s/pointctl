@@ -286,7 +286,7 @@ impl ColorMap {
     /// When using only the confidence get a color between green and red that denotes the confidence
     fn get_ordinal_shade(conf: f32) -> Point3<f32> {
         // In HSV space 0 is red and 0.3 is green.
-        Point3::new(0.3 * conf, 1.0, 1.0)
+        Point3::new(0.3 - 0.3 * conf, 1.0, 1.0)
     }
 
     /// Scale a color in hsv.
