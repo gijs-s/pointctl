@@ -150,9 +150,9 @@ impl Scene {
         }
     }
 
-    /// Get the all the dimension names
-    pub fn get_dimension_names(&self) -> Vec<String> {
-        let dimension_names: Vec<String> = match self.dimensionality_mode {
+    /// Get all the attribute names
+    pub fn get_attribute_names(&self) -> Vec<String> {
+        match self.dimensionality_mode {
             DimensionalityMode::TwoD => match &self.state_2d {
                 None => vec![],
                 Some(state) => {
@@ -167,8 +167,12 @@ impl Scene {
                     values.clone()
                 }
             },
-        };
+        }
+    }
 
+    /// Get the all the attribute names relevant to the current explanation
+    pub fn get_dimension_names(&self) -> Vec<String> {
+        let dimension_names: Vec<String> = self.get_attribute_names();
         match self.get_explanation_mode() {
             ExplanationMode::DaSilva(_) => dimension_names,
             ExplanationMode::VanDriel(_) => (1..=dimension_names.len())

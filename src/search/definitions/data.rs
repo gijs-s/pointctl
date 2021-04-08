@@ -2,6 +2,7 @@
 
 use std::path::Path;
 use std::process::exit;
+
 /// Build in imports
 use std::{collections::HashMap, fmt};
 
@@ -286,10 +287,11 @@ impl PointContainer3D {
         ray_direction: &na::Vector3<f32>,
         point: &na::Point3<f32>,
     ) -> f32 {
-        let v = point - ray_origin;
+        // Get the direction from the origin to the point
+        let v: na::Vector3<f32> = point - ray_origin;
         let t: f32 = v.dot(ray_direction);
         // Point projected onto the line, closest point along the line from A
-        let p = ray_origin + t * ray_direction;
+        let p: na::Point3<f32> = ray_origin + t * ray_direction;
         na::distance(&p, point)
     }
 
@@ -357,8 +359,8 @@ impl From<&PointData3D> for UIPointData {
     }
 }
 
-impl ToString for UIPointData {
-    fn to_string(&self) -> String {
+impl UIPointData {
+    pub fn ui_string(&self, attribute_names: Vec<String>) -> String {
         // Add the first line, index and coords.
         let mut res = format!("Index: {}", self.index);
         res.push_str(&match &self.z {
@@ -368,29 +370,33 @@ impl ToString for UIPointData {
         // Show all the explanations.
         if let Some(expl) = self.silva_var {
             res.push_str(&format!(
-                "\nAttribute-based (Variance):\n  Attribute: {}, Confidence {:.3}",
-                expl.attribute_index, expl.confidence
+                "\nAttribute-based (Variance):\n  Confidence {:.3}, Attribute: {}",
+                expl.confidence, attribute_names[expl.attribute_index]
             ));
         }
         if let Some(expl) = self.silva_euclidean {
             res.push_str(&format!(
-                "\nAttribute-based (Euclidean):\n  Attribute: {}, Confidence {:.3}",
-                expl.attribute_index, expl.confidence
+                "\nAttribute-based (Euclidean):\n  Confidence {:.3}, Attribute: {}",
+                expl.confidence, attribute_names[expl.attribute_index]
             ));
         }
         if let Some(expl) = self.driel_min {
             res.push_str(&format!(
-                "\nDimensionality-based (min):\n  Dimensions: {}, Confidence {:.3}",
-                expl.dimension, expl.confidence
+                "\nDimensionality-based (min):\n  Confidence {:.3}, Dimensions: {}",
+                expl.confidence, expl.dimension
             ));
         }
         if let Some(expl) = self.driel_total {
             res.push_str(&format!(
-                "\nDimensionality-based (total):\n  Dimensions: {}, Confidence {:.3}",
-                expl.dimension, expl.confidence
+                "\nDimensionality-based (total):\n  Confidence {:.3}, Dimensions: {}",
+                expl.confidence, expl.dimension
             ));
         }
         // Show the values in the original dataset
+        res.push_str("\n\nOriginal values:");
+        for (value, name) in self.high.iter().zip(attribute_names) {
+            res.push_str(&format!("\n {:.4} - {}", value, name));
+        }
         res
     }
 }
