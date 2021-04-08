@@ -280,13 +280,35 @@ impl PointContainer3D {
         }
     }
 
-    /// TODO: ACTUALLY FIND A POINT
+    /// Compute the distance from a point to a ray
+    fn distance_to_line(
+        ray_origin: &na::Point3<f32>,
+        ray_direction: &na::Vector3<f32>,
+        point: &na::Point3<f32>,
+    ) -> f32 {
+        let v = point - ray_origin;
+        let t: f32 = v.dot(ray_direction);
+        // Point projected onto the line, closest point along the line from A
+        let p = ray_origin + t * ray_direction;
+        na::distance(&p, point)
+    }
+
+    /// Get the the point closest to the line, note that this linear scan is a bit slow
     pub fn get_closest_point(
         &self,
         ray_origin: na::Point3<f32>,
         ray_direction: na::Vector3<f32>,
     ) -> Option<&PointData3D> {
-        None
+        // Distance and point index
+        let mut closest: (f32, Option<usize>) = (f32::INFINITY, None);
+        for indexed_point in self.get_tree_low().iter() {
+            let distance = Self::distance_to_line(&ray_origin, &ray_direction, &indexed_point.point);
+            if distance < closest.0 {
+                closest = (distance, Some(indexed_point.index as usize));
+            }
+        }
+        // If index is not none get the point data
+        closest.1.and_then(|index| Some(&self.point_data[index]))
     }
 }
 
