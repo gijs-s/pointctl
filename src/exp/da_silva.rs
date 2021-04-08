@@ -104,7 +104,7 @@ impl ToString for DaSilvaType {
         match self {
             DaSilvaType::Euclidean => "Euclidean".to_string(),
             DaSilvaType::Variance => "Variance".to_string(),
-            DaSilvaType::EuclideanSingle(attr) => format!("Euclidian for attribute {}", attr),
+            DaSilvaType::EuclideanSingle(attr) => format!("Euclidean for attribute {}", attr),
             DaSilvaType::VarianceSingle(attr) => format!("Variance for attribute {}", attr),
         }
     }
