@@ -2,7 +2,7 @@
 
 // First party imports
 use super::widget_ids::*;
-use crate::exp::Neighborhood;
+use crate::{exp::Neighborhood, search::UIPointData};
 
 /// The state of the UI. This tracks the widgets on screen, which menus are open, and values that
 /// have not been submitted yet.
@@ -17,6 +17,8 @@ pub struct UIState {
     pub recompute_state: RecomputeButtonState,
     // "theta" value used in the van driel computation
     pub theta: f32,
+    // Reference to the closest point currently in view.
+    pub selected_point: Option<UIPointData>,
 }
 
 impl UIState {
@@ -28,6 +30,7 @@ impl UIState {
             open_menu: OpenSettingsMenu::ExplanationSettings,
             recompute_state: RecomputeButtonState::new(),
             theta: 0.05,
+            selected_point: None
         }
     }
 }

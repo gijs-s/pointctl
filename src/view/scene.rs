@@ -21,7 +21,7 @@ use super::{
 };
 use crate::{
     exp,
-    search::{PointContainer2D, PointContainer3D},
+    search::{PointContainer2D, PointContainer3D, UIPointData},
     view::{
         ui::draw_overlay, ColorMap, DimensionalityMode, PointRendererInteraction,
         VisualizationState2D, VisualizationState3D, VisualizationStateInteraction,
@@ -286,6 +286,15 @@ impl Scene {
                 | WindowEvent::Close => {
                     window.close();
                 }
+                WindowEvent::CursorPos(x, y, _) => {
+                    let window_size: na::Vector2<f32> = {
+                        let size_x = window.size().x as f32;
+                        let size_y = window.size().y as f32;
+                        na::Vector2::<f32>::new(size_x, size_y)
+                    };
+                    let tooltip = self.get_point_tooltip(x as f32, y as f32 , window_size);
+                    self.ui_state.selected_point = tooltip;
+                }
                 _ => (),
             }
         }
@@ -390,6 +399,10 @@ impl VisualizationStateInteraction for Scene {
     /// Scale the current camera step size
     fn scale_camera_step(&mut self, scale: f32) {
         self.current_state_mut().scale_camera_step(scale)
+    }
+
+    fn get_point_tooltip(&self, cursor_x: f32, cursor_y: f32, window_size: na::Vector2<f32>) -> Option<UIPointData> {
+        self.current_state().get_point_tooltip(cursor_x, cursor_y, window_size)
     }
 }
 

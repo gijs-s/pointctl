@@ -12,7 +12,7 @@ mod load;
 // Re-export the public facing parts of this module
 pub use self::{
     definitions::{
-        Distance, IndexedPoint, PointContainer2D, PointContainer3D, PointData2D, PointData3D,
+        Distance, IndexedPoint, PointContainer2D, PointContainer3D, PointData2D, PointData3D, UIPointData
     },
     interface::PointContainer,
     load::Load,

@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 /// Third party imports
-use kiss3d::camera::ArcBall;
+use kiss3d::camera::{ArcBall, Camera};
 use na::Point3;
 
 use super::VisualizationStateInteraction;
@@ -12,7 +12,7 @@ use super::VisualizationStateInteraction;
 use crate::{
     exp,
     exp::{DaSilvaExplanation, DaSilvaType, NormalExplanation, VanDrielExplanation, VanDrielType},
-    search::{Load, PointContainer, PointContainer3D},
+    search::{Load, PointContainer, PointContainer3D, UIPointData},
     view::{point_renderer::PointRenderer3D, ColorMap, ExplanationMode, PointRendererInteraction},
 };
 
@@ -286,6 +286,21 @@ impl VisualizationStateInteraction for VisualizationState3D {
     /// Scale the current camera step size
     fn scale_camera_step(&mut self, scale: f32) {
         self.camera.set_dist_step(self.camera.dist_step() * scale);
+    }
+
+    /// Get the tooltip for the point closest to the cursor position
+    fn get_point_tooltip(
+        &self,
+        cursor_x: f32,
+        cursor_y: f32,
+        window_size: na::Vector2<f32>,
+    ) -> Option<UIPointData> {
+        let screen_pos = na::Point2::<f32>::new(cursor_x, cursor_y);
+        let (ray_origin, ray_direction): (na::Point3<f32>, na::Vector3<f32>) =
+            self.camera.unproject(&screen_pos, &window_size);
+        self.point_container
+            .get_closest_point(ray_origin, ray_direction)
+            .and_then(|point| Some(UIPointData::from(point)))
     }
 }
 

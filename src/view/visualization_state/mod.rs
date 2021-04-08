@@ -5,10 +5,7 @@ mod state_3d;
 pub use self::{state_2d::VisualizationState2D, state_3d::VisualizationState3D};
 
 /// First party imports
-use crate::{
-    exp::Neighborhood,
-    view::{ColorMap, ExplanationMode, PointRendererInteraction, RenderMode},
-};
+use crate::{exp::Neighborhood, search::UIPointData, view::{ColorMap, ExplanationMode, PointRendererInteraction, RenderMode}};
 
 /// Common functions used to interact with the scene
 pub trait VisualizationStateInteraction {
@@ -53,6 +50,9 @@ pub trait VisualizationStateInteraction {
 
     /// Scale the current camera step size
     fn scale_camera_step(&mut self, scale: f32);
+
+    // Get closed point to cursor position
+    fn get_point_tooltip(&self, cursor_x: f32, cursor_y: f32, window_size: na::Vector2<f32>) -> Option<UIPointData>;
 }
 
 impl<T> PointRendererInteraction for T

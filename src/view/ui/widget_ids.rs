@@ -11,6 +11,9 @@ widget_ids! {
         text_render_mode,
         text_explanation_mode,
         text_error,
+        // Tooltip
+        text_tooltip
+
     }
 }
 

@@ -4,7 +4,8 @@
 use std::collections::HashMap;
 
 /// Third party imports
-use kiss3d::planar_camera::Sidescroll;
+use kiss3d::planar_camera::{PlanarCamera, Sidescroll};
+
 use na::{Point2, Point3};
 
 use super::VisualizationStateInteraction;
@@ -12,7 +13,7 @@ use super::VisualizationStateInteraction;
 use crate::{
     exp,
     exp::{DaSilvaExplanation, DaSilvaType, VanDrielExplanation, VanDrielType},
-    search::{Load, PointContainer, PointContainer2D},
+    search::{Load, PointContainer, PointContainer2D, UIPointData},
     view::{point_renderer::PointRenderer2D, ColorMap, ExplanationMode, PointRendererInteraction},
 };
 
@@ -246,6 +247,20 @@ impl VisualizationStateInteraction for VisualizationState2D {
     /// Scale the current camera step size
     fn scale_camera_step(&mut self, scale: f32) {
         self.camera.set_zoom_step(self.camera.zoom_step() * scale);
+    }
+
+    /// Get the tooltip for the point closest to the cursor position
+    fn get_point_tooltip(
+        &self,
+        cursor_x: f32,
+        cursor_y: f32,
+        window_size: na::Vector2<f32>,
+    ) -> Option<UIPointData> {
+        let screen_pos = Point2::<f32>::new(cursor_x, cursor_y);
+        let world_pos = self.camera.unproject(&screen_pos, &window_size);
+        self.point_container
+            .get_closest_point(world_pos.x, world_pos.y)
+            .and_then(|point| Some(UIPointData::from(point)))
     }
 }
 

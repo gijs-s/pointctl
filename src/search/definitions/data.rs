@@ -210,6 +210,15 @@ impl PointContainer2D {
             projection_width,
         }
     }
+
+    /// Get the point closest to these world coordinates. Returns none if there are no points
+    pub fn get_closest_point(&self, x: f32, y: f32) -> Option<&PointData2D> {
+        self.tree_low
+            .nearest_neighbor_iter(&[x, y])
+            .map(|ind| ind.index)
+            .next()
+            .and_then(|index| Some(&self.point_data[index as usize]))
+    }
 }
 
 impl PointContainer3D {
@@ -269,5 +278,97 @@ impl PointContainer3D {
             dimensionality: dimension_count,
             projection_width,
         }
+    }
+
+    /// TODO: ACTUALLY FIND A POINT
+    pub fn get_closest_point(
+        &self,
+        ray_origin: na::Point3<f32>,
+        ray_direction: na::Vector3<f32>,
+    ) -> Option<&PointData3D> {
+        None
+    }
+}
+
+/// Easy to use generic format for showing a tooltip in the frontend
+pub struct UIPointData {
+    pub index: u32,
+    pub x: f32,
+    pub y: f32,
+    pub z: Option<f32>,
+    pub high: Vec<f32>,
+    pub driel_min: Option<VanDrielExplanation>,
+    pub driel_total: Option<VanDrielExplanation>,
+    pub silva_var: Option<DaSilvaExplanation>,
+    pub silva_euclidean: Option<DaSilvaExplanation>,
+}
+
+impl From<&PointData2D> for UIPointData {
+    fn from(p: &PointData2D) -> Self {
+        UIPointData {
+            index: p.index,
+            x: p.low.x,
+            y: p.low.y,
+            z: None,
+            high: p.high.clone(),
+            driel_min: p.driel_min,
+            driel_total: p.driel_total,
+            silva_var: p.silva_var,
+            silva_euclidean: p.silva_euclidean,
+        }
+    }
+}
+
+impl From<&PointData3D> for UIPointData {
+    fn from(p: &PointData3D) -> Self {
+        UIPointData {
+            index: p.index,
+            x: p.low.x,
+            y: p.low.y,
+            z: Some(p.low.z),
+            high: p.high.clone(),
+            driel_min: p.driel_min,
+            driel_total: p.driel_total,
+            silva_var: p.silva_var,
+            silva_euclidean: p.silva_euclidean,
+        }
+    }
+}
+
+impl ToString for UIPointData {
+    fn to_string(&self) -> String {
+        // Add the first line, index and coords.
+        let mut res = format!("Index: {}", self.index);
+        res.push_str(&match &self.z {
+            Some(z) => format!(" ({:.3}, {:.3}, {:.3})", self.x, self.y, z),
+            None => format!(" ({:.3}, {:.3})", self.x, self.y),
+        });
+        // Show all the explanations.
+        if let Some(expl) = self.silva_var {
+            res.push_str(&format!(
+                "\nAttribute-based (Variance):\n  Attribute: {}, Confidence {:.3}",
+                expl.attribute_index, expl.confidence
+            ));
+        }
+        if let Some(expl) = self.silva_euclidean {
+            res.push_str(&format!(
+                "\nAttribute-based (Euclidean):\n  Attribute: {}, Confidence {:.3}",
+                expl.attribute_index, expl.confidence
+            ));
+        }
+        if let Some(expl) = self.driel_min {
+            res.push_str(&format!(
+                "\nDimensionality-based (min):\n  Dimensions: {}, Confidence {:.3}",
+                expl.dimension, expl.confidence
+            ));
+        }
+        if let Some(expl) = self.driel_total {
+            res.push_str(&format!(
+                "\nDimensionality-based (total):\n  Dimensions: {}, Confidence {:.3}",
+                expl.dimension, expl.confidence
+            ));
+        }
+        // Show the values in the original dataset
+        res
     }
 }

@@ -128,6 +128,14 @@ pub fn draw_info_text<'a>(mut ui: Box<UiCell<'a>>, scene: &Scene) -> Box<UiCell<
         .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
         .set(info_ids.text_point_count, &mut ui);
 
+    if let Some(tooltip) = &scene.ui_state.selected_point {
+        widget::Text::new(&tooltip.to_string())
+            .font_size(FONT_SIZE_SMALL)
+            .down_from(info_ids.text_point_count, 8.0f64)
+            .color(Color::Rgba(0.0, 0.0, 0.0, 1.0))
+            .set(info_ids.text_tooltip, &mut ui);
+    }
+
     // Draw error if no data is present
     if !scene.initialized() {
         widget::Text::new("No reduction data was loaded, can not display anything\nplease consult 'pointctl --help'")
