@@ -17,7 +17,7 @@ clap = "^2.33.1"
 kiss3d = { git = "https://github.com/gijs-s/kiss3d", branch = "master", features= ['conrod']}
 # kiss3d = { path = '../kiss3d', features = ['conrod']}
 # glutin = "*"
-nalgebra = "*"
+nalgebra = "^0.25"
 # Used for generarting random points
 rand = "*"
 rand_distr = "0.4.0"
