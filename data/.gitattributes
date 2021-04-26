@@ -8,3 +8,4 @@ nd-clusters/ filter=lfs diff=lfs merge=lfs -text
 Software/ filter=lfs diff=lfs merge=lfs -text
 Wine/ filter=lfs diff=lfs merge=lfs -text
 WisconsinBreastCancer/ filter=lfs diff=lfs merge=lfs -text
+Reuters/ filter=lfs diff=lfs merge=lfs -text

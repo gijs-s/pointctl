@@ -15,7 +15,7 @@ pointctl --help
 cargo run -- --help
 
 # Example call with included dataset (running a release build)
-pointctl view --input data/winequality/winequality-src-both.csv --r3d data/winequality/winequality-tsne-3d.csv  --r2d data/winequality/winequality-lamp-both-2d.csv
+pointctl view --input data/Wine/winequality-src-both.csv --r3d data/Wine/winequality-tsne-3d.csv  --r2d data/Wine/winequality-lamp-both-2d.csv
 ```
 
 In this example call the `-i` is the original nd data and `--r3d` is the data projected to 3d (same for `--r2d` and `2d`). The files need to be in a `csv` file with a header and `;` as seperator. During my testing I often used the `to_csv` function from pythons `pandas` library, python makes it easy to load in many formats and then you can simply call `df.to_csv('file.csv', header=True, index=False, sep=';')` to store it in the correct format.
